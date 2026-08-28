@@ -1,0 +1,17 @@
+name = "RandomDo"
+defaultTargets = ["RandomDo"]
+lintDriver = "batteries/runLinter"
+
+[leanOptions]
+pp.unicode.fun = true
+autoImplicit = false
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+
+[[require]]
+name = "LeanMachineLearning"
+git = "https://github.com/LeanMachineLearning/LML"
+rev = "main"
+
+[[lean_lib]]
+name = "RandomDo"
