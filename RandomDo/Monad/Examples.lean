@@ -57,15 +57,7 @@ def sampleBitsArray [HasBit m] (n : ℕ) : m (Array Bool) := rdo
     xs := xs.push b
   return xs
 
-/- # `for` over several collections
-
-A `for` loop over several collections is expanded into a loop over the first one whose body reads
-the remaining ones off a `Std.Stream` held in a mutable variable. That body has to stay part of the
-surrounding `rdo` block: expanding it into a fresh `rdo` block instead puts the mutable variables
-declared before the loop out of scope, and reassigning one of them is then rejected.
-
-The loops below are run in a deterministic monad so that the tests can pin the value the loop
-computes, not merely that it elaborates. -/
+/- # `for` over several collections -/
 
 section MultiCollectionFor
 
