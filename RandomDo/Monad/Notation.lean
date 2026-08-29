@@ -138,7 +138,7 @@ def rdoForDecl := leading_parser
           | none => break
           | some ($y, s') =>
             $s:ident := s'
-            rdo $body)
+            do $body)
     doElems := doElems.push (← `(doSeqItem| for%$tk $[$h? : ]? $x:ident in $xs rdo $body))
     `(doElem| do $doElems*)
   | _ => Macro.throwUnsupported
