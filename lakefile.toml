@@ -1,6 +1,7 @@
 name = "RandomDo"
-defaultTargets = ["RandomDo", "Test"]
+defaultTargets = ["RandomDo"]
 lintDriver = "batteries/runLinter"
+testDriver = "Test"
 
 [leanOptions]
 pp.unicode.fun = true

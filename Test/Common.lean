@@ -1,6 +1,7 @@
 module
 
 public import RandomDo
+public import Mathlib.Probability.Distributions.Bernoulli
 
 set_option linter.style.header false
 

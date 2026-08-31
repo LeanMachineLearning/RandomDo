@@ -20,13 +20,13 @@ section MeasurableSpace
 
 variable {α : Type*} [MeasurableSpace α]
 
-instance : MeasurableSpace (List α) :=
+instance instMeasurableSpaceList : MeasurableSpace (List α) :=
   MeasurableSpace.comap List.equivSigmaTuple inferInstance
 
-instance : MeasurableSpace (Array α) :=
+instance instMeasurableSpaceArray : MeasurableSpace (Array α) :=
   MeasurableSpace.comap Array.toList inferInstance
 
-instance {n : ℕ} : MeasurableSpace (Vector α n) :=
+instance instMeasurableSpaceVector {n : ℕ} : MeasurableSpace (Vector α n) :=
   MeasurableSpace.comap Vector.toArray inferInstance
 
 @[fun_prop]
@@ -52,7 +52,7 @@ section Array
   {β : Type u} [mβ : MeasurableSpace β]
   (as : Array α) (b : β) (f : (a : α) → a ∈ as → β → m (ForInStep β)) : m β :=
   let sz := as.usize
-  let rec @[specialize] loop (i : USize) (b : β) : m β := rdo
+  let rec @[specialize, nolint docBlame] loop (i : USize) (b : β) : m β := rdo
     if i < sz then
       let a := as.uget i lcProof
       match (← f a lcProof b) with
@@ -67,7 +67,7 @@ section Array
 protected def Array.measurableSpaceForIn' [MeasurableSpaceMonad m]
   {β : Type u} [mβ : MeasurableSpace β]
   (as : Array α) (b : β) (f : (a : α) → a ∈ as → β → m (ForInStep β)) : m β :=
-  let rec loop (i : Nat) (h : i ≤ as.size) (b : β) : m β := rdo
+  let rec @[nolint docBlame] loop (i : Nat) (h : i ≤ as.size) (b : β) : m β := rdo
     match i, h with
     | 0,   _ => mPure b
     | i+1, h =>
@@ -97,7 +97,7 @@ variable {α β : Type*} [MeasurableSpace α] [MeasurableSpace β] [Ring α]
 protected def List.measurableSpaceForIn' [MeasurableSpaceMonad m]
     {β : Type u} [mβ : MeasurableSpace β] (as : @& List α) (init : β)
     (f : (a : α) → a ∈ as → β → m (ForInStep β)) : m β :=
-  let rec @[specialize]
+  let rec @[specialize, nolint docBlame]
     loop : (as' : @& List α) → (b : β) → Exists (fun bs => bs ++ as' = as) → m β
       | [], b, _    => mPure b
       | a::as', b, h => rdo

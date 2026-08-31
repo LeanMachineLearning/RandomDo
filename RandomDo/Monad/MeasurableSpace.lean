@@ -142,8 +142,6 @@ variable {f : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
     g₁ <$>ₘ g₀ <$>ₘ x = (fun a => g₁ (g₀ a)) <$>ₘ x :=
   (comp_mMap x hg₀ hg₁).symm
 
-@[simp] theorem mMap_unit {a : f PUnit} : (fun _ => PUnit.unit) <$>ₘ a = a := by simp
-
 open MeasurableSpaceBind MeasurableSpacePure MeasurableSpaceFunctor
 
 /-- A `MeasurableSpaceMonad` satisfies the measurable space monad laws. -/
