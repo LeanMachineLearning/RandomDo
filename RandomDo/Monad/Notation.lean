@@ -63,6 +63,7 @@ def randOps : DoOps := { DoOps.default with
     return mkApp2 m α σ
   }
 
+/-- The `do` notation for writing monadic programs depending on a `MeasurableSpace` instance. -/
 syntax (name := randKind) "rdo" doSeq : term
 
 /-- Define `rdo` notation elaborator. -/
