@@ -1,6 +1,7 @@
 name = "RandomDo"
 defaultTargets = ["RandomDo"]
 lintDriver = "batteries/runLinter"
+testDriver = "Test"
 
 [leanOptions]
 pp.unicode.fun = true
@@ -15,3 +16,6 @@ rev = "main"
 
 [[lean_lib]]
 name = "RandomDo"
+
+[[lean_lib]]
+name = "Test"

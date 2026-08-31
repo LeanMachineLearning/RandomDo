@@ -63,6 +63,7 @@ def randOps : DoOps := { DoOps.default with
     return mkApp2 m α σ
   }
 
+/-- The `do` notation for writing monadic programs depending on a `MeasurableSpace` instance. -/
 syntax (name := randKind) "rdo" doSeq : term
 
 /-- Define `rdo` notation elaborator. -/
@@ -138,7 +139,7 @@ def rdoForDecl := leading_parser
           | none => break
           | some ($y, s') =>
             $s:ident := s'
-            rdo $body)
+            do $body)
     doElems := doElems.push (← `(doSeqItem| for%$tk $[$h? : ]? $x:ident in $xs rdo $body))
     `(doElem| do $doElems*)
   | _ => Macro.throwUnsupported
