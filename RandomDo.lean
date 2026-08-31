@@ -2,7 +2,6 @@ module  -- shake: keep-all --deprecated_module: ignore
 
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.Measurable
-public import RandomDo.Monad.Examples
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.MeasurableSpace
