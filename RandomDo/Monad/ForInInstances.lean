@@ -29,8 +29,15 @@ instance instMeasurableSpaceArray : MeasurableSpace (Array α) :=
 instance instMeasurableSpaceVector {n : ℕ} : MeasurableSpace (Vector α n) :=
   MeasurableSpace.comap Vector.toArray inferInstance
 
+instance instMeasurableSpaceSubarray : MeasurableSpace (Subarray α) :=
+  MeasurableSpace.comap (fun s : Subarray α ↦ s.toList) inferInstance
+
 @[fun_prop]
 lemma measurable_toList : Measurable (Array.toList : Array α → List α) :=
+  Measurable.of_comap_le fun _ a ↦ a
+
+@[fun_prop]
+lemma measurable_subarray_toList : Measurable (fun s : Subarray α ↦ s.toList) :=
   Measurable.of_comap_le fun _ a ↦ a
 
 @[fun_prop]

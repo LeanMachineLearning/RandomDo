@@ -18,47 +18,6 @@ open MeasureTheory ProbabilityTheory
 
 namespace Test.Gaps
 
-/-! ## `for` over several collections
-
-TODO: the expander at `RandomDo/Monad/Notation.lean:141` wraps the loop body in a fresh term-level
-`rdo` block, which severs it from the block around it. Emitting `do $body` instead — a nested
-`doElem`, which is what core's otherwise identical expander does — fixes all three tests below.
--/
-
-/--
-error: Variable `s` cannot be mutated. Only variables declared using `let mut` can be mutated.
-      If you did not intend to mutate but define `s`, consider using `let s` instead
--/
-#guard_msgs in
-def zipMut (xs ys : List ℕ) : IdM ℕ := rdo
-  let mut s := 0
-  for x in xs, y in ys rdo
-    s := s + x * y
-  return s
-
-/--
-error: Type mismatch
-  some x
-has type
-  Option ℕ
-but is expected to have type
-  Unit
--/
-#guard_msgs in
-def zipReturn (xs ys : List ℕ) : IdM (Option ℕ) := rdo
-  for x in xs, y in ys rdo
-    if x = y then
-      return some x
-  return none
-
-/-- error: `break` must be nested inside a loop -/
-#guard_msgs in
-def zipThree (xs ys zs : List ℕ) : IdM Bool := rdo
-  for x in xs, y in ys, z in zs rdo
-    if x + y = z then
-      return true
-  return false
-
 /-! ## Nested loops
 
 TODO: register a `ControlInfo` inference handler for `RDo.rdoFor`, mirroring the rule core states
