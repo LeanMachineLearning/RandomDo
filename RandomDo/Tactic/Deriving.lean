@@ -21,15 +21,6 @@ noncomputable def centred (c : ℝ) : Measure ℝ := rdo
   return x
 ```
 
-## Why not `deriving IsMarkov`
-
-A `deriving` clause under a `def` parses, but core commits to *delta deriving* whenever any of the
-named declarations is a definition (`Lean.Elab.Deriving.Basic.elabDeriving`): it unfolds the
-definition and infers pre-existing instances, and never consults a registered
-`DerivingHandler`. Delta deriving cannot run a tactic, and in any case looks for a class parameter
-that the fully applied `centred c : Measure ℝ` fits, which `IsMarkov`'s `γ → Measure α` is not.
-Supporting that spelling would mean overriding core's `deriving` command elaborator wholesale.
-
 ## Which statement is derived
 
 A program's *last* argument is read as the kernel's parameter when it is explicit, giving
