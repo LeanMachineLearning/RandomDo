@@ -21,7 +21,7 @@ noncomputable def centred (c : ℝ) : Measure ℝ := rdo
   return x
 ```
 
-## Which statement is derived
+## Which statement is generated
 
 A program's *last* argument is read as the kernel's parameter when it is explicit, giving
 `IsMarkov`. Otherwise the program denotes one fixed distribution and the statement is
