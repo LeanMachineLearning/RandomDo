@@ -29,7 +29,7 @@ instance : MeasurableSpace (Array α) :=
 instance {n : ℕ} : MeasurableSpace (Vector α n) :=
   MeasurableSpace.comap Vector.toArray inferInstance
 
-instance : MeasurableSpace (Subarray α) :=
+instance instMeasurableSpaceSubarray : MeasurableSpace (Subarray α) :=
   MeasurableSpace.comap (fun s : Subarray α ↦ s.toList) inferInstance
 
 @[fun_prop]
