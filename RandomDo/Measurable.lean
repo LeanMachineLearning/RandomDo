@@ -31,6 +31,7 @@ open MeasureTheory Set
 
 variable {α : Type*} [MeasurableSpace α]
 
+/-- Lists are measurably equivalent to the sigma type of tuples of a given length. -/
 def List.measurableEquivSigmaTuple : List α ≃ᵐ Σ n, Fin n → α where
   toFun := List.equivSigmaTuple
   invFun := List.equivSigmaTuple.symm
@@ -102,6 +103,7 @@ lemma Vector.measurableSpace_eq_comap {n : ℕ} :
           (MeasurableSpace.comap List.ofFn inferInstance) := MeasurableSpace.comap_comp.symm
     _ = _ := by rw [(measurableEmbedding_ofFn n).comap_eq]
 
+/-- Vectors are equivalent to tuples of a given length. -/
 def Vector.measurableEquivTuple {n : ℕ} : Vector α n ≃ᵐ (Fin n → α) where
   toFun v := fun i ↦ v[i]
   invFun := .ofFn
