@@ -117,7 +117,8 @@ def Vector.measurableEquivTuple {n : ℕ} : Vector α n ≃ᵐ (Fin n → α) wh
     ext
     simp
 
-instance : MeasurableSpace (Option α) := MeasurableSpace.map some inferInstance
+instance instMeasurableSpaceOption : MeasurableSpace (Option α) :=
+  MeasurableSpace.map some inferInstance
 
 theorem measurableSet_option_iff {s : Set (Option α)} :
     MeasurableSet s ↔ MeasurableSet (some ⁻¹' s) := Iff.rfl
