@@ -6,7 +6,8 @@ Authors: Rémy Degenne
 module
 
 public import RandomDo.Probability.Tactic
-public import RandomDo.Tactic.Examples
+public import RandomDo.Tactic.Elab
+public import LeanMachineLearning.ForMathlib.MeasureTheory.Order.MeasurableArg
 
 set_option linter.style.header false
 
@@ -56,6 +57,8 @@ namespace RDo.Thompson
 
 variable {K n : ℕ}
 
+attribute[fun_prop] Measurable.ite
+
 /-! ## The two stages -/
 
 /-- Stage one: fold the history into the per-arm pull counts `N` (started at one) and reward
@@ -95,6 +98,20 @@ instance : IsMarkovKernel (sampleK (K := K)) := by unfold sampleK; infer_instanc
 @[simp] lemma statsK_apply (hist : Vector (Fin K × ℝ) n) : statsK hist = stats hist := rfl
 
 @[simp] lemma sampleK_apply (NS : (Fin K → ℝ) × (Fin K → ℝ)) : sampleK NS = sample NS := rfl
+
+def thompson {K n : ℕ} (hK : 0 < K) (hist : Vector (Fin K × ℝ) n) :
+    Measure (Fin K) := rdo
+  let mut N : Fin K → ℝ := fun _ ↦ 1
+  let mut S : Fin K → ℝ := fun _ ↦ 0
+  for (a, r) in hist rdo
+    N := fun j ↦ if j = a then N j + 1 else N j
+    S := fun j ↦ if j = a then S j + r else S j
+  let mut θ : Fin K → ℝ := fun _ ↦ 0
+  for j in List.finRange K rdo
+    let z ← gaussianReal (S j / N j) (Real.toNNReal (1 / N j))
+    θ := fun k ↦ if k = j then z else θ k
+  have : Nonempty (Fin K) := Fin.pos_iff_nonempty.mp hK
+  return argmax θ
 
 /-- `thompson` is exactly: fold the history into `(N, S)`, draw the posterior sample `θ` given
 them, play `argmax θ`. Both sides elaborate to the same two loops; all that separates them is the
