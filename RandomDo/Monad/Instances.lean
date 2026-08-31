@@ -57,6 +57,8 @@ open Function
 /-- A monad for random number generation. -/
 structure RandomM (Ω : Type w) [MeasurableSpace Ω] (P : Measure Ω)
     (α : Type u) [MeasurableSpace α] where
+  /-- Draws a value from a state of the source of randomness, and hands back the state left for the
+  next draw. -/
   sample : Ω → α × Ω
   measurePreserving : MeasurePreserving sample P ((Measure.map (Prod.fst ∘ sample) P).prod P)
 
