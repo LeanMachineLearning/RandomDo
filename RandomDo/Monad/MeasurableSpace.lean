@@ -65,6 +65,8 @@ The `mPure` function is overloaded via `MeasurableSpacePure` instances.
 `MeasurableSpacePure` is typically accessed via `MeasurableSpaceMonad` instances, which extend it.
 -/
 class MeasurableSpacePure (f : (α : Type u) → [MeasurableSpace α] → Type v) where
+  /-- Given `a : α` where `α` has a `MeasurableSpace` instance, `mPure a : f α` represents an
+  action that does nothing and returns a -/
   mPure {α : Type u} [MeasurableSpace α] : α → f α
 
 /--

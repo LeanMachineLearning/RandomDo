@@ -155,4 +155,8 @@ attribute[fun_prop] ProbabilityTheory.Kernel.measurable_coe
 example : Measurable fun a => κ a s := by
   fun_prop (disch := measurability)
 
+/- The programs above are examples of what `rdo` and `is_markov` do, not an API: `docBlame` is
+told not to ask them for documentation. -/
+attribute [nolint docBlame] test1 test2 test3 test4 test5 thompson Vector.v_equiv
+
 end
