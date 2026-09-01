@@ -28,3 +28,4 @@
 *.synctex.gz
 *.synctex.gz(busy)
 *.pdfsync
+test_data/
