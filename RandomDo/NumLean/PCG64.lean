@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Control.Random
 public import RandomDo.NumLean.SeedSequence
+public import Batteries.Lean.LawfulMonad
 
 /-!
 # The PCG-64 pseudo-random number generator
@@ -24,6 +25,8 @@ native machine arithmetic.
 ## Main definitions
 
 * `PCG64`: the generator state, and its `RandomGen` instance
+* `PCG64.nextUInt64` / `PCG64.nextUInt32`: the 64-bit output, and numpy's 32-bit output, which
+  hands out the two halves of a 64-bit output in turn
 * `PCG64.seedWords` / `PCG64.seed` / `mkPCG64`: seeding, following the reference
   `pcg_setseq_128_srandom_r`
 
@@ -40,7 +43,8 @@ native machine arithmetic.
 namespace NumLean
 
 /-- The state of a PCG-64 generator: a 128-bit LCG state and a 128-bit increment (which selects the
-stream and must be odd), each stored as a pair of 64-bit words. -/
+stream and must be odd), each stored as a pair of 64-bit words, together with the one-word buffer
+numpy's bit generator keeps for its 32-bit outputs, see `nextUInt32`. -/
 structure PCG64 where
   /-- High 64 bits of the LCG state. -/
   stateHi : UInt64
@@ -50,6 +54,12 @@ structure PCG64 where
   incHi : UInt64
   /-- Low 64 bits of the increment; it is odd for any generator built through the API below. -/
   incLo : UInt64
+  /-- Whether `uinteger` holds the unused upper half of the last output drawn through `nextUInt32`.
+  Mirrors the `has_uint32` field of numpy's `pcg64_state`. -/
+  hasUInt32 : Bool := false
+  /-- The upper 32 bits of the last output drawn through `nextUInt32`, meaningful only while
+  `hasUInt32` is set. Mirrors the `uinteger` field of numpy's `pcg64_state`. -/
+  uinteger : UInt32 := 0
   deriving Repr, DecidableEq
 
 namespace PCG64
@@ -96,6 +106,17 @@ implementation, the state is stepped before the output permutation is applied. -
 @[inline] def nextUInt64 (g : PCG64) : UInt64 × PCG64 :=
   let g := g.step
   (g.output, g)
+
+/-- The next 32-bit output, together with the advanced generator, as numpy's `pcg64_next32`: a
+64-bit output is drawn and its low half returned, its high half being kept in `uinteger` to be
+returned by the next call, which then does not step the generator. The buffer survives
+intermediate `nextUInt64` calls, as it does in numpy. -/
+@[inline] def nextUInt32 (g : PCG64) : UInt32 × PCG64 :=
+  if g.hasUInt32 then
+    (g.uinteger, { g with hasUInt32 := false })
+  else
+    let (x, g) := g.nextUInt64
+    (x.toUInt32, { g with hasUInt32 := true, uinteger := (x >>> 32).toUInt32 })
 
 /-- Seed a generator from four 64-bit words, following the reference
 `pcg_setseq_128_srandom_r`: `stateHi:stateLo` is the initial state and `seqHi:seqLo` selects the

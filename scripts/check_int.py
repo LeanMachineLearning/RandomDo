@@ -10,12 +10,15 @@ def main (args : List String) : IO Unit := do
   for s in args do
     IO.FS.withFile (System.FilePath.mk s!"@DIR@/pcg64-{s}.txt") .write fun h ↦
       IO.runRandPCGWith s.toNat! do
-        for _ in List.range @N@ do h.putStrLn (← NumLean.random).toStringFull
+        for _ in List.range @N@ do h.putStrLn <| toString (← NumLean.randInt 1000000)
 """
 
 shutil.rmtree(DIR, ignore_errors=True)
 os.makedirs(DIR)
 open(f"{DIR}/dump.lean", "w").write(LEAN.replace("@DIR@", DIR).replace("@N@", str(N)))
+subprocess.run(
+    ["lake", "build"], check=True
+)
 subprocess.run(
     ["lake", "env", "lean", "--run", f"{DIR}/dump.lean", *map(str, SEEDS)], check=True
 )
@@ -31,7 +34,7 @@ def check_distrib(path, xs):
 
 ok = True
 for seed in SEEDS:
-    xs = np.random.default_rng(seed).random(N)
+    xs = np.random.default_rng(seed).integers(1000000, size=N)
     bad_line = check_distrib(f"{DIR}/pcg64-{seed}.txt", xs)
     if bad_line is None:
         print(f"seed {seed} {N} identical draws")
