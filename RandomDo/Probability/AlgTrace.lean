@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 module
 
 public import RandomDo.Probability.Tactic
+public import RandomDo.Probability.Extend
 public import LeanMachineLearning.SequentialLearning.IonescuTulceaSpace
 
 set_option linter.style.header false
@@ -56,6 +57,48 @@ space is existentially quantified precisely because it does not matter.
 open MeasureTheory ProbabilityTheory Finset Learning
 
 noncomputable section
+
+/-- An algorithm-environment sequence pulls back along a measure-preserving map. With
+`extend_space`, this lets one add independent randomness to a space carrying such a sequence. -/
+lemma _root_.Learning.IsAlgEnvSeq.comp_measurePreserving {𝓐 𝓨 Ω Ω' : Type*} [MeasurableSpace 𝓐]
+    [MeasurableSpace 𝓨] {_ : MeasurableSpace Ω} {_ : MeasurableSpace Ω'} {P : Measure Ω}
+    [IsFiniteMeasure P] {P' : Measure Ω'} [IsFiniteMeasure P'] {A : ℕ → Ω → 𝓐} {Y : ℕ → Ω → 𝓨}
+    {alg : Algorithm 𝓐 𝓨} {env : Environment 𝓐 𝓨} {f : Ω' → Ω}
+    (h : IsAlgEnvSeq A Y alg env P) (hf : MeasurePreserving f P' P) :
+    IsAlgEnvSeq (fun n ω ↦ A n (f ω)) (fun n ω ↦ Y n (f ω)) alg env P' where
+  measurable_action n := (h.measurable_action n).comp hf.measurable
+  measurable_feedback n := (h.measurable_feedback n).comp hf.measurable
+  hasLaw_action_zero := h.hasLaw_action_zero.comp hf.hasLaw
+  hasCondDistrib_feedback_zero := h.hasCondDistrib_feedback_zero.comp_measurePreserving hf
+  hasCondDistrib_action n := (h.hasCondDistrib_action n).comp_measurePreserving hf
+  hasCondDistrib_feedback n := (h.hasCondDistrib_feedback n).comp_measurePreserving hf
+
+/-- Being an algorithm-environment sequence is invariant under pulling back along a
+measure-preserving map, for measurable sequences. This is the form the `transfer` tactic uses;
+`h.measurable_action` and `h.measurable_feedback` provide the side conditions when an
+`IsAlgEnvSeq` hypothesis `h` is around. -/
+@[transfer]
+lemma _root_.MeasureTheory.MeasurePreserving.transfer_isAlgEnvSeq {𝓐 𝓨 Ω Ω' : Type*}
+    [MeasurableSpace 𝓐] [MeasurableSpace 𝓨] {_ : MeasurableSpace Ω} {_ : MeasurableSpace Ω'}
+    {P : Measure Ω} [IsFiniteMeasure P] {P' : Measure Ω'} [IsFiniteMeasure P'] {f : Ω' → Ω}
+    (hf : MeasurePreserving f P' P) {A : ℕ → Ω → 𝓐} {Y : ℕ → Ω → 𝓨}
+    (hA : ∀ n, Measurable (A n)) (hY : ∀ n, Measurable (Y n)) {alg : Algorithm 𝓐 𝓨}
+    {env : Environment 𝓐 𝓨} :
+    IsAlgEnvSeq A Y alg env P ↔ IsAlgEnvSeq (fun n ω ↦ A n (f ω)) (fun n ω ↦ Y n (f ω)) alg env P'
+    where
+  mp h := h.comp_measurePreserving hf
+  mpr h :=
+    { measurable_action := hA
+      measurable_feedback := hY
+      hasLaw_action_zero := (hf.hasLaw_fun_comp_iff (hA 0)).1 h.hasLaw_action_zero
+      hasCondDistrib_feedback_zero :=
+        (hf.hasCondDistrib_fun_comp_iff (hA 0) (hY 0)).1 h.hasCondDistrib_feedback_zero
+      hasCondDistrib_action n :=
+        (hf.hasCondDistrib_fun_comp_iff (measurable_history hA hY n) (hA (n + 1))).1
+          (h.hasCondDistrib_action n)
+      hasCondDistrib_feedback n :=
+        (hf.hasCondDistrib_fun_comp_iff ((measurable_history hA hY n).prodMk (hA (n + 1)))
+          (hY (n + 1))).1 (h.hasCondDistrib_feedback n) }
 
 namespace RDo
 
@@ -533,6 +576,35 @@ example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {
       (measurable_trajectory h₁.measurable_action h₁.measurable_feedback), ← hlaw,
       Measure.map_map (by fun_prop)
         (measurable_trajectory h₂.measurable_action h₂.measurable_feedback), ← e₂, h₀]
+
+/-- **`extend_space` alongside an algorithm-environment sequence.** The sequence pulls back along
+the projection `f` by `IsAlgEnvSeq.comp_measurePreserving`, and the larger space also carries a
+Gaussian `U` independent of the whole trajectory. The statement does not mention the original
+space, so the `transfer` obligation is trivial and `extend_space` closes it. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    ∃ (Ω' : Type) (_ : MeasurableSpace Ω') (P' : Measure Ω') (_ : IsProbabilityMeasure P')
+      (A' : ℕ → Ω' → Fin K) (Y' : ℕ → Ω' → ℝ) (U : Ω' → ℝ),
+      IsAlgEnvSeq A' Y' (alg hK) env P' ∧ HasLaw U (gaussianReal 0 1) P'
+        ∧ IndepFun (trajectory A' Y') U P' := by
+  extend_space (gaussianReal 0 1) using P with Ω' P' f hf U hU hind
+  exact ⟨Ω', inferInstance, P', inferInstance, fun n ω ↦ A n (f ω), fun n ω ↦ Y n (f ω), U,
+    h.comp_measurePreserving hf, hU,
+    hind.comp (measurable_trajectory h.measurable_action h.measurable_feedback) measurable_id⟩
+
+/-- **The `transfer` tactic with an algorithm-environment sequence.** The goal mentions the space
+through `P` and `A 0`; `transfer` moves it to the new space, with the measurability of the
+sequence taken from `h`. In the extended goal, `transfer hf at h` pulls the sequence back. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  have hA := h.measurable_action
+  have hY := h.measurable_feedback
+  extend_space (gaussianReal 0 1) with Ω' P' f hf U hU hind
+  transfer hf at h
+  exact h.hasLaw_action_zero.map_eq
 
 end RDo.Example
 
