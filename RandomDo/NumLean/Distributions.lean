@@ -7,7 +7,8 @@ module
 
 public import RandomDo.NumLean.PCG64
 public meta import RandomDo.NumLean.PCG64
-public import Batteries.Data.Float.Basic
+public import FFI.Float
+public import RandomDo.NumLean.Ziggurat
 
 /-!
 # Sample from specific distributions using the PCG-64 generator.
@@ -20,6 +21,11 @@ seeded alike produce the same values.
 * `randUInt64` / `randUInt32`: sample a `UInt64`, or a `UInt32` as numpy's `next_uint32` does.
 * `random`: sample a `Float` in `[0, 1)`.
 * `randInt`: sample an integer in `[low, high)` or `[low, high]`, as numpy's `Generator.integers`.
+* `uniform`: sample a `Float` in `[low, high)`, as numpy's `Generator.uniform`.
+* `standardNormal` / `normal`: sample a normal deviate, as numpy's `Generator.normal`.
+* `standardExponential` / `exponential`: sample an exponential deviate, as numpy's
+  `Generator.exponential`.
+* `ziggurat`: the sampler shape both of those share.
 -/
 
 @[expose] public section
@@ -94,22 +100,80 @@ def random : RandPCG IO Float := do
   let x ← randUInt64
   return (x >>> 11).toFloat * (Float.ofBits <| 0x3CA <<< (52 : UInt64))
 
-/-- `x * y + z`, rounded once, as the C `fma`: the product and the sum are computed exactly, as
-integers scaled by a power of two, and only the final value is rounded to a `Float`. -/
-def fma (x y z : Float) : Float :=
-  match x.toRatParts, y.toRatParts, z.toRatParts with
-  | some (vx, ex), some (vy, ey), some (vz, ez) =>
-    -- the product is `vx * vy * 2 ^ (ex + ey)`, so the sum is exact over the common exponent `e`
-    let ep := ex + ey
-    let e := min ep ez
-    let n := vx * vy * 2 ^ (ep - e).toNat + vz * 2 ^ (ez - e).toNat
-    if e ≥ 0 then Int.divFloat (n * 2 ^ e.toNat) 1 else Int.divFloat n (2 ^ (-e).toNat)
-  | _, _, _ => x * y + z
-
 /-- Sample a `Float` uniformly in `[low, high)`. -/
 def uniform (low high : Float) : RandPCG IO Float := do
   if low > high then throw <| IO.userError "low > high"
   let x ← random
-  return fma x (high - low) low
+  return Float.fma x (high - low) low
+
+/-- The rejection test on a strip that sticks out of the curve: the point drawn at height `u`
+between the density at the strip's two edges lies under the curve. -/
+@[inline] def zigguratWedge (f : Array Float) (idx : Nat) (u density : Float) : Bool :=
+  Float.fma (f[idx - 1]! - f[idx]!) u f[idx]! < density
+
+/-- The sampler shape shared by numpy's `random_standard_normal` and
+`random_standard_exponential`, the ziggurat of Marsaglia and Tsang: the density is covered by 256
+strips of equal area, and one 64-bit output supplies at once the strip `idx` and the integer `ri`
+that `w` scales to an abscissa, `split` saying how those bits are laid out and whether the deviate
+comes out negated.
+
+The draw is returned as it stands when `ri` falls below `k[idx]`, which is where about 99% of the
+draws end. Otherwise the strip either is the base one, whose unbounded part `tail` samples from the
+integer drawn, or sticks out of the curve, and then the point is tested against `density` and the
+whole draw is started over on rejection. -/
+@[specialize] partial def ziggurat (k : Array UInt64) (w f : Array Float)
+    (split : UInt64 → Nat × UInt64 × Bool) (density : Float → Float)
+    (tail : UInt64 → RandPCG IO Float) : RandPCG IO Float := do
+  let (idx, ri, negate) := split (← randUInt64)
+  let x := ri.toFloat * w[idx]!
+  let x := if negate then -x else x
+  if ri < k[idx]! then return x
+  if idx == 0 then tail ri
+  else if zigguratWedge f idx (← random) (density x) then return x
+  else ziggurat k w f split density tail
+
+/-- Sample the tail of the standard normal beyond `Ziggurat.norR`, as the `idx == 0` branch of
+numpy's `random_standard_normal`: draw from an exponential tail until the pair of draws falls under
+the normal's, which is Marsaglia's method for the tail. `negate` carries the sign numpy reads off
+the integer already drawn, which the loop does not redraw. -/
+partial def normalTail (negate : Bool) : RandPCG IO Float := do
+  let xx := -Ziggurat.norInvR * Float.log1p (-(← random))
+  let yy := -Float.log1p (-(← random))
+  if yy + yy > xx * xx then
+    return if negate then -(Ziggurat.norR + xx) else Ziggurat.norR + xx
+  normalTail negate
+
+/-- Sample from the standard normal, as numpy's `random_standard_normal`. The 64-bit output gives
+the strip in its low byte, then the sign, then a 52-bit abscissa; the tail takes its sign from a
+further bit of that same abscissa, as numpy does. -/
+def standardNormal : RandPCG IO Float :=
+  ziggurat Ziggurat.ki Ziggurat.wi Ziggurat.fi
+    (fun r =>
+      let idx := (r &&& 0xFF).toNat
+      let r := r >>> 8
+      (idx, (r >>> 1) &&& 0x000FFFFFFFFFFFFF, (r &&& 1) == 1))
+    (fun x => Float.exp ((-0.5) * x * x))
+    (fun rabs => normalTail (((rabs >>> 8) &&& 1) == 1))
+
+/-- Sample from the standard exponential, as numpy's `random_standard_exponential`. The 64-bit
+output is first shifted by three, then gives the strip in its low byte and a 53-bit abscissa; the
+tail is the exponential's own, memoryless, so one draw beyond `Ziggurat.expR` suffices. -/
+def standardExponential : RandPCG IO Float :=
+  ziggurat Ziggurat.ke Ziggurat.we Ziggurat.fe
+    (fun r =>
+      let r := r >>> 3
+      ((r &&& 0xFF).toNat, r >>> 8, false))
+    (fun x => Float.exp (-x))
+    (fun _ => do return Ziggurat.expR - Float.log1p (-(← random)))
+
+/-- Draw random samples from a normal (Gaussian) distribution. -/
+def normal (loc : Float := 0) (scale : Float := 1) : RandPCG IO Float := do
+  if scale < 0 then throw <| IO.userError "scale < 0"
+  return Float.fma scale (← standardNormal) loc
+
+/-- Draw samples from an exponential distribution. -/
+def exponential (scale : Float := 1) : RandPCG IO Float := do
+  if scale < 0 then throw <| IO.userError "scale < 0"
+  return scale * (← standardExponential)
 
 end NumLean
