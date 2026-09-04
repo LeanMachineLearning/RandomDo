@@ -58,6 +58,23 @@ register_label_attr transfer_forward
 
 namespace RDo.Tactic
 
+/-- The tactic state together with the message log, which `SavedState.restore` keeps: an attempt
+that fails must not leave the errors it logged behind. -/
+structure FullState where
+  /-- The tactic state. -/
+  state : Tactic.SavedState
+  /-- The message log. -/
+  messages : MessageLog
+
+/-- Save the tactic state and the message log. -/
+def saveFullState : TacticM FullState :=
+  return ⟨← saveState, (← getThe Core.State).messages⟩
+
+/-- Restore the tactic state and the message log. -/
+def FullState.restore (s : FullState) : TacticM Unit := do
+  s.state.restore
+  modifyThe Core.State fun st ↦ { st with messages := s.messages }
+
 /-- The discharger for the side conditions of `@[transfer]` lemmas: `assumption`, then `fun_prop`
 for the measurability of a function and `measurability` for that of a set. A maximum recursion
 depth error inside `measurability`, which happens on unprovable goals, is turned into a plain
@@ -68,18 +85,39 @@ elab_rules : tactic
   | `(tactic| transfer_discharger) => withMainContext do
     let funProps : Array Name := #[``Measurable, ``AEMeasurable,
       `MeasureTheory.AEStronglyMeasurable, `MeasureTheory.StronglyMeasurable]
-    let head := (← getMainTarget).getAppFn.constName?
-    let tac ← if head.any funProps.contains then `(tactic| first | assumption | fun_prop)
-      else `(tactic| first | assumption | measurability)
+    let head := (← getMainTarget).getForallBody.getAppFn.constName?
+    -- `fun_prop` may fail on `AEMeasurable` where it succeeds on `Measurable`.
+    let tac ← if head.any funProps.contains then
+        `(tactic| first
+            | assumption
+            | (intros
+               first
+                 | assumption
+                 | fun_prop
+                 | (apply Measurable.aemeasurable; fun_prop)
+                 | (apply Measurable.aestronglyMeasurable; fun_prop)))
+      else `(tactic| first | assumption | (intros; first | assumption | measurability))
     tryCatchRuntimeEx (evalTactic tac) fun e ↦
       throwError "transfer_discharger: {e.toMessageData}"
 
 /-- The `@[transfer]` lemmas instantiated at `hf`, as `simp` arguments, together with the lemmas
 pushing a preimage through set operations, which put the transferred events in the same form as
-`extend_space`. -/
-def transferSimpArgs (hf : Term) : CoreM (Array (TSyntax ``Lean.Parser.Tactic.simpLemma)) := do
-  let args ← (← labelled `transfer).mapM fun n ↦
-    `(Lean.Parser.Tactic.simpLemma| $(mkIdent n):ident $hf)
+`extend_space`. A lemma that does not elaborate at `hf`, for want of an instance on the measure
+for example, is left out rather than making the whole rewrite fail. -/
+def transferSimpArgs (hf : Term) : TacticM (Array (TSyntax ``Lean.Parser.Tactic.simpLemma)) := do
+  let mut args := #[]
+  for n in ← labelled `transfer do
+    let s ← saveFullState
+    let ok ← tryCatchRuntimeEx
+      (do
+        -- Postponing keeps a lemma whose instances depend on yet unknown types, such as the
+        -- codomain of an integrand, and rejects one whose instances fail outright.
+        discard <| Term.withoutErrToSorry <|
+          Tactic.elabTerm (← `($(mkIdent n):ident $hf)) none (mayPostpone := true)
+        pure true)
+      (fun _ ↦ pure false)
+    s.restore
+    if ok then args := args.push (← `(Lean.Parser.Tactic.simpLemma| $(mkIdent n):ident $hf))
   let extra ← #[``Set.preimage_ofPred_eq, ``Set.preimage_inter, ``Set.preimage_union,
     ``Set.preimage_compl, ``Set.preimage_sdiff].mapM fun n ↦
       `(Lean.Parser.Tactic.simpLemma| $(mkIdent n):ident)
@@ -88,10 +126,11 @@ def transferSimpArgs (hf : Term) : CoreM (Array (TSyntax ``Lean.Parser.Tactic.si
 /-- Try to close the goal `g` with `tac`, returning its proof. The state is restored on failure,
 and a runtime error such as a maximum recursion depth counts as a failure. -/
 def tryTactic? (g : MVarId) (tac : Syntax) : TacticM (Option Expr) := do
-  let s ← saveState
+  let s ← saveFullState
   tryCatchRuntimeEx
     (do
-      let gs ← Tactic.run g (evalTactic tac)
+      -- Without error recovery, a failure inside a nested `by` is a failure, not a `sorry`.
+      let gs ← Term.withoutErrToSorry <| Tactic.run g (evalTactic tac)
       if gs.isEmpty then return some (← instantiateMVars (.mvar g))
       s.restore
       return none)
@@ -106,7 +145,7 @@ def transferForward? (h hf : Expr) : TacticM (Option (Expr × Expr)) := do
   let hStx ← Term.exprToSyntax h
   let hfStx ← Term.exprToSyntax hf
   for n in ← labelled `transfer_forward do
-    let s ← saveState
+    let s ← saveFullState
     let r ← tryCatchRuntimeEx
       (do
         let e ← Term.withoutErrToSorry <|

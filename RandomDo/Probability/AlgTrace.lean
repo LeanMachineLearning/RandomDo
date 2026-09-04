@@ -58,6 +58,8 @@ open MeasureTheory ProbabilityTheory Finset Learning
 
 noncomputable section
 
+attribute [fun_prop] Learning.measurable_history
+
 /-- An algorithm-environment sequence pulls back along a measure-preserving map. With
 `extend_space`, this lets one add independent randomness to a space carrying such a sequence: as
 a `@[transfer_forward]` lemma, it is how the hypothesis is transported to the extended space. -/
@@ -342,6 +344,8 @@ open MeasureTheory ProbabilityTheory Learning
 
 namespace RDo.Tactic
 
+initialize registerTraceClass `alg_env_trace
+
 /-- The free variables carrying the probability space of an `IsAlgEnvSeq` hypothesis: the space,
 its σ-algebra, the measure, the `IsProbabilityMeasure` instance, and the two sequences. They have
 to be local hypotheses, since the tactic abstracts the goal over them. -/
@@ -403,7 +407,9 @@ sequences, is abstracted away from that space and two goals are left:
   history and the draws;
 * `transfer`: the obligation that the statement only depends on the law of the trajectory. This is
   what makes the replacement sound — the traced sequence lives on a different space, and all that
-  relates it to the original is `isAlgEnvSeq_unique`.
+  relates it to the original is `isAlgEnvSeq_unique`. The `transfer` tactic discharges it through
+  the trajectory space, onto which both sequences are measure-preserving maps, and the goal is only
+  left when that fails.
 
 * `alg_env_trace tr using h` names the hypothesis to use rather than searching for one.
 
@@ -437,11 +443,13 @@ elab_rules : tactic
       let e ← Term.elabTerm tr none
       Term.synthesizeSyntheticMVarsNoPostponing
       instantiateMVars e
-    let (traced, transfer) ← g.withContext do
+    let (traced, transfer, motiveE) ← g.withContext do
       let c ← mkConstWithFreshMVarLevels ``RDo.AlgTrace.wlog_trace
       let cty ← inferType c
       let (args, bis, concl) ← forallMetaBoundedTelescope cty (preConclusionArity cty 0 0)
       let explicits := (args.zip bis).filterMap fun (a, b) ↦ if b.isExplicit then some a else none
+      let some iMotive := binderIndex? cty `motive
+        | throwError "alg_env_trace: `wlog_trace` no longer has a `motive` binder"
       unless explicits.size == 3 do
         throwError "alg_env_trace: `wlog_trace` no longer has the expected shape"
       unless ← isDefEq explicits[0]! trE do
@@ -459,7 +467,7 @@ elab_rules : tactic
       transfer.setKind .syntheticOpaque
       traced.setTag `traced
       transfer.setTag `transfer
-      return (traced, transfer)
+      return (traced, transfer, args[iMotive]!)
     -- Introduce the traced space and its properties, then whatever travelled with the goal.
     let given := (names?.map (·.map (·.getId))).getD #[]
     let defaults : Array Name := #[`Ω, `P, `A, `Y, `T, `hseq, `hT₀, `hT, `hA₀, `hA]
@@ -469,7 +477,37 @@ elab_rules : tactic
         pick 8, pick 9]
     let (_, traced) ← traced.introN intros.size intros.toList
     let (_, traced) ← traced.introNP deps.size
-    replaceMainGoal [traced, transfer]
+    -- Discharge the transfer obligation through the trajectory space when `transfer` can: both
+    -- sequences are measure-preserving maps onto `(ℕ → 𝓐 × 𝓨, ν)`, on which the statement is
+    -- proved from the second sequence, then pulled back to the first.
+    let rest := (← getGoals).drop 1
+    let s ← saveFullState
+    let transferLeft ← tryCatchRuntimeEx
+      (do
+        setGoals [transfer]
+        withMainContext do
+          let motiveStx ← Term.exprToSyntax (← instantiateMVars motiveE)
+          -- Without error recovery, a failure inside a nested `by` is a failure, not a `sorry`.
+          Term.withoutErrToSorry <| evalTactic (← `(tactic| (
+            intro Ω₁ _ P₁ _ A₁ Y₁ Ω₂ _ P₂ _ A₂ Y₂ h₁ h₂ hlaw h
+            generalize hν : Measure.map (trajectory A₁ Y₁) P₁ = ν at hlaw
+            have hf₁ : MeasurePreserving (trajectory A₁ Y₁) P₁ ν :=
+              ⟨measurable_trajectory h₁.measurable_action h₁.measurable_feedback, hν⟩
+            have hf₂ : MeasurePreserving (trajectory A₂ Y₂) P₂ ν :=
+              ⟨measurable_trajectory h₂.measurable_action h₂.measurable_feedback, hlaw⟩
+            have : IsProbabilityMeasure ν := hν ▸ Measure.isProbabilityMeasure_map
+              (measurable_trajectory h₁.measurable_action h₁.measurable_feedback).aemeasurable
+            exact (fun hS : $motiveStx _ inferInstance ν inferInstance
+                (fun n t ↦ (t n).1) (fun n t ↦ (t n).2) ↦ (by transfer hf₁ at hS; exact hS))
+              (by beta_reduce; transfer hf₂))))
+        unless (← getUnsolvedGoals).isEmpty do throwError "transfer left goals"
+        pure [])
+      (fun e ↦ do
+        let msg ← (← addMessageContextFull e.toMessageData).toString
+        s.restore
+        trace[alg_env_trace] "the transfer obligation is left, because: {msg}"
+        pure [transfer])
+    setGoals ([traced] ++ transferLeft ++ rest)
 
 end RDo.Tactic
 
@@ -559,25 +597,29 @@ theorem exists_noise (env : Environment (Fin K) ℝ) {Ω₀ : Type*} [Measurable
   exact ⟨Ω', mΩ', P', hP', A', Y', Z, hseq, hlaw, hZ, hA⟩
 
 /-- **The tactic at work.** `alg_env_trace` replaces the context and the goal by ones on a space
-that also carries the noise `Z` the policy draws, and leaves the obligation that the statement only
-depends on the law of the trajectory. Any hypothesis mentioning the space travels with the goal, so
-nothing is silently lost. -/
+that also carries the noise `Z` the policy draws. The obligation that the statement only depends
+on the law of the trajectory is discharged by `transfer` through the trajectory space, so only the
+traced goal is left. Any hypothesis mentioning the space travels with the goal, so nothing is
+silently lost. -/
 example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
     [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
     (h : IsAlgEnvSeq A Y (alg hK) env P) :
     P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
   alg_env_trace (trace hK) with Ω P A Y Z hseq hZ₀ hZ hA₀ hA
-  case traced =>
-    -- `Z`, `hZ₀`, `hZ` and `hA` are the algorithm's draws and their laws, now available.
-    exact hseq.hasLaw_action_zero.map_eq
+  -- `Z`, `hZ₀`, `hZ` and `hA` are the algorithm's draws and their laws, now available.
+  exact hseq.hasLaw_action_zero.map_eq
+
+/-- A statement `transfer` has no lemma for leaves the obligation, which is then proved by hand,
+here trivially. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    IsProbabilityMeasure P := by
+  alg_env_trace (trace hK)
+  case traced => infer_instance
   case transfer =>
     intro Ω₁ _ P₁ _ A₁ Y₁ Ω₂ _ P₂ _ A₂ Y₂ h₁ h₂ hlaw h₀
-    have e₁ : A₁ 0 = (fun t ↦ (t 0).1) ∘ trajectory A₁ Y₁ := rfl
-    have e₂ : A₂ 0 = (fun t ↦ (t 0).1) ∘ trajectory A₂ Y₂ := rfl
-    rw [e₁, ← Measure.map_map (by fun_prop)
-      (measurable_trajectory h₁.measurable_action h₁.measurable_feedback), ← hlaw,
-      Measure.map_map (by fun_prop)
-        (measurable_trajectory h₂.measurable_action h₂.measurable_feedback), ← e₂, h₀]
+    infer_instance
 
 /-- **`extend_space` alongside an algorithm-environment sequence.** After the extension, `Ω`, `P`,
 `A` and `Y` live on a larger space that also carries a Gaussian `U` independent of the whole

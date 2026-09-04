@@ -332,6 +332,8 @@ open MeasureTheory ProbabilityTheory
 
 namespace RDo.Tactic
 
+initialize registerTraceClass `extend_space
+
 /-! ### The space and what depends on it -/
 
 /-- The probability space being extended, as local hypotheses: the space, its σ-algebra, the
@@ -903,17 +905,19 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
   transfer.assign transfer'
   -- Discharge the transfer obligation with the `transfer` tactic when it can; leave it otherwise.
   let rest := (← getGoals).drop 1
-  let s ← saveState
+  let s ← saveFullState
   -- `tryCatchRuntimeEx`: a failure inside `measurability` may be a maximum recursion depth error,
   -- which `try … catch` lets through.
   let transferLeft ← tryCatchRuntimeEx
     (do
       setGoals [transfer'.mvarId!]
-      evalTactic (← `(tactic| transfer))
+      Term.withoutErrToSorry <| evalTactic (← `(tactic| transfer))
       unless (← getUnsolvedGoals).isEmpty do throwError "transfer left goals"
       pure [])
-    (fun _ ↦ do
+    (fun e ↦ do
+      let msg ← (← addMessageContextFull e.toMessageData).toString
       s.restore
+      trace[extend_space] "the transfer obligation is left, because: {msg}"
       pure [transfer'.mvarId!])
   setGoals ([extended] ++ transferLeft ++ rest)
 
