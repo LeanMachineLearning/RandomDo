@@ -19,6 +19,7 @@ namespace Test.IsMarkov
 
 /-! ## `return` -/
 
+/-- A `return` alone. -/
 noncomputable def shiftBy (c : ℝ) : Measure ℝ := rdo
   return c + 1
 
@@ -26,6 +27,7 @@ example : IsMarkov shiftBy := by is_markov
 
 /-! ## `let x ← _` -/
 
+/-- Two Gaussian draws, summed. -/
 noncomputable def sumTwo : Measure ℝ := rdo
   let x ← gaussianReal 0 1
   let y ← gaussianReal 0 1
@@ -50,6 +52,7 @@ example (μ : Measure ℝ) [IsProbabilityMeasure μ] : IsMarkov fun _ : ℝ ↦ 
 
 /-! ## `if … then … else` between two families -/
 
+/-- One of two families, chosen on the sign of the argument. -/
 noncomputable def branchOn (c : ℝ) : Measure ℝ := rdo
   if 0 < c then
     let x ← gaussianReal c 1
@@ -62,6 +65,7 @@ example : IsMarkov branchOn := by is_markov
 
 /-! ## `for` over a fixed collection -/
 
+/-- A sum of Gaussian draws accumulated by a loop. -/
 noncomputable def sumLoop : Measure ℝ := rdo
   let mut s : ℝ := 0
   for _ in List.range 3 rdo
@@ -73,6 +77,7 @@ example : IsProbabilityMeasure sumLoop := by is_markov
 
 /-! ## `for` with an early `return`, which goes through `Break.runK` -/
 
+/-- The first positive draw among three, or `0`: a loop with an early `return`. -/
 noncomputable def firstPositive : Measure ℝ := rdo
   for _ in List.range 3 rdo
     let x ← gaussianReal 0 1
@@ -84,6 +89,7 @@ example : IsProbabilityMeasure firstPositive := by is_markov
 
 /-! ## `for` over a collection read off the argument -/
 
+/-- A random walk driven by the argument: a loop over a collection read off it. -/
 noncomputable def overList (xs : List ℝ) : Measure ℝ := rdo
   let mut s : ℝ := 0
   for x in xs rdo
@@ -95,8 +101,10 @@ example : IsMarkov overList := by is_markov
 
 /-! ## Looking through definitions, and the `fuel` argument -/
 
+/-- `sumTwo` behind one definition. -/
 noncomputable def layerOne : Measure ℝ := sumTwo
 
+/-- `sumTwo` behind two definitions. -/
 noncomputable def layerTwo : Measure ℝ := layerOne
 
 example : IsProbabilityMeasure layerTwo := by is_markov
