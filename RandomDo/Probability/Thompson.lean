@@ -99,6 +99,9 @@ instance : IsMarkovKernel (sampleK (K := K)) := by unfold sampleK; infer_instanc
 
 @[simp] lemma sampleK_apply (NS : (Fin K → ℝ) × (Fin K → ℝ)) : sampleK NS = sample NS := rfl
 
+/-- Thompson sampling for `K` arms with Gaussian rewards, as an `rdo` program: fold the history
+into per-arm pull counts `N`, starting at `1`, and reward sums `S`; draw for each arm one sample
+of the posterior `gaussianReal (S j / N j) (1 / N j)`; play the arm with the largest sample. -/
 def thompson {K n : ℕ} (hK : 0 < K) (hist : Vector (Fin K × ℝ) n) :
     Measure (Fin K) := rdo
   let mut N : Fin K → ℝ := fun _ ↦ 1

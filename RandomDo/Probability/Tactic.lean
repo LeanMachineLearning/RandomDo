@@ -444,7 +444,9 @@ partial def constValue? (K ι : Expr) : MetaM (Option Expr) := do
 
 /-- One fact produced by `rdo_peel`, with a suggested name. -/
 structure PeelFact where
+  /-- The name suggested for the hypothesis. -/
   suggested : Name
+  /-- Its proof. -/
   proof : Expr
 
 /-- Peel the trace kernel `P` at the parameter `c` into the law of each draw given the ones before

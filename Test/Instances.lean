@@ -68,11 +68,13 @@ def sumOver (xs : List ℕ) (f : ℕ → m ℕ) : m ℕ := rdo
 
 example : IdM.run (sumOver [1, 2, 3] (fun x ↦ ((x * 2 : ℕ) : IdM ℕ))) = 12 := rfl
 
+/-- At `Measure`, summing terms that are each `x` or `0` on a fair coin. -/
 noncomputable def sumOverMeasure : Measure ℕ :=
   sumOver (m := Measure) [1, 2, 3] (fun x ↦ rdo
     let b ← fairCoin
     return (if b then x else 0))
 
+/-- At `PseudoRandomM`, the same program as an executable sampler. -/
 def sumOverRandom : PseudoRandomM ℕ :=
   sumOver (m := PseudoRandomM) [1, 2, 3] (fun x ↦ rdo
     let b ← Random.randBool

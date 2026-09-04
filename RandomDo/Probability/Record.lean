@@ -69,9 +69,11 @@ instance : IsMarkov (record : α → Measure α) :=
   ⟨Measure.measurable_dirac, fun _ ↦ inferInstance⟩
 
 /-- **Recording is transparent.** Drawing `x` from `record x` and carrying on is the same as
-carrying on with `x`: inserting a `record` never changes the measure an `rdo` program denotes. -/
+carrying on with `x`: inserting a `record` never changes the measure an `rdo` program denotes.
+Stated with `Measure.bind`, the `simp` normal form of `>>=ₘ` at `Measure`; the `>>=ₘ` form is
+`record_bind_of_isMarkov`. -/
 @[simp]
-lemma record_bind (x : α) {f : α → Measure β} (hf : Measurable f) : record x >>=ₘ f = f x :=
+lemma record_bind (x : α) {f : α → Measure β} (hf : Measurable f) : (record x).bind f = f x :=
   Measure.dirac_bind hf x
 
 /-- `record_bind` in the shape a `simp` call can use with `is_markov` as its discharger:
