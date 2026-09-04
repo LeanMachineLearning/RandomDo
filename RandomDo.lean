@@ -2,7 +2,6 @@ module  -- shake: keep-all --deprecated_module: ignore
 
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.Measurable
-public import RandomDo.Monad.Examples
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.MeasurableSpace
@@ -16,8 +15,8 @@ public import RandomDo.Probability.Tactic
 public import RandomDo.Probability.Thompson
 public import RandomDo.Probability.Trace
 public import RandomDo.Probability.Transfer
+public import RandomDo.Tactic.Deriving
 public import RandomDo.Tactic.Elab
-public import RandomDo.Tactic.Examples
 public import RandomDo.Tactic.ForInStep
 public import RandomDo.Tactic.IsMarkov
 public import RandomDo.Tactic.Lemmas

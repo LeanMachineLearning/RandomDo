@@ -65,6 +65,8 @@ The `mPure` function is overloaded via `MeasurableSpacePure` instances.
 `MeasurableSpacePure` is typically accessed via `MeasurableSpaceMonad` instances, which extend it.
 -/
 class MeasurableSpacePure (f : (α : Type u) → [MeasurableSpace α] → Type v) where
+  /-- Given `a : α` where `α` has a `MeasurableSpace` instance, `mPure a : f α` represents an
+  action that does nothing and returns a -/
   mPure {α : Type u} [MeasurableSpace α] : α → f α
 
 /--
@@ -139,8 +141,6 @@ variable {f : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
     (hg₀ : Measurable g₀) (hg₁ : Measurable g₁) :
     g₁ <$>ₘ g₀ <$>ₘ x = (fun a => g₁ (g₀ a)) <$>ₘ x :=
   (comp_mMap x hg₀ hg₁).symm
-
-@[simp] theorem mMap_unit {a : f PUnit} : (fun _ => PUnit.unit) <$>ₘ a = a := by simp
 
 open MeasurableSpaceBind MeasurableSpacePure MeasurableSpaceFunctor
 

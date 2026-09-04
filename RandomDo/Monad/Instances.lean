@@ -21,7 +21,7 @@ universe u v w
 
 /-- A (core) monad automatically defines a (not necessarily lawful) measurable space monad by
 forgetting the measurable space argument. -/
-def Monad.toMeasurableSpaceMonad (m : Type u → Type v) [Monad m] (α : Type u) [MeasurableSpace α] :
+def Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u) [_mα : MeasurableSpace α] :
     Type v := m α
 
 instance {m : Type u → Type v} [Monad m] :
@@ -54,11 +54,15 @@ section RandomM
 
 open Function
 
+/-- A monad for random number generation. -/
 structure RandomM (Ω : Type w) [MeasurableSpace Ω] (P : Measure Ω)
     (α : Type u) [MeasurableSpace α] where
+  /-- Draws a value from a state of the source of randomness, and hands back the state left for the
+  next draw. -/
   sample : Ω → α × Ω
   measurePreserving : MeasurePreserving sample P ((Measure.map (Prod.fst ∘ sample) P).prod P)
 
+/-- TODO -/
 abbrev SampleM (Ω : Type w) [MeasurableSpace Ω] (P : Measure Ω) :=
   RandomM (ℕ → Ω) (Measure.infinitePi fun _ : ℕ ↦ P)
 
