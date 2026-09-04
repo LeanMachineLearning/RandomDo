@@ -14,7 +14,7 @@ set_option linter.style.header false
 /-!
 # Thompson sampling as random variables
 
-`thompson` in `RandomDo.Tactic.Examples` is an `rdo` program: a loop folding the history into
+`thompson`, defined below, is an `rdo` program: a loop folding the history into
 per-arm pull counts `N` and reward sums `S`, a loop drawing one Gaussian posterior sample per arm
 into a vector `θ`, and `return argmax θ`. As a measure on `Fin K` it has no random variables —
 there is no `θ` to talk about. This file gives it some.
