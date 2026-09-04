@@ -15,7 +15,18 @@ git = "https://github.com/LeanMachineLearning/LML"
 rev = "main"
 
 [[lean_lib]]
+name = "FFI"
+precompileModules = true
+
+[[lean_lib]]
 name = "RandomDo"
 
 [[lean_lib]]
 name = "Test"
+
+# The check scripts generate `test_data/Dump.lean` and run it through this target, so that the
+# sampler runs as compiled code: `lake env lean --run` would interpret it, which is far slower.
+[[lean_exe]]
+name = "dump"
+root = "Dump"
+srcDir = "test_data"
