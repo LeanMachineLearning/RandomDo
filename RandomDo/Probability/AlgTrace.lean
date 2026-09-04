@@ -59,7 +59,9 @@ open MeasureTheory ProbabilityTheory Finset Learning
 noncomputable section
 
 /-- An algorithm-environment sequence pulls back along a measure-preserving map. With
-`extend_space`, this lets one add independent randomness to a space carrying such a sequence. -/
+`extend_space`, this lets one add independent randomness to a space carrying such a sequence: as
+a `@[transfer_forward]` lemma, it is how the hypothesis is transported to the extended space. -/
+@[transfer_forward]
 lemma _root_.Learning.IsAlgEnvSeq.comp_measurePreserving {𝓐 𝓨 Ω Ω' : Type*} [MeasurableSpace 𝓐]
     [MeasurableSpace 𝓨] {_ : MeasurableSpace Ω} {_ : MeasurableSpace Ω'} {P : Measure Ω}
     [IsFiniteMeasure P] {P' : Measure Ω'} [IsFiniteMeasure P'] {A : ℕ → Ω → 𝓐} {Y : ℕ → Ω → 𝓨}
@@ -577,10 +579,12 @@ example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {
       Measure.map_map (by fun_prop)
         (measurable_trajectory h₂.measurable_action h₂.measurable_feedback), ← e₂, h₀]
 
-/-- **`extend_space` alongside an algorithm-environment sequence.** The sequence pulls back along
-the projection `f` by `IsAlgEnvSeq.comp_measurePreserving`, and the larger space also carries a
-Gaussian `U` independent of the whole trajectory. The statement does not mention the original
-space, so the `transfer` obligation is trivial and `extend_space` closes it. -/
+/-- **`extend_space` alongside an algorithm-environment sequence.** After the extension, `Ω`, `P`,
+`A` and `Y` live on a larger space that also carries a Gaussian `U` independent of the whole
+trajectory, and `h` has been transported by `IsAlgEnvSeq.comp_measurePreserving`. The statement
+does not mention the original space, so the `transfer` obligation is trivial and `extend_space`
+closes it. The measurability of the sequence is put in the context first, so that the
+independence statement `hind` covers `A` and `Y`. -/
 example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
     [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
     (h : IsAlgEnvSeq A Y (alg hK) env P) :
@@ -588,21 +592,24 @@ example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {
       (A' : ℕ → Ω' → Fin K) (Y' : ℕ → Ω' → ℝ) (U : Ω' → ℝ),
       IsAlgEnvSeq A' Y' (alg hK) env P' ∧ HasLaw U (gaussianReal 0 1) P'
         ∧ IndepFun (trajectory A' Y') U P' := by
-  extend_space (gaussianReal 0 1) using P with Ω' P' f hf U hU hind
-  exact ⟨Ω', inferInstance, P', inferInstance, fun n ω ↦ A n (f ω), fun n ω ↦ Y n (f ω), U,
-    h.comp_measurePreserving hf, hU,
-    hind.comp (measurable_trajectory h.measurable_action h.measurable_feedback) measurable_id⟩
+  have hA := h.measurable_action
+  have hY := h.measurable_feedback
+  extend_space! (gaussianReal 0 1) using P with U hU hind
+  have hAY : IndepFun (trajectory A Y) U P :=
+    hind.comp (φ := fun (p : (ℕ → Fin K) × (ℕ → ℝ)) (n : ℕ) ↦ (p.1 n, p.2 n)) (by fun_prop)
+      measurable_id
+  exact ⟨Ω₀, inferInstance, P, inferInstance, A, Y, U, h, hU, hAY⟩
 
-/-- **The `transfer` tactic with an algorithm-environment sequence.** The goal mentions the space
-through `P` and `A 0`; `transfer` moves it to the new space, with the measurability of the
-sequence taken from `h`. In the extended goal, `transfer hf at h` pulls the sequence back. -/
+/-- **The explicit form, `extend_space_map`.** The goal mentions the space through `P` and `A 0`;
+`transfer` moves it to the new space, with the measurability of the sequence taken from `h`. In
+the extended goal, `transfer hf at h` pulls the sequence back. -/
 example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
     [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
     (h : IsAlgEnvSeq A Y (alg hK) env P) :
     P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
   have hA := h.measurable_action
   have hY := h.measurable_feedback
-  extend_space (gaussianReal 0 1) with Ω' P' f hf U hU hind
+  extend_space_map (gaussianReal 0 1) with Ω' P' f hf U hU hind
   transfer hf at h
   exact h.hasLaw_action_zero.map_eq
 
