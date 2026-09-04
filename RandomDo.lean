@@ -9,7 +9,7 @@ public import RandomDo.Monad.Notation
 public import RandomDo.Probability.AlgTrace
 public import RandomDo.Probability.Examples
 public import RandomDo.Probability.Extend
-public import RandomDo.Probability.ExtendExamples
+public import RandomDo.Probability.MeasurePreserving
 public import RandomDo.Probability.Record
 public import RandomDo.Probability.Tactic
 public import RandomDo.Probability.Thompson

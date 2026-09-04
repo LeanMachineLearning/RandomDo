@@ -1,35 +1,30 @@
-/-
-Copyright (c) 2026 Rémy Degenne. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Rémy Degenne
--/
 module
 
-public import RandomDo.Probability.Extend
+public import Test.Common
 public import Mathlib.Probability.Independence.InfinitePi
 
 set_option linter.style.header false
 
 /-!
-# Tests and examples for `extend_space` and `transfer`
+# The `extend_space` tactic
 
 The first sections pin down what `extend_space` produces: the context after the extension, what
 is transported and what is left about the old space, when the `transfer` obligation is closed
 automatically and when it is left, and what `extend_space!` clears. Then come the explicit form
-`extend_space_map`, the `transfer` tactic on its own, a draw with a conditional law, an i.i.d.
-sequence, and the errors the tactics report.
+`extend_space_map`, a draw with a conditional law, an i.i.d. sequence, and the errors the tactic
+reports.
 
 Throughout, `Ω` lives in `Type u` and `E` in `Type`: the tactic lifts the product to the universe
 of `Ω`.
 -/
 
-@[expose] public section
-
 open MeasureTheory ProbabilityTheory RDo
+
+@[expose] public section
 
 noncomputable section
 
-namespace RDo.Example.Extend
+namespace Test.Extend
 
 universe u
 
@@ -288,27 +283,6 @@ example (X : Ω → ℝ) (hX : Measurable X) (κ : Kernel ℝ E) [IsMarkovKernel
   transfer hf at hXν
   exact hXν.map_eq
 
-/-! ## The `transfer` tactic on its own -/
-
-/-- `transfer hf` on a goal: the goal is moved to the new space and closed by the hypothesis. -/
-example (X : Ω → ℝ) (hX : Measurable X) (ν : Measure ℝ) {Ω' : Type u} [MeasurableSpace Ω']
-    {P' : Measure Ω'} (f : Ω' → Ω) (hf : MeasurePreserving f P' P)
-    (h : HasLaw (fun ω ↦ X (f ω)) ν P') :
-    HasLaw X ν P := by
-  transfer hf
-
-/-- `transfer hf at h` rewrites with the `@[transfer]` lemmas when it can, and falls back on the
-`@[transfer_forward]` lemmas otherwise. -/
-example (X : Ω → ℝ) (hX : Measurable X) (s : Set Ω) (hs : MeasurableSet s) (h : P s = 1)
-    {Ω' : Type u} [MeasurableSpace Ω'] {P' : Measure Ω'} (f : Ω' → Ω)
-    (hf : MeasurePreserving f P' P) :
-    P' (f ⁻¹' s) = 1 ∧ MeasurableSet (f ⁻¹' s) ∧ Measurable fun ω ↦ X (f ω) := by
-  transfer hf at hX hs h
-  guard_hyp hX : Measurable fun ω ↦ X (f ω)
-  guard_hyp hs : MeasurableSet (f ⁻¹' s)
-  guard_hyp h : P' (f ⁻¹' s) = 1
-  exact ⟨h, hs, hX⟩
-
 /-! ## Universes -/
 
 /-- `Ω` and `E` in the same universe. -/
@@ -342,17 +316,7 @@ example {E' : Type (u + 1)} [MeasurableSpace E'] (μ' : Measure E') [IsProbabili
     (X : Ω → ℝ) : P.map X = P.map X := by
   extend_space μ'
 
-/--
-error: transfer: the goal is not a `transfer` obligation. It should have the form
-  ∀ Ω' [MeasurableSpace Ω'] (P' : Measure Ω') [IsProbabilityMeasure P'] (f : Ω' → Ω), MeasurePreserving f P' P → T' → T
-but is
-  True
--/
-#guard_msgs in
-example : True := by
-  transfer
-
-end RDo.Example.Extend
+end Test.Extend
 
 end
 
