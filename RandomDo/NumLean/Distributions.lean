@@ -134,7 +134,7 @@ tail is the exponential's own, memoryless, so one draw beyond `Ziggurat.expR` su
 deviation. -/
 @[inline] def normal' (loc : Float := 0) (var : Float := 1) : RandPCG IO Float := do
   if var < 0 then throw <| IO.userError "var < 0"
-  return Float.fma (Float.sqrt var) (← standardNormal) loc
+  normal loc (Float.sqrt var)
 
 /-- Draw samples from an exponential distribution. -/
 @[inline] def exponential (scale : Float := 1) : RandPCG IO Float := do
