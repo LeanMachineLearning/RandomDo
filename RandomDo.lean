@@ -11,8 +11,12 @@ public import RandomDo.NumLean.PCG64
 public import RandomDo.NumLean.SeedSequence
 public import RandomDo.NumLean.Ziggurat
 public import RandomDo.NumLean.ZigguratSampler
-public import RandomDo.Tactic.Deriving
-public import RandomDo.Tactic.Elab
-public import RandomDo.Tactic.ForInStep
-public import RandomDo.Tactic.IsMarkov
-public import RandomDo.Tactic.Lemmas
+public import RandomDo.Tactic.Computable.Counterparts
+public import RandomDo.Tactic.Computable.Defs
+public import RandomDo.Tactic.Computable.Deriving
+public import RandomDo.Tactic.Computable.Example
+public import RandomDo.Tactic.IsMarkov.Defs
+public import RandomDo.Tactic.IsMarkov.Deriving
+public import RandomDo.Tactic.IsMarkov.Elab
+public import RandomDo.Tactic.IsMarkov.ForInStep
+public import RandomDo.Tactic.IsMarkov.Lemmas

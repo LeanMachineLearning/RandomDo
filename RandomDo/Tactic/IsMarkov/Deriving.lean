@@ -5,7 +5,7 @@ Authors: Rémy Degenne
 -/
 module
 
-public import RandomDo.Tactic.Elab
+public import RandomDo.Tactic.IsMarkov.Elab
 
 /-!
 # The `@[is_markov]` attribute
