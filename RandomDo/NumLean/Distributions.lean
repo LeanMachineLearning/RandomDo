@@ -130,6 +130,12 @@ tail is the exponential's own, memoryless, so one draw beyond `Ziggurat.expR` su
   if scale < 0 then throw <| IO.userError "scale < 0"
   return Float.fma scale (← standardNormal) loc
 
+/-- Draw random samples from a normal (Gaussian) distribution, with variance instead of standard
+deviation. -/
+@[inline] def normal' (loc : Float := 0) (var : Float := 1) : RandPCG IO Float := do
+  if var < 0 then throw <| IO.userError "var < 0"
+  return Float.fma (Float.sqrt var) (← standardNormal) loc
+
 /-- Draw samples from an exponential distribution. -/
 @[inline] def exponential (scale : Float := 1) : RandPCG IO Float := do
   if scale < 0 then throw <| IO.userError "scale < 0"

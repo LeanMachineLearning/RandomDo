@@ -29,6 +29,6 @@ attribute [computable_as Float] NNReal
 
 /- `gaussianReal` reads its second argument as a variance and `normal` reads it as a standard
 deviation: the two agree on the `1` the example draws with, not in general. -/
-attribute [computable_as NumLean.normal] ProbabilityTheory.gaussianReal
+attribute [computable_as NumLean.normal'] ProbabilityTheory.gaussianReal
 
 end
