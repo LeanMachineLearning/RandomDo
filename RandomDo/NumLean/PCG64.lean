@@ -29,6 +29,8 @@ native machine arithmetic.
   hands out the two halves of a 64-bit output in turn
 * `PCG64.seedWords` / `PCG64.seed` / `mkPCG64`: seeding, following the reference
   `pcg_setseq_128_srandom_r`
+* `randUInt64` / `randUInt32` / `random`: the three outputs a `RandPCG` computation draws straight
+  from the generator.
 
 ## References
 
@@ -199,6 +201,25 @@ instance : RandomGen PCG64 where
 /-- A monad transformer to generate random objects using the generator type `PCG64`.
 `RandPCG m α` should be thought of a random value in `m α`. -/
 abbrev RandPCG := RandGT PCG64
+
+/-- Sample a `UInt64` from a PCG-64 generator. -/
+@[inline] def randUInt64 : RandPCG IO UInt64 := do
+  let (x, g) := (← get).down.nextUInt64
+  set (ULift.up g)
+  return x
+
+/-- Sample a `UInt32` from a PCG-64 generator, as numpy's `next_uint32` does for `PCG64`: the two
+halves of each 64-bit output are handed out in turn, see `PCG64.nextUInt32`. -/
+@[inline] def randUInt32 : RandPCG IO UInt32 := do
+  let (x, g) := (← get).down.nextUInt32
+  set (ULift.up g)
+  return x
+
+/-- Sample a `Float` in `[0, 1)` from a PCG-64 generator, as numpy's `next_double`: the top 53 bits
+of a 64-bit output, scaled by `2 ^ (-53)`. -/
+@[inline] def random : RandPCG IO Float := do
+  let x ← randUInt64
+  return (x >>> 11).toFloat * (Float.ofBits <| 0x3CA <<< (52 : UInt64))
 
 end NumLean
 

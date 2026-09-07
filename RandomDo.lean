@@ -10,6 +10,7 @@ public import RandomDo.NumLean.Distributions
 public import RandomDo.NumLean.PCG64
 public import RandomDo.NumLean.SeedSequence
 public import RandomDo.NumLean.Ziggurat
+public import RandomDo.NumLean.ZigguratSampler
 public import RandomDo.Tactic.Deriving
 public import RandomDo.Tactic.Elab
 public import RandomDo.Tactic.ForInStep
