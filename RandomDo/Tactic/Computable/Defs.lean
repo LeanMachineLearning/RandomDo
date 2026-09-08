@@ -11,16 +11,11 @@ public meta import Lean.ReservedNameAction
 /-!
 # The `@[computable_as]` attribute
 
-An `rdo` program is written over the Giry monad: it draws from measures on `ℝ`, which no machine
-samples. Turning it into a program that runs, which the `@[computable]` attribute of
-`RandomDo.Tactic.Computable.Deriving` does, asks for a counterpart of each piece the program is
-built from: `Float` for `ℝ`, `NumLean.normal` for `gaussianReal`. This file holds the attribute
+An `rdo` program is written over the Giry monad: it draws from measures on a measurable space, which no machine samples. Turning it into a program that runs, which the `@[computable]` attribute of `RandomDo.Tactic.Computable.Deriving` does, asks for a counterpart of each piece the program is
+built from, e.g, `NumLean.normal'` for `gaussianReal`. This file holds the attribute
 recording them; `RandomDo.Tactic.Computable.Counterparts` holds the counterparts themselves.
 
 `@[computable_as f]` on a declaration `d` reads: `f` is what `d` becomes in a translated program.
-Only the pieces denoting something the program computes with need one. The scaffolding around
-them — numerals, arithmetic — is polymorphic, and the translation keeps it as it is, at the
-translated types.
 -/
 
 public meta section
@@ -34,8 +29,6 @@ initialize computableAsExt : NameMapExtension Name ←
   registerNameMapAttribute {
     name := `computable_as
     descr := "record the computable counterpart of this declaration"
-    /- `@[computable_as f]` is read by `Lean.Parser.Attr.simple`, the parser an attribute that
-    declares no syntax of its own gets: `f` is the single child of `stx[1]`. -/
     add := fun _ stx ↦ do
       let f := stx[1][0]
       unless f.isIdent do

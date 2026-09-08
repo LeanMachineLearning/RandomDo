@@ -29,6 +29,8 @@ attribute [computable_as Float] NNReal
 
 attribute [computable_as NumLean.normal'] ProbabilityTheory.gaussianReal
 
+/-! ## Classical functions -/
+
 attribute [computable_as Float.sqrt] Real.sqrt
 
 attribute [computable_as Float.log] Real.log

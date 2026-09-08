@@ -8,15 +8,11 @@ module
 public import RandomDo.Tactic.Computable.Counterparts
 public import RandomDo.Monad.MeasurableSpace
 public meta import Lean.Elab.Tactic.Basic
-public meta import Batteries.Tactic.Lint.Basic
 
 /-!
 # The `@[computable]` attribute
 
-Writing an `rdo` program and writing the program that samples from it are two separate steps, and
-the second is mechanical: every construct of the first has a counterpart in the second. This
-attribute walks the program and writes that counterpart down, so a program carries the sampler it
-denotes:
+`@[computable]` reads an `rdo` program and adds the program that samples from it:
 
 ```
 @[computable]
@@ -25,19 +21,19 @@ noncomputable def shifted : Measure ℝ := rdo
   return x + 1
 ```
 
-adds `shifted_computable : RandPCG IO Float`, which draws from `NumLean.normal 0 1` and adds one.
+adds `shiftedComputable : RandPCG IO Float`, which draws from `NumLean.normal' 0 1` and adds one.
 
-## How the program is read
+The Giry monad and its two operations become `RandPCG IO`, `pure` and `bind`. Anything else is
+rebuilt from the counterpart `@[computable_as]` records for its head, with its arguments translated
+in turn and its instances synthesized anew. A term translates into a term of the translation of its
+type; where the rebuilt one does not, its head is a definition nothing is known about, and its body
+is read in its place. `@[computable]` records the program it writes, so a program drawing from
+another translates into one calling that other's translation.
 
-The two constructs `rdo` is made of become the two of `do`: `return e` becomes `pure e`, and
-`let x ← p; q` becomes `p >>= q`, at `RandPCG IO`. Everything else — a distribution, a numeral, an
-operation on the values the program computes with — is rebuilt from the counterpart
-`@[computable_as]` records for its head, applied to the translation of its arguments; the
-instances it asks for are synthesized anew, for the translated types.
+Two things extend the attribute: an `@[computable_as]` entry, and an alternative of `translate` for
+a construct of `rdo` it has not been taught.
 
-Setting `set_option trace.computable true` prints the tree of pieces the attribute walked through,
-each with what it became, the instances synthesized along the way, and the declaration written at
-the end.
+`set_option trace.computable true` prints what each piece became.
 -/
 
 public meta section
@@ -48,77 +44,104 @@ namespace RDo.Tactic
 
 initialize registerTraceClass `computable
 
-/-- The monad a translated program lives in, `RandPCG IO`: the counterpart of the Giry monad an
-`rdo` program is written over. -/
+/-- The monad the translated programs live in. -/
 def computableMonad : MetaM Expr := mkAppM ``RandPCG #[mkConst ``IO]
 
-/-- Translate `e`, a piece of an `rdo` program, into its computable counterpart. `σ` sends the
-variables the program binds to the ones the translated program binds in their place, which the
-change of types makes necessary. -/
+mutual
+
+/-- Translate a piece of an `rdo` program. `σ` maps the variables the program binds to the ones the
+translated program binds in their place. -/
 partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
-  withTraceNode `computable
-      (fun
-        | .ok e' => return m!"{e} ↦ {e'}"
-        | .error _ => return m!"{e}: not translated") do
-    -- `MeasurableSpacePure.mPure` takes five arguments, the last of which is the value returned.
-    if e.isAppOfArity ``MeasurableSpacePure.mPure 5 then
-      mkAppOptM ``Pure.pure #[← computableMonad, none, none, ← translate σ (e.getArg! 4)]
-    -- `MeasurableSpaceBind.mBind` takes eight, the last two the program and the continuation.
-    else if e.isAppOfArity ``MeasurableSpaceBind.mBind 8 then
+  withTraceNode `computable (fun
+      | .ok e' => return m!"{e} ↦ {e'}"
+      | .error _ => return m!"{e}: not translated") do
+    match_expr e with
+    | MeasurableSpacePure.mPure _ _ _ _ a =>
+      mkAppOptM ``Pure.pure #[← computableMonad, none, none, ← translate σ a]
+    | MeasurableSpaceBind.mBind _ _ _ _ _ _ p k =>
       mkAppOptM ``Bind.bind #[← computableMonad, none, none, none,
-        ← translate σ (e.getArg! 6), ← translate σ (e.getArg! 7)]
-    else match e with
-    | .fvar fvarId => return σ.get fvarId
-    | .sort .. | .lit .. => return e
-    | .mdata _ b => translate σ b
-    | .lam .. =>
-      lambdaBoundedTelescope e 1 fun xs body ↦ do
-        let x := xs[0]!
-        let t ← translate σ (← x.fvarId!.getType)
-        withLocalDeclD (← x.fvarId!.getUserName) t fun y ↦ do
-          mkLambdaFVars #[y] (← translate (σ.insert x.fvarId! y) body)
-    | _ =>
-      let .const declName _ := e.getAppFn
-        | throwError "`computable`: cannot translate{indentExpr e}"
-      let counterpart := (← computableAs? declName).getD declName
-      let mut f ← mkConstWithFreshMVarLevels counterpart
-      for arg in e.getAppArgs do
-        let .forallE _ t _ bi ← whnf (← inferType f)
-          | throwError "`computable`: {f} does not take the argument{indentExpr arg}"
-        /- An instance is the one argument that is not translated but synthesized anew, so the
-        trace above it says nothing: it is reported here instead. -/
-        let arg ←
-          if bi.isInstImplicit then do
-            let inst ← synthInstance t
-            trace[computable] "instance: {inst}"
-            pure inst
-          else
-            translate σ arg
-        unless ← isDefEq (← inferType arg) t do
-          throwError "`computable`: {arg} does not fit the argument of {f}, of type{indentExpr t}"
-        f := mkApp f arg
-      return f
+        ← translate σ p, ← translate σ k]
+    | MeasureTheory.Measure α _ => return mkApp (← computableMonad) (← translate σ α)
+    | _ => match e with
+      | .fvar x => return σ.get x
+      | .sort .. | .lit .. => return e
+      | .mdata _ b => translate σ b
+      | .lam .. => lambdaBoundedTelescope e 1 fun xs body ↦ do
+        let x := xs[0]!.fvarId!
+        withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
+          mkLambdaFVars #[y] (← translate (σ.insert x y) body)
+      | _ => translateApp σ e
+
+/-- Rebuild an application from the counterpart of its head; where nothing known about that head
+fits, look through it and read its body in its place. -/
+partial def translateApp (σ : FVarSubst) (e : Expr) : MetaM Expr := do
+  if e.getAppFn.isLambda then return ← translate σ e.headBeta
+  let .const declName _ := e.getAppFn | throwError "`computable`: cannot translate{indentExpr e}"
+  let counterpart? ← computableAs? declName
+  let head := counterpart?.getD declName
+  /- We save the state of metavariables, so that a failed rebuild does not leave them in a
+  half-built state. -/
+  let s ← saveState
+  try
+    /- A term translates into a term of the translation of its type. A head nothing is known about
+    rebuilds into itself, of the type it had, and might fail. We check that the rebuilt term has
+    the translation of the type, and if not, we look through it. -/
+    let f ← rebuild σ head e
+    -- Useless for a type, whose type is a sort either way.
+    if (← inferType f).isSort then return f
+    let expected ← translate σ (← inferType e)
+    unless ← isDefEq (← inferType f) expected do
+      throwError "`computable`: {f} is of type{indentExpr (← inferType f)}\n\
+        where the translation asks for{indentExpr expected}"
+    return f
+  catch ex =>
+    restoreState s
+    /- The rebuild failed, we try to look through the head, and read its body in its place. -/
+    if counterpart?.isNone then
+      if let some e' ← unfoldDefinition? e then
+        trace[computable] "nothing known about {declName}, looking through it"
+        return ← translate σ e'
+    throw ex
+
+/-- Apply `head` to the arguments of `e`, translated in turn, and check that the result has the
+translation of the type of `e`. -/
+partial def rebuild (σ : FVarSubst) (head : Name) (e : Expr) : MetaM Expr := do
+  let mut f ← mkConstWithFreshMVarLevels head
+  for arg in e.getAppArgs do
+    let .forallE _ t _ bi ← whnf (← inferType f)
+      | throwError "`computable`: {f} does not take the argument{indentExpr arg}"
+    let arg ←
+      if bi.isInstImplicit then do
+        -- An instance is not translated: it is asked for anew, at the translated types.
+        let inst ← synthInstance t
+        trace[computable] "instance: {inst}"
+        pure inst
+      else
+        translate σ arg
+    unless ← isDefEq (← inferType arg) t do
+      throwError "`computable`: {arg} does not fit the argument of {f}, of type{indentExpr t}"
+    f := mkApp f arg
+  return f
+
+end
 
 /-- Translate the `rdo` program `declName` and add the translation to the environment, under the
-name `declName` followed by `_computable`. -/
+name `declName` followed by `Computable`. -/
 def addComputableDecl (declName : Name) : MetaM Unit := do
   let info ← getConstInfo declName
   let some value := info.value?
     | throwError "`computable` can only be derived for a definition, but {declName} has no value"
   let value ← instantiateMVars (← translate {} value)
   let type ← instantiateMVars (← inferType value)
-  let translated := declName.appendAfter "_computable"
+  let translated := declName.appendAfter "Computable"
   addAndCompile <| .defnDecl <| ← mkDefinitionValInferringUnsafe translated info.levelParams type
     value (.regular (getMaxHeight (← getEnv) value + 1))
-  trace[computable] "wrote {translated} :{indentExpr type}"
-  addDocStringCore translated s!"The program that samples from `{declName}`, written by the \
-    `@[computable]` attribute."
-  /- The name is one the attribute picks and not one the user wrote, so the underscore in it is
-  reported for every program translated unless it is exempted here. -/
-  setEnv (← ofExcept (Batteries.Tactic.Lint.nolintAttr.setParam (← getEnv) translated
-    #[`defsWithUnderscore]))
+  addDocStringCore translated s!"The computable program that samples from `{declName}` \
+    (automatically generated by the `@[computable]` attribute)."
+  computableAsExt.add declName translated
+  trace[computable] "wrote {translated}:{indentExpr type}"
 
-/-- The `@[computable]` attribute. -/
+@[inherit_doc addComputableDecl]
 initialize registerBuiltinAttribute {
   name := `computable
   descr := "translate this `rdo` program into the program that samples from it"
