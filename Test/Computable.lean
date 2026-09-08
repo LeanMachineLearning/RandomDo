@@ -1,11 +1,8 @@
 module
 
 public import Test.IsMarkov
+public import Test.Bind
 import Batteries.Data.Float.Basic
-/- A `run_cmd` runs at elaboration time, so what it calls has to be imported as `meta` too: the
-sampler it draws with, and `Float.toStringFull` it prints with. -/
-meta import RandomDo.NumLean.Distributions
-meta import Batteries.Data.Float.Basic
 
 set_option linter.style.header false
 
@@ -15,19 +12,19 @@ namespace Test.Computable
 
 open Test.IsMarkov NumLean Lean.Elab.Command
 
-def logComputable (prog : RandPCG IO Float) : CommandElabM Unit := do
-  let x ← (IO.runRandPCG prog : IO Float)
-  let y ← (IO.runRandPCGWith 42 prog : IO Float)
-  Lean.logInfo m!"x = {x.toStringFull}"
-  Lean.logInfo m!"y (seed 42) = {y.toStringFull}"
+def logComputable {α : Type} [Lean.ToMessageData α] (prog : RandPCG IO α) : CommandElabM Unit := do
+  let x ← (IO.runRandPCG prog : IO α)
+  let y ← (IO.runRandPCGWith 42 prog : IO α)
+  Lean.logInfo m!"x = {x}"
+  Lean.logInfo m!"y (seed 42) = {y}"
 
---attribute [computable] sumTwo
+attribute [computable] sumTwo
 
---run_cmd do logComputable sumTwoComputable
+run_cmd do logComputable sumTwoComputable
 
 @[computable]
 noncomputable
-def test : MeasureTheory.Measure ℝ := rdo
+def unfoldSumTwo : MeasureTheory.Measure ℝ := rdo
   let y ← sumTwo
   let x ← ProbabilityTheory.gaussianReal 0 1
   return x + y
@@ -41,5 +38,13 @@ attribute [computable] branchOn
 run_cmd do logComputable (branchOnComputable 20)
 
 run_cmd do logComputable (branchOnComputable (-1))
+
+attribute [computable] fairCoin
+
+run_cmd do logComputable (fairCoinComputable)
+
+attribute [computable] Bind.twoCoins
+
+run_cmd do logComputable (Bind.twoCoinsComputable)
 
 end Test.Computable

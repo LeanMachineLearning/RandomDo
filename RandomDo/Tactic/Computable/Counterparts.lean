@@ -8,6 +8,7 @@ module
 public import RandomDo.Tactic.Computable.Defs
 public import RandomDo.NumLean.Distributions
 public import Mathlib.Probability.Distributions.Gaussian.Real
+public import Mathlib.Probability.Distributions.Bernoulli
 
 /-!
 # Computable counterparts of the pieces an `rdo` program is made of
@@ -18,7 +19,7 @@ counterpart recorded here through `@[computable_as]`. There is one entry per pie
 one distribution they draw from.
 -/
 
-public meta section
+@[expose] public section
 
 /-! ## Types -/
 
@@ -29,6 +30,12 @@ attribute [computable_as Float] NNReal
 
 attribute [computable_as NumLean.normal'] ProbabilityTheory.gaussianReal
 
+def bernoulliChoice (α : Type) [MeasurableSpace α] (x y : α) (p : Float) :
+    NumLean.RandPCG IO α := do
+  return if (← NumLean.bernoulli p) == 1 then x else y
+
+attribute [computable_as bernoulliChoice] ProbabilityTheory.bernoulliMeasure
+
 /-! ## Classical functions -/
 
 attribute [computable_as Float.sqrt] Real.sqrt
@@ -36,5 +43,3 @@ attribute [computable_as Float.sqrt] Real.sqrt
 attribute [computable_as Float.log] Real.log
 
 attribute [computable_as Float.exp] Real.exp
-
-end

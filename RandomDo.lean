@@ -6,6 +6,7 @@ public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.MeasurableSpace
 public import RandomDo.Monad.Notation
+public import RandomDo.NumLean.Binomial
 public import RandomDo.NumLean.Distributions
 public import RandomDo.NumLean.PCG64
 public import RandomDo.NumLean.SeedSequence

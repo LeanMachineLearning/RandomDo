@@ -8,6 +8,7 @@ module
 public import RandomDo.NumLean.PCG64
 public meta import RandomDo.NumLean.PCG64
 public import FFI.Float
+public import RandomDo.NumLean.Binomial
 public import RandomDo.NumLean.Ziggurat
 public import RandomDo.NumLean.ZigguratSampler
 
@@ -140,5 +141,23 @@ deviation. -/
 @[inline] def exponential (scale : Float := 1) : RandPCG IO Float := do
   if scale < 0 then throw <| IO.userError "scale < 0"
   return scale * (← standardExponential)
+
+/-- Draw samples from a binomial distribution. -/
+def binomial (n : Nat) (p : Float) : RandPCG IO Nat := do
+  -- The comparisons are the `Bool` ones: through `Decidable`, each costs more than a draw.
+  if p.lt 0.0 || Float.lt 1.0 p || p.isNaN then
+    throw <| IO.userError "p < 0, p > 1 or p is NaN"
+  let n := n.toUInt64.toFloat
+  if n == 0 || p == 0.0 then return 0
+  if Float.le p 0.5 then
+    if Float.le (p * n) 30.0 then return (← inversionDraw (inversionSetup n p)).toUInt64.toNat
+    else return (← btpeDraw (btpeSetup n p)).toUInt64.toNat
+  else
+    let q := 1.0 - p
+    if Float.le (q * n) 30.0 then return (n - (← inversionDraw (inversionSetup n q))).toUInt64.toNat
+    else return (n - (← btpeDraw (btpeSetup n q))).toUInt64.toNat
+
+/-- Draw samples from a Bernoulli distribution. -/
+@[inline] def bernoulli (p : Float) := binomial 1 p
 
 end NumLean

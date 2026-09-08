@@ -62,6 +62,10 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
       mkAppOptM ``Bind.bind #[← computableMonad, none, none, none,
         ← translate σ p, ← translate σ k]
     | MeasureTheory.Measure α _ => return mkApp (← computableMonad) (← translate σ α)
+    /- A subtype is its carrier, and one of its values is the value it carries: the constraint and
+    the proof of it are what a computable counterpart does not have. -/
+    | Subtype α _ => translate σ α
+    | Subtype.mk _ _ v _ => translate σ v
     | _ => match e with
       | .fvar x => return σ.get x
       | .sort .. | .lit .. => return e
