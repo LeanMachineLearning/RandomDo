@@ -5,7 +5,7 @@ Authors: Rémy Degenne
 -/
 module
 
-public import RandomDo.Tactic.Elab
+public import RandomDo.Tactic.IsMarkov.Elab
 
 /-!
 # The `@[is_markov]` attribute
@@ -63,7 +63,7 @@ def addIsMarkovInstance (declName : Name) : TermElabM Unit := do
                       value := ← instantiateMVars proof })
   Meta.addInstance instName .global 1000
 
-/-- The `@[is_markov]` attribute. -/
+@[inherit_doc isMarkovStatement]
 initialize registerBuiltinAttribute {
   name := `is_markov
   descr := "prove that this `rdo` program is a Markov kernel, and register it as an instance"
