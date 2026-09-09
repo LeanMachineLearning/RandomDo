@@ -5,7 +5,7 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import RandomDo.Tactic.Computable.Counterparts
+public meta import RandomDo.Tactic.Computable.Counterparts
 public import RandomDo.Monad.MeasurableSpace
 public meta import Lean.Elab.Tactic.Basic
 
@@ -23,15 +23,21 @@ noncomputable def shifted : Measure ℝ := rdo
 
 adds `shiftedComputable : RandPCG IO Float`, which draws from `NumLean.normal' 0 1` and adds one.
 
-The Giry monad and its two operations become `RandPCG IO`, `pure` and `bind`. Anything else is
-rebuilt from the counterpart `@[computable_as]` records for its head, with its arguments translated
-in turn and its instances synthesized anew. A term translates into a term of the translation of its
+The Giry monad and its two operations become `RandPCG IO`, `pure` and `bind`, the `for` loop of
+`rdo` becomes the `for` loop of that monad, and a `let` stays a `let`. Anything else is rebuilt
+from the counterpart `@[computable_as]` records for its head, with its arguments translated in turn
+and its instances synthesized anew. A term translates into a term of the translation of its
 type; where the rebuilt one does not, its head is a definition nothing is known about, and its body
 is read in its place. `@[computable]` records the program it writes, so a program drawing from
 another translates into one calling that other's translation.
 
 Two things extend the attribute: an `@[computable_as]` entry, and an alternative of `translate` for
 a construct of `rdo` it has not been taught.
+
+The counterparts are imported `meta` as well as publicly, and so reach every module the attribute
+does. A translated program is written to be run, and a `run_cmd` or an `#eval` runs it in the very
+module that writes it: the interpreter then asks for the code of what it calls, which a plain
+`import` does not carry.
 
 `set_option trace.computable true` prints what each piece became.
 -/
@@ -61,6 +67,9 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
     | MeasurableSpaceBind.mBind _ _ _ _ _ _ p k =>
       mkAppOptM ``Bind.bind #[← computableMonad, none, none, none,
         ← translate σ p, ← translate σ k]
+    | MeasurableSpaceForIn.forIn _ _ _ _ _ _ xs init body =>
+      mkAppOptM ``ForIn.forIn #[← computableMonad, none, none, none, none,
+        ← translate σ xs, ← translate σ init, ← translate σ body]
     | MeasureTheory.Measure α _ => return mkApp (← computableMonad) (← translate σ α)
     /- A subtype is its carrier, and one of its values is the value it carries: the constraint and
     the proof of it are what a computable counterpart does not have. -/
@@ -74,6 +83,9 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
         let x := xs[0]!.fvarId!
         withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
           mkLambdaFVars #[y] (← translate (σ.insert x y) body)
+      | .letE n t v b _ => withLetDecl n t v fun x ↦ do
+        withLetDecl n (← translate σ t) (← translate σ v) fun y ↦ do
+          mkLetFVars #[y] (← translate (σ.insert x.fvarId! y) (b.instantiate1 x))
       | _ => translateApp σ e
 
 /-- Rebuild an application from the counterpart of its head; where nothing known about that head
