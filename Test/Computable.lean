@@ -20,7 +20,7 @@ def logComputable {α : Type} [Lean.ToMessageData α] (prog : RandPCG IO α) : C
 
 attribute [computable] sumTwo
 
-run_cmd do logComputable sumTwoComputable
+run_cmd logComputable sumTwoComputable
 
 @[computable]
 noncomputable
@@ -31,20 +31,20 @@ def unfoldSumTwo : MeasureTheory.Measure ℝ := rdo
 
 attribute [computable] centred
 
-run_cmd do logComputable (centredComputable 20)
+run_cmd logComputable (centredComputable 20)
 
 attribute [computable] branchOn
 
 run_cmd do logComputable (branchOnComputable 20)
 
-run_cmd do logComputable (branchOnComputable (-1))
+run_cmd logComputable (branchOnComputable (-1))
 
 attribute [computable] fairCoin
 
-run_cmd do logComputable (fairCoinComputable)
+run_cmd logComputable (fairCoinComputable)
 
 attribute [computable] Bind.twoCoins
 
-run_cmd do logComputable (Bind.twoCoinsComputable)
+run_cmd logComputable (Bind.twoCoinsComputable)
 
 end Test.Computable
