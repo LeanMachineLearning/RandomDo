@@ -15,7 +15,17 @@ git = "https://github.com/LeanMachineLearning/LML"
 rev = "main"
 
 [[lean_lib]]
+name = "FFI"
+precompileModules = true
+
+[[lean_lib]]
 name = "RandomDo"
 
 [[lean_lib]]
 name = "Test"
+
+# Used to run the tests in `scripts`
+[[lean_exe]]
+name = "dump"
+root = "Dump"
+srcDir = "test_data"
