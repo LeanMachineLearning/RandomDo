@@ -30,7 +30,9 @@ attribute [computable_as Float] NNReal
 
 attribute [computable_as NumLean.normal'] ProbabilityTheory.gaussianReal
 
-def bernoulliChoice (α : Type) [MeasurableSpace α] (x y : α) (p : Float) :
+/-- Draw from a Bernoulli distribution with probability `p` of returning `x` and `1 - p` of
+returning `y`. -/
+def bernoulliChoice (α : Type) [_h : MeasurableSpace α] (x y : α) (p : Float) :
     NumLean.RandPCG IO α := do
   return if (← NumLean.bernoulli p) == 1 then x else y
 
