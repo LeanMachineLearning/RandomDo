@@ -58,7 +58,7 @@ open MeasureTheory ProbabilityTheory Finset Learning
 
 noncomputable section
 
-attribute [fun_prop] Learning.measurable_history
+attribute [fun_prop] Learning.measurable_history measurable_up measurable_down
 
 /-- An algorithm-environment sequence pulls back along a measure-preserving map. With
 `extend_space`, this lets one add independent randomness to a space carrying such a sequence: as
@@ -107,7 +107,7 @@ lemma _root_.MeasureTheory.MeasurePreserving.transfer_isAlgEnvSeq {𝓐 𝓨 Ω 
 
 namespace RDo
 
-universe uA uY uW
+universe u uA uY uW
 
 variable {𝓐 : Type uA} {𝓨 : Type uY} {Ω : Type uW}
   [MeasurableSpace 𝓐] [MeasurableSpace 𝓨] [MeasurableSpace Ω]
@@ -279,55 +279,73 @@ end Projection
 `env` can be replaced by one on a space that also carries the algorithm's internal draws `T`, with
 the same trajectory law — so anything proved about the law of the actions and feedbacks there holds
 of the original. The space is existentially quantified because, by `isAlgEnvSeq_unique`, it does
-not matter. -/
+not matter; it may be taken in any universe at least those of `𝓐`, `𝓨` and `Ω`.
+
+Besides the laws of the draws and the readout equations, the actions and draws together form an
+algorithm-environment sequence for the traced algorithm. This says more than the rest: the draws
+at a step are conditionally independent of the earlier draws given the history, and the feedback
+does not read the draws. -/
 theorem exists_isAlgEnvSeq_trace [MeasurableEq 𝓐]
     {A₀ : ℕ → Ω₀ → 𝓐} {Y₀ : ℕ → Ω₀ → 𝓨} (h₀ : IsAlgEnvSeq A₀ Y₀ alg env P) :
-    ∃ (Ω' : Type (max uA uY uW)) (_ : MeasurableSpace Ω') (P' : Measure Ω')
+    ∃ (Ω' : Type (max u uA uY uW)) (_ : MeasurableSpace Ω') (P' : Measure Ω')
       (_ : IsProbabilityMeasure P') (A : ℕ → Ω' → 𝓐) (Y : ℕ → Ω' → 𝓨) (T : ℕ → Ω' → Ω),
       IsAlgEnvSeq A Y alg env P'
+        ∧ IsAlgEnvSeq (fun n ω ↦ (T n ω, A n ω)) Y tr.algorithm (env.withTrace Ω) P'
         ∧ P'.map (trajectory A Y) = P.map (trajectory A₀ Y₀)
         ∧ HasLaw (T 0) tr.K0 P'
         ∧ (∀ n, HasCondDistrib (T (n + 1)) (history A Y n) (tr.K n) P')
         ∧ A 0 =ᵐ[P'] (fun ω ↦ tr.out0 (T 0 ω))
         ∧ (∀ n, A (n + 1) =ᵐ[P'] fun ω ↦ tr.out n (history A Y n ω, T (n + 1) ω)) := by
-  have h := IT.isAlgEnvSeq_trajMeasure tr.algorithm (env.withTrace Ω)
-  refine ⟨ℕ → (Ω × 𝓐) × 𝓨, inferInstance, trajMeasure tr.algorithm (env.withTrace Ω),
-    inferInstance, fun n (ω : ℕ → (Ω × 𝓐) × 𝓨) ↦ (IT.action n ω).2, IT.feedback,
-    fun n (ω : ℕ → (Ω × 𝓐) × 𝓨) ↦ (IT.action n ω).1,
-    tr.isAlgEnvSeq_snd h, ?_, tr.hasLaw_trace_zero h, tr.hasCondDistrib_trace h,
-    tr.action_zero_ae_eq h, tr.action_ae_eq h⟩
-  exact isAlgEnvSeq_unique (tr.isAlgEnvSeq_snd h) h₀
+  -- The trajectory space of the traced algorithm, lifted to the universe asked for.
+  let base := trajMeasure tr.algorithm (env.withTrace Ω)
+  let e : ULift.{u} (ℕ → (Ω × 𝓐) × 𝓨) ≃ᵐ (ℕ → (Ω × 𝓐) × 𝓨) := MeasurableEquiv.ulift
+  have hup : MeasurePreserving e.symm base (base.map e.symm) := ⟨e.symm.measurable, rfl⟩
+  have hf : MeasurePreserving e (base.map e.symm) base := hup.symm e.symm
+  have htr : IsAlgEnvSeq (fun n ω ↦ IT.action n (e ω)) (fun n ω ↦ IT.feedback n (e ω))
+      tr.algorithm (env.withTrace Ω) (base.map e.symm) :=
+    (IT.isAlgEnvSeq_trajMeasure tr.algorithm (env.withTrace Ω)).comp_measurePreserving hf
+  have : IsProbabilityMeasure (base.map e.symm) :=
+    Measure.isProbabilityMeasure_map e.symm.measurable.aemeasurable
+  exact ⟨ULift (ℕ → (Ω × 𝓐) × 𝓨), inferInstance, base.map e.symm, inferInstance,
+    fun n ω ↦ (IT.action n (e ω)).2, fun n ω ↦ IT.feedback n (e ω),
+    fun n ω ↦ (IT.action n (e ω)).1, tr.isAlgEnvSeq_snd htr, htr,
+    isAlgEnvSeq_unique (tr.isAlgEnvSeq_snd htr) h₀, tr.hasLaw_trace_zero htr,
+    tr.hasCondDistrib_trace htr, tr.action_zero_ae_eq htr, tr.action_ae_eq htr⟩
 
 /-- **The principle behind the `alg_env_trace` tactic.** To prove a statement `motive` about an
 algorithm-environment sequence it is enough to prove it on a space that also carries the
 algorithm's internal draws, *provided* the statement only depends on the law of the trajectory —
 which is what the `transfer` hypothesis asks for, and which is exactly the freedom
-`isAlgEnvSeq_unique` gives. -/
+`isAlgEnvSeq_unique` gives. The space may live in any universe at least those of `𝓐`, `𝓨` and
+`Ω`. -/
 theorem wlog_trace [MeasurableEq 𝓐]
-    {motive : (Ω₀ : Type (max uA uY uW)) → [MeasurableSpace Ω₀] → (P : Measure Ω₀) →
+    {motive : (Ω₀ : Type (max u uA uY uW)) → [MeasurableSpace Ω₀] → (P : Measure Ω₀) →
       [IsProbabilityMeasure P] → (ℕ → Ω₀ → 𝓐) → (ℕ → Ω₀ → 𝓨) → Prop}
-    (traced : ∀ (Ω' : Type (max uA uY uW)) [MeasurableSpace Ω'] (P' : Measure Ω')
+    (traced : ∀ (Ω' : Type (max u uA uY uW)) [MeasurableSpace Ω'] (P' : Measure Ω')
         [IsProbabilityMeasure P'] (A' : ℕ → Ω' → 𝓐) (Y' : ℕ → Ω' → 𝓨) (T : ℕ → Ω' → Ω),
       IsAlgEnvSeq A' Y' alg env P' →
+      IsAlgEnvSeq (fun n ω ↦ (T n ω, A' n ω)) Y' tr.algorithm (env.withTrace Ω) P' →
       HasLaw (T 0) tr.K0 P' →
       (∀ n, HasCondDistrib (T (n + 1)) (history A' Y' n) (tr.K n) P') →
       A' 0 =ᵐ[P'] (fun ω ↦ tr.out0 (T 0 ω)) →
       (∀ n, A' (n + 1) =ᵐ[P'] fun ω ↦ tr.out n (history A' Y' n ω, T (n + 1) ω)) →
       motive Ω' P' A' Y')
-    (transfer : ∀ (Ω₁ : Type (max uA uY uW)) [MeasurableSpace Ω₁] (P₁ : Measure Ω₁)
+    (transfer : ∀ (Ω₁ : Type (max u uA uY uW)) [MeasurableSpace Ω₁] (P₁ : Measure Ω₁)
         [IsProbabilityMeasure P₁] (A₁ : ℕ → Ω₁ → 𝓐) (Y₁ : ℕ → Ω₁ → 𝓨)
-        (Ω₂ : Type (max uA uY uW)) [MeasurableSpace Ω₂] (P₂ : Measure Ω₂)
+        (Ω₂ : Type (max u uA uY uW)) [MeasurableSpace Ω₂] (P₂ : Measure Ω₂)
         [IsProbabilityMeasure P₂] (A₂ : ℕ → Ω₂ → 𝓐) (Y₂ : ℕ → Ω₂ → 𝓨),
       IsAlgEnvSeq A₁ Y₁ alg env P₁ → IsAlgEnvSeq A₂ Y₂ alg env P₂ →
       P₂.map (trajectory A₂ Y₂) = P₁.map (trajectory A₁ Y₁) →
       motive Ω₂ P₂ A₂ Y₂ → motive Ω₁ P₁ A₁ Y₁)
     :
-    ∀ (Ω₀ : Type (max uA uY uW)) [MeasurableSpace Ω₀] (P : Measure Ω₀) [IsProbabilityMeasure P]
+    ∀ (Ω₀ : Type (max u uA uY uW)) [MeasurableSpace Ω₀] (P : Measure Ω₀) [IsProbabilityMeasure P]
       (A : ℕ → Ω₀ → 𝓐) (Y : ℕ → Ω₀ → 𝓨), IsAlgEnvSeq A Y alg env P → motive Ω₀ P A Y := by
   intro Ω₀ _ P _ A Y h
-  obtain ⟨Ω', mΩ', P', hP', A', Y', T, hseq, hlaw, hT0, hT, hA0, hA⟩ :=
-    tr.exists_isAlgEnvSeq_trace h
-  exact transfer Ω₀ P A Y Ω' P' A' Y' h hseq hlaw (traced Ω' P' A' Y' T hseq hT0 hT hA0 hA)
+  -- The universe of the traced space is that of `Ω₀`; Lean does not solve it on its own.
+  obtain ⟨Ω', mΩ', P', hP', A', Y', T, hseq, htr, hlaw, hT0, hT, hA0, hA⟩ :=
+    tr.exists_isAlgEnvSeq_trace.{u, _, _, _, _} h
+  exact transfer Ω₀ P A Y Ω' P' A' Y' h hseq hlaw
+    (traced Ω' P' A' Y' T hseq htr hT0 hT hA0 hA)
 
 end AlgTrace
 
@@ -400,22 +418,29 @@ def findAlgEnvSeq? : MetaM (Option FVarId) := do
 draws are present. `tr` is an `RDo.AlgTrace` for the algorithm — the trace of its policy, as
 produced by `rdo_trace`.
 
-The goal, together with every hypothesis mentioning the probability space, the measure or the two
-sequences, is abstracted away from that space and two goals are left:
+The goal, together with every hypothesis about the sequence — a statement mentioning the space,
+the measure or the two sequences — is abstracted away from that space and two goals are left:
 
-* `traced`: the same statement on a space that also carries the draws `T`, with `T`'s law, its
-  conditional law given the history, and the equations expressing each action as the readout of the
-  history and the draws;
+* `traced`: the same statement on a space that also carries the draws `T`, with `hseq`, the
+  sequence again, `htr`, actions and draws together as a sequence for the traced algorithm, `hT₀`
+  and `hT`, the law of the draws and their conditional law given the history, and `hA₀` and `hA`,
+  each action as the readout of the history and the draws;
 * `transfer`: the obligation that the statement only depends on the law of the trajectory. This is
   what makes the replacement sound — the traced sequence lives on a different space, and all that
   relates it to the original is `isAlgEnvSeq_unique`. The `transfer` tactic discharges it through
   the trajectory space, onto which both sequences are measure-preserving maps, and the goal is only
   left when that fails.
 
+Data on the space that is not the sequence — a random variable, an event, a point — has no
+counterpart on the traced space: the goal may not depend on it, and it is cleared, together with
+the hypotheses about it, before the change of space.
+
 * `alg_env_trace tr using h` names the hypothesis to use rather than searching for one.
+* `alg_env_trace tr with Ω P A Y T hseq htr hT₀ hT hA₀ hA` names what is introduced.
 
 The probability space, its σ-algebra, the measure, the `IsProbabilityMeasure` hypothesis and the
-two sequences all have to be local hypotheses, since the goal is abstracted over them. -/
+two sequences all have to be local hypotheses, since the goal is abstracted over them, and the
+space has to live in a universe at least those of the actions, the feedbacks and the draws. -/
 syntax (name := algEnvTraceTac) "alg_env_trace" ppSpace term (" using " ident)?
   (" with " (ppSpace colGt ident)+)? : tactic
 
@@ -428,17 +453,71 @@ elab_rules : tactic
         | some f => pure f
         | none => throwError "alg_env_trace: no `IsAlgEnvSeq` hypothesis in the context"
     let spaceFVars ← algEnvSpaceFVars hFVar
-    -- Everything else that mentions the space has to travel with the goal, or it would be lost.
-    let deps ← do
-      let mut deps : Array FVarId := #[]
-      for d in ← getLCtx do
-        if !d.isImplementationDetail && !spaceFVars.contains d.fvarId then
-          let dty ← instantiateMVars d.type
-          if spaceFVars.any fun f ↦ dty.containsFVar f then
-            deps := deps.push d.fvarId
-      pure deps
-    let (_, g) ← g.revert deps
-    let (_, g) ← g.revert spaceFVars (preserveOrder := true)
+    let spaceSet : FVarIdSet := spaceFVars.foldl (·.insert ·) {}
+    let hTy ← instantiateMVars (← hFVar.getType)
+    let algE := hTy.getAppArgs[hTy.getAppNumArgs - 4]!
+    -- The trajectory space `ℕ → 𝓐 × 𝓨`, lifted to the universe of the space: the obligation is
+    -- discharged through it.
+    let liftTy ← do
+      let 𝓐 := (← instantiateMVars (← inferType (.fvar spaceFVars[4]!))).getForallBody
+      let 𝓨 := (← instantiateMVars (← inferType (.fvar spaceFVars[5]!))).getForallBody
+      let trajTy ← mkArrow (mkConst ``Nat) (← mkAppM ``Prod #[𝓐, 𝓨])
+      pure (mkApp (mkConst ``ULift [← getDecLevel (.fvar spaceFVars[0]!), ← getDecLevel trajTy])
+        trajTy)
+    let given := (names?.map (·.map (·.getId))).getD #[]
+    let defaults : Array Name := #[`Ω, `P, `A, `Y, `T, `hseq, `htr, `hT₀, `hT, `hA₀, `hA]
+    if given.size > defaults.size then
+      throwError "alg_env_trace: at most {defaults.size} names may be given"
+    -- What else mentions the space. A statement about the sequence travels with the goal, and is
+    -- pulled back to the traced space. Data on the space — a random variable, an event, a point —
+    -- has no counterpart there: the goal may not depend on it, and it is cleared, together with
+    -- what is about it.
+    let lctx ← getLCtx
+    let fvarsOf (d : LocalDecl) : MetaM (Array FVarId) := do
+      let mut st := Lean.collectFVars {} (← instantiateMVars d.type)
+      if let some v := d.value? then st := Lean.collectFVars st (← instantiateMVars v)
+      pure st.fvarIds
+    let mut props : Array FVarId := #[]
+    let mut data : FVarIdSet := {}
+    for d in lctx do
+      if d.isImplementationDetail || spaceSet.contains d.fvarId then continue
+      unless (← fvarsOf d).any spaceSet.contains do continue
+      if !d.isLet && (← isProp d.type) then props := props.push d.fvarId
+      else data := data.insert d.fvarId
+    let mut changed := true
+    while changed do
+      changed := false
+      for d in lctx do
+        if d.isImplementationDetail || data.contains d.fvarId || spaceSet.contains d.fvarId then
+          continue
+        if (← fvarsOf d).any data.contains then
+          data := data.insert d.fvarId
+          changed := true
+    let mut goalDeps : FVarIdSet := {}
+    let mut todo := (Lean.collectFVars {} (← instantiateMVars (← g.getType))).fvarIds
+    while !todo.isEmpty do
+      let x := todo.back!
+      todo := todo.pop
+      if goalDeps.contains x then continue
+      goalDeps := goalDeps.insert x
+      todo := todo ++ (← fvarsOf (← x.getDecl))
+    for d in lctx do
+      if data.contains d.fvarId && goalDeps.contains d.fvarId then
+        throwError "alg_env_trace: the goal depends on{indentExpr d.toExpr}\nof type{indentExpr
+          (← instantiateMVars d.type)}\nwhich lives on the space of the sequence without being \
+          part of it. Only statements about the actions, the feedbacks and the measure survive \
+          the change of space."
+    let propsKept := props.filter (!data.contains ·)
+    let toClear ← sortFVarIds data.toArray
+    unless toClear.isEmpty do
+      trace[alg_env_trace] "cleared, as data on the space that is not the sequence: \
+        {toClear.map Expr.fvar}"
+    let g ← g.tryClearMany toClear
+    let (propsReverted, g) ← g.revert propsKept
+    let (spaceReverted, g) ← g.revert spaceFVars (preserveOrder := true)
+    -- What was reverted beyond the space itself: the statements, and anything `revert` had to
+    -- take along.
+    let nTravelling := spaceReverted.size - spaceFVars.size + propsReverted.size
     -- Build `wlog_trace tr ?traced ?transfer` and check it proves the abstracted goal.
     let trE ← g.withContext do
       let e ← Term.elabTerm tr none
@@ -455,9 +534,14 @@ elab_rules : tactic
         throwError "alg_env_trace: `wlog_trace` no longer has the expected shape"
       unless ← isDefEq explicits[0]! trE do
         throwError "alg_env_trace: {trE} is not a trace of the algorithm of the hypothesis"
+      let some iAlg := binderIndex? cty `alg
+        | throwError "alg_env_trace: `wlog_trace` no longer has an `alg` binder"
+      unless ← isDefEq (← instantiateMVars args[iAlg]!) algE do
+        throwError "alg_env_trace: {trE} is not a trace of the algorithm of the hypothesis"
       unless ← isDefEq concl (← g.getType) do
         throwError "alg_env_trace: the goal does not have the expected shape{indentExpr
-          (← g.getType)}"
+          (← g.getType)}\nThe space has to live in a universe at least those of the actions, \
+          the feedbacks and the draws."
       for (a, b) in args.zip bis do
         if b.isInstImplicit && !(← a.mvarId!.isAssigned) then
           a.mvarId!.assign (← synthInstance (← instantiateMVars (← a.mvarId!.getType)))
@@ -470,14 +554,12 @@ elab_rules : tactic
       transfer.setTag `transfer
       return (traced, transfer, args[iMotive]!)
     -- Introduce the traced space and its properties, then whatever travelled with the goal.
-    let given := (names?.map (·.map (·.getId))).getD #[]
-    let defaults : Array Name := #[`Ω, `P, `A, `Y, `T, `hseq, `hT₀, `hT, `hA₀, `hA]
     let pick (i : Nat) : Name := if h : i < given.size then given[i] else defaults[i]!
     let intros : Array Name :=
       #[pick 0, `inst, pick 1, `inst, pick 2, pick 3, pick 4, pick 5, pick 6, pick 7,
-        pick 8, pick 9]
+        pick 8, pick 9, pick 10]
     let (_, traced) ← traced.introN intros.size intros.toList
-    let (_, traced) ← traced.introNP deps.size
+    let (_, traced) ← traced.introNP nTravelling
     -- Discharge the transfer obligation through the trajectory space when `transfer` can: both
     -- sequences are measure-preserving maps onto `(ℕ → 𝓐 × 𝓨, ν)`, on which the statement is
     -- proved from the second sequence, then pulled back to the first.
@@ -488,18 +570,35 @@ elab_rules : tactic
         setGoals [transfer]
         withMainContext do
           let motiveStx ← Term.exprToSyntax (← instantiateMVars motiveE)
+          let liftStx ← Term.exprToSyntax liftTy
           -- Without error recovery, a failure inside a nested `by` is a failure, not a `sorry`.
           Term.withoutErrToSorry <| evalTactic (← `(tactic| (
             intro Ω₁ _ P₁ _ A₁ Y₁ Ω₂ _ P₂ _ A₂ Y₂ h₁ h₂ hlaw h
-            generalize hν : Measure.map (trajectory A₁ Y₁) P₁ = ν at hlaw
-            have hf₁ : MeasurePreserving (trajectory A₁ Y₁) P₁ ν :=
-              ⟨measurable_trajectory h₁.measurable_action h₁.measurable_feedback, hν⟩
-            have hf₂ : MeasurePreserving (trajectory A₂ Y₂) P₂ ν :=
-              ⟨measurable_trajectory h₂.measurable_action h₂.measurable_feedback, hlaw⟩
-            have : IsProbabilityMeasure ν := hν ▸ Measure.isProbabilityMeasure_map
-              (measurable_trajectory h₁.measurable_action h₁.measurable_feedback).aemeasurable
+            have hlaw' : (Measure.map (trajectory A₂ Y₂) P₂).map (ULift.up : _ → $liftStx)
+                = (Measure.map (trajectory A₁ Y₁) P₁).map ULift.up := by rw [hlaw]
+            generalize hν : (Measure.map (trajectory A₁ Y₁) P₁).map (ULift.up : _ → $liftStx) = ν
+              at hlaw'
+            have hf₁ : MeasurePreserving (fun ω ↦ (ULift.up (trajectory A₁ Y₁ ω) : $liftStx))
+                P₁ ν := by
+              rw [← hν]
+              exact (⟨measurable_up, rfl⟩ :
+                  MeasurePreserving ULift.up (Measure.map (trajectory A₁ Y₁) P₁) _).comp
+                ⟨measurable_trajectory h₁.measurable_action h₁.measurable_feedback, rfl⟩
+            have hf₂ : MeasurePreserving (fun ω ↦ (ULift.up (trajectory A₂ Y₂ ω) : $liftStx))
+                P₂ ν := by
+              rw [← hlaw']
+              exact (⟨measurable_up, rfl⟩ :
+                  MeasurePreserving ULift.up (Measure.map (trajectory A₂ Y₂) P₂) _).comp
+                ⟨measurable_trajectory h₂.measurable_action h₂.measurable_feedback, rfl⟩
+            have : IsProbabilityMeasure (Measure.map (trajectory A₁ Y₁) P₁) :=
+              Measure.isProbabilityMeasure_map
+                (measurable_trajectory h₁.measurable_action h₁.measurable_feedback).aemeasurable
+            have : IsProbabilityMeasure ν := by
+              rw [← hν]
+              exact Measure.isProbabilityMeasure_map measurable_up.aemeasurable
             exact (fun hS : $motiveStx _ inferInstance ν inferInstance
-                (fun n t ↦ (t n).1) (fun n t ↦ (t n).2) ↦ (by transfer hf₁ at hS; exact hS))
+                (fun n (t : $liftStx) ↦ (t.down n).1) (fun n (t : $liftStx) ↦ (t.down n).2) ↦
+                  (by transfer hf₁ at hS; exact hS))
               (by beta_reduce; transfer hf₂))))
         unless (← getUnsolvedGoals).isEmpty do throwError "transfer left goals"
         pure [])

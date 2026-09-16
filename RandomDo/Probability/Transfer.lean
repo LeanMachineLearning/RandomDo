@@ -78,10 +78,21 @@ def FullState.restore (s : FullState) : TacticM Unit := do
   s.state.restore
   modifyThe Core.State fun st ↦ { st with messages := s.messages }
 
+/-- Run `x` with a budget of `n` thousand heartbeats of its own, or the ambient budget if that is
+smaller. An attempt that fails, such as `measurability` on a set that is not measurable, must not
+exhaust the budget of the declaration for what comes after it. -/
+def withHeartbeatBudget {m : Type → Type} {α : Type} [Monad m] [MonadControlT CoreM m]
+    [MonadReaderOf Core.Context m] [MonadWithReaderOf Core.Context m] (n : Nat) (x : m α) :
+    m α := do
+  let ambient := (← readThe Core.Context).maxHeartbeats
+  let budget := if ambient == 0 then n * 1000 else min ambient (n * 1000)
+  withCurrHeartbeats <| withTheReader Core.Context (fun c ↦ { c with maxHeartbeats := budget }) x
+
 /-- The discharger for the side conditions of `@[transfer]` lemmas: `assumption`, then `fun_prop`
 for the measurability of a function and `measurability` for that of a set. A maximum recursion
 depth error inside `measurability`, which happens on unprovable goals, is turned into a plain
-failure so that it only makes the rewrite fail. -/
+failure so that it only makes the rewrite fail, and the search runs on a budget of its own so that
+such a failure does not exhaust the heartbeats of the declaration. -/
 syntax (name := transferDischarger) "transfer_discharger" : tactic
 
 elab_rules : tactic
@@ -102,7 +113,7 @@ elab_rules : tactic
       else `(tactic| first | assumption | (intros; first | assumption | measurability))
     -- Without error recovery, an alternative that fails to elaborate fails instead of logging an
     -- error and going on with `sorry`: nothing a failed discharge tried leaks into the messages.
-    tryCatchRuntimeEx (Tactic.withoutRecover (evalTactic tac)) fun e ↦
+    tryCatchRuntimeEx (withHeartbeatBudget 10000 <| Tactic.withoutRecover (evalTactic tac)) fun e ↦
       throwError "transfer_discharger: {e.toMessageData}"
 
 /-- The `@[transfer]` lemmas instantiated at `hf`, as `simp` arguments, together with the lemmas
@@ -130,13 +141,15 @@ def transferSimpArgs (hf : Term) : TacticM (Array (TSyntax ``Lean.Parser.Tactic.
   return args ++ extra
 
 /-- Try to close the goal `g` with `tac`, returning its proof. The state is restored on failure,
-and a runtime error such as a maximum recursion depth counts as a failure. -/
+and a runtime error such as a maximum recursion depth counts as a failure. The attempt runs on a
+heartbeat budget of its own. -/
 def tryTactic? (g : MVarId) (tac : Syntax) : TacticM (Option Expr) := do
   let s ← saveFullState
   tryCatchRuntimeEx
     (do
       -- Without error recovery, a failure inside a nested `by` is a failure, not a `sorry`.
-      let gs ← Term.withoutErrToSorry <| Tactic.run g (evalTactic tac)
+      let gs ← withHeartbeatBudget (m := TermElabM) 20000 <| Term.withoutErrToSorry <|
+        Tactic.run g (evalTactic tac)
       if gs.isEmpty then return some (← instantiateMVars (.mvar g))
       s.restore
       return none)

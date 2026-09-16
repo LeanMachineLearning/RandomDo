@@ -9,8 +9,10 @@ set_option linter.style.header false
 
 A toy sequential algorithm, to show the pipeline end to end: write the policy as an `rdo` program,
 get its trace from `rdo_trace`, package it as an `AlgTrace`, and then read the algorithm's internal
-draws off any algorithm-environment sequence, with `alg_env_trace`. The same algorithm then
-exercises `extend_space` alongside an algorithm-environment sequence.
+draws off any algorithm-environment sequence, with `alg_env_trace`. The sections after that pin
+down what the tactic does with the rest of the context, what it introduces, and the errors it
+reports. The same algorithm then exercises `extend_space` alongside an algorithm-environment
+sequence.
 
 To do the same for `thompson` one needs the measurable equivalence between `Iic n → 𝓐 × 𝓨` and
 `Vector (𝓐 × 𝓨) (n + 1)` that turns it into a policy, which is not available yet. Everything after
@@ -24,6 +26,8 @@ open MeasureTheory ProbabilityTheory Finset Learning RDo
 noncomputable section
 
 namespace Test.AlgTrace
+
+universe u
 
 variable {K : ℕ} (hK : 0 < K)
 
@@ -84,21 +88,82 @@ theorem exists_noise (env : Environment (Fin K) ℝ) {Ω₀ : Type*} [Measurable
         ∧ P'.map (trajectory A' Y') = P.map (trajectory A Y)
         ∧ (∀ n, HasCondDistrib (Z (n + 1)) (history A' Y' n) (noise n) P')
         ∧ (∀ n, A' (n + 1) =ᵐ[P'] fun ω ↦ readout hK n (history A' Y' n ω, Z (n + 1) ω)) := by
-  obtain ⟨Ω', mΩ', P', hP', A', Y', Z, hseq, hlaw, -, hZ, -, hA⟩ :=
+  obtain ⟨Ω', mΩ', P', hP', A', Y', Z, hseq, -, hlaw, -, hZ, -, hA⟩ :=
     (trace hK).exists_isAlgEnvSeq_trace h
   exact ⟨Ω', mΩ', P', hP', A', Y', Z, hseq, hlaw, hZ, hA⟩
 
 /-- **The tactic at work.** `alg_env_trace` replaces the context and the goal by ones on a space
 that also carries the noise `Z` the policy draws. The obligation that the statement only depends
 on the law of the trajectory is discharged by `transfer` through the trajectory space, so only the
-traced goal is left. Any hypothesis mentioning the space travels with the goal, so nothing is
+traced goal is left. Any hypothesis about the sequence travels with the goal, so nothing is
 silently lost. -/
 example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
     [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
     (h : IsAlgEnvSeq A Y (alg hK) env P) :
     P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
-  alg_env_trace (trace hK) with Ω P A Y Z hseq hZ₀ hZ hA₀ hA
+  alg_env_trace (trace hK) with Ω P A Y Z hseq htr hZ₀ hZ hA₀ hA
   -- `Z`, `hZ₀`, `hZ` and `hA` are the algorithm's draws and their laws, now available.
+  exact hseq.hasLaw_action_zero.map_eq
+
+/-- Without `with`, the names are `Ω P A Y T hseq htr hT₀ hT hA₀ hA`. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK) using h
+  guard_hyp hseq : IsAlgEnvSeq A Y (alg hK) env P
+  guard_hyp htr :
+    IsAlgEnvSeq (fun n ω ↦ (T n ω, A n ω)) Y (trace hK).algorithm (env.withTrace ℝ) P
+  guard_hyp hT₀ : HasLaw (T 0) (trace hK).K0 P
+  guard_hyp hT : ∀ n, HasCondDistrib (T (n + 1)) (history A Y n) ((trace hK).K n) P
+  guard_hyp hA₀ : A 0 =ᵐ[P] fun ω ↦ (trace hK).out0 (T 0 ω)
+  guard_hyp hA : ∀ n, A (n + 1) =ᵐ[P] fun ω ↦ (trace hK).out n (history A Y n ω, T (n + 1) ω)
+  exact hseq.hasLaw_action_zero.map_eq
+
+/-- **Using the draws.** The second action is either arm `0` or the first action, since it is the
+readout of the noise and the history: a statement about the actions, proved from `hA` on the traced
+space and transferred back to the original one. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    ∀ᵐ ω ∂P, A 1 ω = ⟨0, hK⟩ ∨ A 1 ω = A 0 ω := by
+  alg_env_trace (trace hK)
+  filter_upwards [hA 0] with ω hω
+  rw [hω]
+  by_cases h0 : 0 < T (0 + 1) ω <;> simp [trace, readout, history, h0]
+
+/-- The space may live in any universe. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type u} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK)
+  exact hseq.hasLaw_action_zero.map_eq
+
+/-! ## What travels with the goal, and what does not -/
+
+/-- A hypothesis about the sequence travels with the goal, is available on the traced space, and
+the obligation is still discharged. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) (ν : Measure (Fin K)) (hA1 : P.map (A 1) = ν) :
+    P.map (A 1) = ν := by
+  alg_env_trace (trace hK)
+  guard_hyp hA1 : P.map (A 1) = ν
+  exact hA1
+
+/-- Data on the space that the goal does not depend on — a random variable, a point, and what is
+about them — is cleared: it has no counterpart on the traced space. The obligation is discharged. -/
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) (X : Ω₀ → ℝ) (_hX : Measurable X) (x : Ω₀)
+    (_hx : X x = 0) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK)
+  fail_if_success guard_hyp X
+  fail_if_success guard_hyp _hX
+  fail_if_success guard_hyp x
+  fail_if_success guard_hyp _hx
   exact hseq.hasLaw_action_zero.map_eq
 
 /-- A statement `transfer` has no lemma for leaves the obligation, which is then proved by hand,
@@ -112,6 +177,83 @@ example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {
   case transfer =>
     intro Ω₁ _ P₁ _ A₁ Y₁ Ω₂ _ P₂ _ A₂ Y₂ h₁ h₂ hlaw h₀
     infer_instance
+
+/-! ## Errors -/
+
+/-- Another algorithm, to check that a trace is matched against the algorithm of the hypothesis. -/
+def alg2 : Algorithm (Fin K) ℝ where
+  policy _ := Kernel.const _ (Measure.dirac ⟨0, hK⟩)
+  p0 := Measure.dirac ⟨0, hK⟩
+
+/--
+error: alg_env_trace: the goal depends on
+  s
+of type
+  Set Ω₀
+which lives on the space of the sequence without being part of it. Only statements about the actions, the feedbacks and the measure survive the change of space.
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) (s : Set Ω₀) (hs : P s = 1 / 2) : P s = 1 / 2 := by
+  alg_env_trace (trace hK)
+
+/--
+error: alg_env_trace: no `IsAlgEnvSeq` hypothesis in the context
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] : P Set.univ = 1 := by
+  alg_env_trace (trace hK)
+
+/--
+error: alg_env_trace: hP is not an `IsAlgEnvSeq` hypothesis
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] (hP : P Set.univ = 1) : P Set.univ = 1 := by
+  alg_env_trace (trace hK) using hP
+
+/--
+error: alg_env_trace: the probability space must be given by local hypotheses, but ℕ → ℝ is not
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {P : Measure (ℕ → ℝ)} [IsProbabilityMeasure P]
+    {A : ℕ → (ℕ → ℝ) → Fin K} {Y : ℕ → (ℕ → ℝ) → ℝ} (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK)
+
+/--
+error: alg_env_trace: the action and feedback sequences must be local hypotheses, but fun n ω ↦ Y n ω + 0 is not
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A (fun n ω ↦ Y n ω + 0) (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK)
+
+/--
+error: alg_env_trace: trace hK is not a trace of the algorithm of the hypothesis
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg2 hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK)
+
+/--
+error: alg_env_trace: at most 11 names may be given
+-/
+#guard_msgs in
+example (env : Environment (Fin K) ℝ) {Ω₀ : Type} [MeasurableSpace Ω₀] {P : Measure Ω₀}
+    [IsProbabilityMeasure P] {A : ℕ → Ω₀ → Fin K} {Y : ℕ → Ω₀ → ℝ}
+    (h : IsAlgEnvSeq A Y (alg hK) env P) :
+    P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
+  alg_env_trace (trace hK) with a b c d e f g i j k l m
+
+/-! ## `extend_space` alongside an algorithm-environment sequence -/
 
 /-- **`extend_space` alongside an algorithm-environment sequence.** After the extension, `Ω`, `P`,
 `A` and `Y` live on a larger space that also carries a Gaussian `U` independent of the whole
