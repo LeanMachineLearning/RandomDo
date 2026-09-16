@@ -22,6 +22,7 @@ universe v
 /-- A typeclass for monads that can draw from a Gaussian distribution. -/
 class HasGaussian (m : (α : Type) → [MeasurableSpace α] → Type v)
    (α β : Type*) (R : Type) [MeasurableSpace R] where
+  /-- Draw a sample from a Gaussian distribution with mean `μ` and variance `v`. -/
   gaussian : α → β → m R
 
 noncomputable instance : HasGaussian Measure ℝ NNReal ℝ where
@@ -30,7 +31,7 @@ noncomputable instance : HasGaussian Measure ℝ NNReal ℝ where
 /-- The monad that samples, seen as a `MeasurableSpaceMonad`. -/
 abbrev RandM := Monad.toMeasurableSpaceMonad (RandPCG IO)
 
-instance : MeasurableSpace Float := ⊤
+instance instMeasurableSpaceFloat : MeasurableSpace Float := ⊤
 
 instance : HasGaussian RandM Float Float Float where
   gaussian μ v := normal' μ v
