@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 module
 
 public import Mathlib.Dynamics.Ergodic.MeasurePreserving
+public import Mathlib.MeasureTheory.Function.StronglyMeasurable.AEStronglyMeasurable
 public import Mathlib.Tactic.FunProp
 public import Mathlib.Tactic.Measurability
 public meta import Lean.LabelAttribute
@@ -35,10 +36,12 @@ on. Two kinds of lemmas record this.
 `transfer hf` rewrites the goal with every `@[transfer]` lemma instantiated at `hf`, discharging the
 side conditions by `assumption`, `fun_prop` and `measurability`, and closes the goal by
 `assumption` if it can. `transfer hf at h` transports a hypothesis instead, by rewriting or, when
-nothing rewrites, by a `@[transfer_forward]` lemma: this pulls a fact about the old space back to
-the new one. `transfer` alone is for the obligation left by `extend_space`: it introduces the new
-space, the map and the statement on the new space, transfers the goal, and closes it with that
-statement.
+nothing rewrites, by a `@[transfer_forward]` lemma, under the binders of `h` if it has any: this
+pulls a fact about the old space back to the new one. `transfer hf at h ⊢` does both, the goal
+first, since transporting a measurability hypothesis destroys the fact the goal's side conditions
+need. A named target that mentions the old space and is left as it was is an error. `transfer`
+alone is for the obligation left by `extend_space`: it introduces the new space, the map and the
+statement on the new space, transfers the goal, and closes it with that statement.
 -/
 
 public meta section
@@ -84,7 +87,7 @@ syntax (name := transferDischarger) "transfer_discharger" : tactic
 elab_rules : tactic
   | `(tactic| transfer_discharger) => withMainContext do
     let funProps : Array Name := #[``Measurable, ``AEMeasurable,
-      `MeasureTheory.AEStronglyMeasurable, `MeasureTheory.StronglyMeasurable]
+      ``MeasureTheory.AEStronglyMeasurable, ``MeasureTheory.StronglyMeasurable]
     let head := (← getMainTarget).getForallBody.getAppFn.constName?
     -- `fun_prop` may fail on `AEMeasurable` where it succeeds on `Measurable`.
     let tac ← if head.any funProps.contains then
@@ -97,13 +100,16 @@ elab_rules : tactic
                  | (apply Measurable.aemeasurable; fun_prop)
                  | (apply Measurable.aestronglyMeasurable; fun_prop)))
       else `(tactic| first | assumption | (intros; first | assumption | measurability))
-    tryCatchRuntimeEx (evalTactic tac) fun e ↦
+    -- Without error recovery, an alternative that fails to elaborate fails instead of logging an
+    -- error and going on with `sorry`: nothing a failed discharge tried leaks into the messages.
+    tryCatchRuntimeEx (Tactic.withoutRecover (evalTactic tac)) fun e ↦
       throwError "transfer_discharger: {e.toMessageData}"
 
 /-- The `@[transfer]` lemmas instantiated at `hf`, as `simp` arguments, together with the lemmas
-pushing a preimage through set operations, which put the transferred events in the same form as
-`extend_space`. A lemma that does not elaborate at `hf`, for want of an instance on the measure
-for example, is left out rather than making the whole rewrite fail. -/
+pushing a preimage through set operations and through a random variable, which put the transferred
+events in the form `extend_space` uses: `f ⁻¹' s` for an event `s`, and `(fun ω ↦ X (f ω)) ⁻¹' t`
+for an event `X ⁻¹' t`. A lemma that does not elaborate at `hf`, for want of an instance on the
+measure for example, is left out rather than making the whole rewrite fail. -/
 def transferSimpArgs (hf : Term) : TacticM (Array (TSyntax ``Lean.Parser.Tactic.simpLemma)) := do
   let mut args := #[]
   for n in ← labelled `transfer do
@@ -118,8 +124,8 @@ def transferSimpArgs (hf : Term) : TacticM (Array (TSyntax ``Lean.Parser.Tactic.
       (fun _ ↦ pure false)
     s.restore
     if ok then args := args.push (← `(Lean.Parser.Tactic.simpLemma| $(mkIdent n):ident $hf))
-  let extra ← #[``Set.preimage_ofPred_eq, ``Set.preimage_inter, ``Set.preimage_union,
-    ``Set.preimage_compl, ``Set.preimage_sdiff].mapM fun n ↦
+  let extra ← #[``Set.preimage_ofPred_eq, ``Set.preimage_preimage, ``Set.preimage_inter,
+    ``Set.preimage_union, ``Set.preimage_compl, ``Set.preimage_sdiff].mapM fun n ↦
       `(Lean.Parser.Tactic.simpLemma| $(mkIdent n):ident)
   return args ++ extra
 
@@ -138,36 +144,70 @@ def tryTactic? (g : MVarId) (tac : Syntax) : TacticM (Option Expr) := do
       s.restore
       return none)
 
+/-- The old space of `hf : MeasurePreserving f P' P`: the type `Ω` and the measure `P`. -/
+def oldSpace? (hf : Expr) : MetaM (Option (Expr × Expr)) := do
+  let ty ← whnfR (← instantiateMVars (← inferType hf))
+  unless ty.isAppOfArity ``MeasureTheory.MeasurePreserving 7 do return none
+  let as := ty.getAppArgs
+  return some (as[1]!, as[6]!)
+
+/-- Whether `ty` mentions the old space of `hf`, its type or its measure. A statement that does
+not has nothing for `transfer` to do, so leaving it as it is is not a failure. When the old space
+cannot be read off `hf`, every statement counts as mentioning it. -/
+def mentionsOldSpace (hf ty : Expr) : MetaM Bool := do
+  let some (Ω, P) ← oldSpace? hf | return true
+  let ty ← instantiateMVars ty
+  return Ω.occurs ty || P.occurs ty
+
+/-- The head constant of a statement, under its binders. -/
+def headUnderBinders (ty : Expr) : MetaM (Option Name) :=
+  forallTelescope ty fun _ body ↦ return body.getAppFn.constName?
+
+/-- The head constant of the statement a `@[transfer_forward]` lemma transports: that of the type
+of its first explicit argument. -/
+def forwardLemmaHead? (n : Name) : MetaM (Option Name) := do
+  forallTelescope (← getConstInfo n).type fun xs _ ↦ do
+    for x in xs do
+      if (← x.fvarId!.getBinderInfo).isExplicit then
+        return ← headUnderBinders (← x.fvarId!.getType)
+    return none
+
 /-- Transport the hypothesis `h` forward along `hf` with a `@[transfer_forward]` lemma, as
-`lemma h hf side…`, the side conditions being discharged by `transfer_discharger`. Returns the
-statement and proof of the transported hypothesis. -/
+`lemma h hf side…`, the side conditions being discharged by `transfer_discharger`. A hypothesis
+with binders, `∀ n, S (X n) P`, is transported under them. Only the lemmas about the head constant
+of `h` are tried, so that a definition is transported as itself and not unfolded to what it is
+defined as. Returns the statement and proof of the transported hypothesis. -/
 def transferForward? (h hf : Expr) : TacticM (Option (Expr × Expr)) := do
-  let hStx ← Term.exprToSyntax h
   let hfStx ← Term.exprToSyntax hf
-  for n in ← labelled `transfer_forward do
-    let s ← saveFullState
-    let r ← tryCatchRuntimeEx
-      (do
-        let e ← Term.withoutErrToSorry <|
-          Tactic.elabTerm (← `($(mkIdent n):ident $hStx $hfStx)) none
-        let (args, bis, concl) ← forallMetaTelescope (← inferType e)
-        for (a, bi) in args.zip bis do
-          if bi.isInstImplicit then
-            a.mvarId!.assign (← synthInstance (← instantiateMVars (← inferType a)))
-          else if bi.isExplicit then
-            let some _ ← tryTactic? a.mvarId! (← `(tactic| transfer_discharger))
-              | throwError "side condition"
-        let pf ← instantiateMVars (mkAppN e args)
-        -- `g ∘ f` is put in the form `fun ω ↦ g (f ω)`.
-        let concl ← instantiateMVars concl
-        let concl ← Core.betaReduce (← deltaExpand concl (· == ``Function.comp))
-        if pf.hasExprMVar || concl.hasExprMVar then throwError "metavariables"
-        pure (some (concl, pf)))
-      (fun _ ↦ do
-        s.restore
-        pure none)
-    if r.isSome then return r
-  return none
+  forallTelescope (← instantiateMVars (← inferType h)) fun xs body ↦ do
+    let hStx ← Term.exprToSyntax (mkAppN h xs)
+    let head := body.getAppFn.constName?
+    for n in ← labelled `transfer_forward do
+      if let some lemmaHead ← forwardLemmaHead? n then
+        unless head == some lemmaHead do continue
+      let s ← saveFullState
+      let r ← tryCatchRuntimeEx
+        (do
+          let e ← Term.withoutErrToSorry <|
+            Tactic.elabTerm (← `($(mkIdent n):ident $hStx $hfStx)) none
+          let (args, bis, concl) ← forallMetaTelescope (← inferType e)
+          for (a, bi) in args.zip bis do
+            if bi.isInstImplicit then
+              a.mvarId!.assign (← synthInstance (← instantiateMVars (← inferType a)))
+            else if bi.isExplicit then
+              let some _ ← tryTactic? a.mvarId! (← `(tactic| transfer_discharger))
+                | throwError "side condition"
+          let pf ← instantiateMVars (mkAppN e args)
+          -- `g ∘ f` is put in the form `fun ω ↦ g (f ω)`.
+          let concl ← instantiateMVars concl
+          let concl ← Core.betaReduce (← deltaExpand concl (· == ``Function.comp))
+          if pf.hasExprMVar || concl.hasExprMVar then throwError "metavariables"
+          pure (some (← mkForallFVars xs concl, ← mkLambdaFVars xs pf)))
+        (fun _ ↦ do
+          s.restore
+          pure none)
+      if r.isSome then return r
+    return none
 
 /-- Introduce the binders of a `transfer` obligation: everything up to and including the statement
 on the new space, which is the binder after the `MeasurePreserving` hypothesis. Returns the new
@@ -188,42 +228,98 @@ where
         return (← whnfR (← fv.getType)).isAppOf ``MeasureTheory.MeasurePreserving
       go g (if isMap then some fv else none)
 
-/-- Transfer the goal along `hf`: rewrite it with the `@[transfer]` lemmas, then close it by
-`assumption` if possible. -/
-def transferGoal (hfStx : Term) : TacticM Unit := do
-  let args ← transferSimpArgs hfStx
+/-- The `@[transfer]` lemmas at `hf`, as computed by `transferSimpArgs`. -/
+abbrev SimpArgs := Array (TSyntax ``Lean.Parser.Tactic.simpLemma)
+
+/-- Rewrite the goal with the `@[transfer]` lemmas. Returns whether the goal changed or was
+closed. -/
+def rewriteGoal (args : SimpArgs) : TacticM Bool := do
+  let g ← getMainGoal
+  let before ← instantiateMVars (← g.getType)
   evalTactic (← `(tactic| simp -failIfUnchanged (disch := transfer_discharger) only [$args,*]))
-  unless (← getUnsolvedGoals).isEmpty do
-    evalTactic (← `(tactic| try assumption))
+  let gs ← getUnsolvedGoals
+  if gs.isEmpty then return true
+  return gs[0]! != g || (← instantiateMVars (← gs[0]!.getType)) != before
+
+/-- Close the goal by `assumption` if it can be. -/
+def closeByAssumption : TacticM Unit := do
+  unless (← getUnsolvedGoals).isEmpty do evalTactic (← `(tactic| try assumption))
+
+/-- After the goal has been transferred with `changed` reporting whether it was rewritten: fail if
+it is still there, was not rewritten, and mentions the old space. -/
+def checkGoalTransferred (hf : Expr) (changed : Bool) : TacticM Unit := do
+  if changed || (← getUnsolvedGoals).isEmpty then return
+  withMainContext do
+    let ty ← getMainTarget
+    if ← mentionsOldSpace hf ty then
+      throwError "transfer: no `@[transfer]` lemma rewrites the goal{indentExpr ty}\n\
+        A side condition, such as the measurability of a random variable, may not have been \
+        discharged."
+
+/-- Transfer the goal along `hf`: rewrite it with the `@[transfer]` lemmas, then close it by
+`assumption` if possible. Fails if the goal mentions the old space and nothing rewrote it. -/
+def transferGoal (args : SimpArgs) (hf : Expr) : TacticM Unit := do
+  let changed ← rewriteGoal args
+  closeByAssumption
+  checkGoalTransferred hf changed
+
+/-- Forward-transport the hypothesis `h`, named `name`, if the rewriting left it as it was. Returns
+whether `h` was rewritten or transported. When `strict`, a hypothesis that mentions the old space
+and could be neither rewritten nor transported is an error. -/
+def forwardHyp (hf : Expr) (h : FVarId) (name : Name) (strict : Bool) : TacticM Bool :=
+  withMainContext do
+    -- `simp` replaces the hypothesis when it rewrites it, so that either `h` is gone or its name
+    -- now denotes a newer hypothesis; otherwise it is still there, as it was.
+    let lctx ← getLCtx
+    let some d := lctx.find? h | return true
+    if lctx.findFromUserName? name |>.any (·.fvarId != h) then return true
+    match ← transferForward? d.toExpr hf with
+    | some (ty, pf) =>
+      let g ← (← getMainGoal).assert d.userName ty pf
+      let (_, g) ← g.intro1P
+      replaceMainGoal [← g.tryClear h]
+      return true
+    | none =>
+      if strict && (← mentionsOldSpace hf d.type) then
+        throwError "transfer: nothing transfers the hypothesis {d.toExpr} :{indentExpr d.type}\n\
+          No `@[transfer]` lemma rewrites it and no `@[transfer_forward]` lemma transports it.\n\
+          A side condition, such as the measurability of a random variable, may not have been \
+          discharged."
+      return false
 
 /-- Transfer the hypotheses `hs` along `hf`: rewrite each with the `@[transfer]` lemmas, then
 replace each one that did not change by its forward transport by a `@[transfer_forward]` lemma.
 All the rewriting comes first, since a forward transport destroys the measurability facts the
-rewriting may need. -/
-def transferHyps (hfStx : Term) (hf : Expr) (hs : Array FVarId) : TacticM Unit := do
-  let args ← transferSimpArgs hfStx
+rewriting may need. When `strict`, a hypothesis that mentions the old space and is left as it was
+is an error. Returns whether some hypothesis changed. -/
+def transferHyps (args : SimpArgs) (hf : Expr) (hs : Array FVarId) (strict : Bool) :
+    TacticM Bool := do
+  if (← getUnsolvedGoals).isEmpty then return false
+  let names ← withMainContext do hs.mapM (·.getUserName)
   for h in hs do
     let hStx ← withMainContext do Term.exprToSyntax (.fvar h)
     evalTactic (← `(tactic|
       simp -failIfUnchanged (disch := transfer_discharger) only [$args,*] at $hStx:term))
-  for h in hs do
-    withMainContext do
-      -- `simp` replaces the hypothesis when it rewrites it; otherwise it is still there.
-      let some d := (← getLCtx).find? h | return
-      let some (ty, pf) ← transferForward? d.toExpr hf | return
-      let g ← (← getMainGoal).assert d.userName ty pf
-      let (_, g) ← g.intro1P
-      replaceMainGoal [← g.tryClear h]
+  let mut changed := false
+  for h in hs, name in names do
+    if (← getUnsolvedGoals).isEmpty then return true
+    changed := (← forwardHyp hf h name strict) || changed
+  return changed
 
 /-- `transfer hf`, for `hf : MeasurePreserving f P' P`, rewrites the goal with every `@[transfer]`
 lemma instantiated at `hf`: the law of `X` under `P` becomes the law of `fun ω ↦ X (f ω)` under
 `P'`, and likewise for events, integrals, independence and conditional laws. Side conditions, which
 are measurability statements, are discharged by `assumption`, `fun_prop` and `measurability`. The
-goal is then closed by `assumption` if possible.
+goal is then closed by `assumption` if possible. It is an error if the goal mentions the old space
+and nothing rewrote it.
 
 * `transfer hf at h₁ h₂` transports hypotheses instead: a fact about the old space becomes the
   corresponding fact about the new one, by the same rewriting or, for a hypothesis nothing
-  rewrites, by a `@[transfer_forward]` lemma.
+  rewrites, by a `@[transfer_forward]` lemma, under the binders of the hypothesis if it has any.
+  It is an error if a named hypothesis mentions the old space and is left as it was.
+* `transfer hf at h ⊢` and `transfer hf at *` do both, the goal first: transporting a
+  measurability hypothesis destroys the fact the goal's side conditions may need. With `*`, the
+  only error is when nothing at all changes.
 * `transfer` alone discharges the `transfer` obligation of `extend_space`: it introduces the new
   space, the map and the statement on the new space, transfers the goal and closes it with that
   statement. -/
@@ -237,18 +333,27 @@ elab_rules : tactic
       throwError "transfer: `at` needs the map to transfer along, as in `transfer hf at h`"
     | some hf, some loc =>
       let hfE ← Tactic.elabTerm hf none
+      let args ← transferSimpArgs hf
       match expandLocation loc with
       | .wildcard =>
-        let hs ← withMainContext do
-          (← getLCtx).foldlM (init := #[]) fun hs d ↦ do
-            if d.isImplementationDetail || !(← isProp d.type) then pure hs
-            else pure (hs.push d.fvarId)
-        transferHyps hf hfE hs
-        transferGoal hf
+        let hs ← (← getLCtx).foldlM (init := #[]) fun hs d ↦ do
+          if d.isImplementationDetail || !(← isProp d.type) then pure hs
+          else pure (hs.push d.fvarId)
+        let goalChanged ← rewriteGoal args
+        let hypsChanged ← transferHyps args hfE hs (strict := false)
+        closeByAssumption
+        unless goalChanged || hypsChanged do
+          throwError "transfer: nothing to transfer"
       | .targets hyps type =>
-        transferHyps hf hfE (← withMainContext do hyps.mapM getFVarId)
-        if type then transferGoal hf
-    | some hf, none => transferGoal hf
+        let hs ← hyps.mapM getFVarId
+        let goalChanged ← if type then rewriteGoal args else pure false
+        discard <| transferHyps args hfE hs (strict := true)
+        if type then
+          closeByAssumption
+          checkGoalTransferred hfE goalChanged
+    | some hf, none =>
+      let hfE ← Tactic.elabTerm hf none
+      transferGoal (← transferSimpArgs hf) hfE
     | none, none =>
       let (g, hf, h) ← introTransferObligation (← getMainGoal)
       replaceMainGoal [g]

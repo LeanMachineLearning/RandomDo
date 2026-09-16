@@ -18,8 +18,9 @@ set_option linter.style.header false
 
 For a measure-preserving map `f : Ω' → Ω` from `(Ω', P')` to `(Ω, P)`, a statement about random
 variables on `Ω` is equivalent to the same statement about their compositions with `f` on `Ω'`:
-laws, events and their measure, integrals, almost-everywhere statements, independence, conditional
-laws, integrability. This file collects these facts in the forms the `transfer` tactic uses.
+laws, events and their measure, integrals, almost-everywhere statements, independence of two
+random variables or of a family, conditional laws, integrability. This file collects these facts
+in the forms the `transfer` tactic uses.
 
 * `MeasurePreserving.map_fun_comp` and the `MeasurePreserving.*_fun_comp_iff` lemmas: the
   statement on `Ω'` on the left.
@@ -103,6 +104,17 @@ lemma transfer_indepFun (hf : MeasurePreserving f P' P) (hX : Measurable X) (hY 
   (hf.indepFun_fun_comp_iff hX hY).symm
 
 @[transfer]
+lemma transfer_iIndepFun {ι : Type*} {β : ι → Type*} [∀ i, MeasurableSpace (β i)]
+    (hf : MeasurePreserving f P' P) {X : ∀ i, Ω → β i} (hX : ∀ i, Measurable (X i)) :
+    iIndepFun X P ↔ iIndepFun (fun i ω ↦ X i (f ω)) P' := by
+  simp only [iIndepFun_iff_measure_inter_preimage_eq_mul]
+  refine forall_congr' fun S ↦ forall_congr' fun sets ↦ imp_congr_right fun hsets ↦ ?_
+  have hm : ∀ i ∈ S, MeasurableSet (X i ⁻¹' sets i) := fun i hi ↦ hX i (hsets i hi)
+  rw [← hf.measure_preimage (S.measurableSet_biInter hm).nullMeasurableSet,
+    Finset.prod_congr rfl fun i hi ↦ (hf.measure_preimage (hm i hi).nullMeasurableSet).symm]
+  simp only [Set.preimage_iInter₂, Set.preimage_preimage]
+
+@[transfer]
 lemma transfer_hasCondDistrib (hf : MeasurePreserving f P' P) (hX : Measurable X)
     (hY : Measurable Y) {κ : Kernel 𝓧 𝓨} :
     HasCondDistrib Y X κ P ↔ HasCondDistrib (fun ω ↦ Y (f ω)) (fun ω ↦ X (f ω)) κ P' :=
@@ -153,6 +165,15 @@ variable {Ω Ω' 𝓧 𝓨 : Type*} {mΩ : MeasurableSpace Ω} {mΩ' : Measurabl
   {m𝓧 : MeasurableSpace 𝓧} {m𝓨 : MeasurableSpace 𝓨} {P : Measure Ω} {P' : Measure Ω'}
   {f : Ω' → Ω} {X : Ω → 𝓧} {Y : Ω → 𝓨}
 
+/-- A measure-preserving map out of the old space, composed with the map to the new one: this
+transports the map of a previous `extend_space` along a new one. -/
+@[transfer_forward]
+lemma MeasureTheory.MeasurePreserving.comp_measurePreserving {𝓩 : Type*}
+    {m𝓩 : MeasurableSpace 𝓩} {ν : Measure 𝓩} {g : Ω → 𝓩} (h : MeasurePreserving g P ν)
+    (hf : MeasurePreserving f P' P) :
+    MeasurePreserving (fun ω ↦ g (f ω)) P' ν :=
+  h.comp hf
+
 @[transfer_forward]
 lemma Measurable.comp_measurePreserving (hX : Measurable X) (hf : MeasurePreserving f P' P) :
     Measurable fun ω ↦ X (f ω) :=
@@ -199,6 +220,13 @@ lemma ProbabilityTheory.IndepFun.comp_measurePreserving (h : IndepFun X Y P)
     (hf : MeasurePreserving f P' P) (hX : Measurable X) (hY : Measurable Y) :
     IndepFun (fun ω ↦ X (f ω)) (fun ω ↦ Y (f ω)) P' :=
   (hf.indepFun_fun_comp_iff hX hY).2 h
+
+@[transfer_forward]
+lemma ProbabilityTheory.iIndepFun.comp_measurePreserving {ι : Type*} {β : ι → Type*}
+    [∀ i, MeasurableSpace (β i)] {X : ∀ i, Ω → β i} (h : iIndepFun X P)
+    (hf : MeasurePreserving f P' P) (hX : ∀ i, Measurable (X i)) :
+    iIndepFun (fun i ω ↦ X i (f ω)) P' :=
+  (hf.transfer_iIndepFun hX).1 h
 
 @[transfer_forward]
 lemma MeasureTheory.Integrable.comp_measurePreserving {G : Type*} [NormedAddCommGroup G]

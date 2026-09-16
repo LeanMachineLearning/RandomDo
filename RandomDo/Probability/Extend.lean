@@ -25,24 +25,35 @@ product measure, presented as an abstract space related to the old one by a meas
   the goal reads as before. The old space and its objects are still there, renamed `Ω₀`, `P₀`,
   `X₀`, …, together with the map `f : Ω → Ω₀`, `hf : MeasurePreserving f P P₀` and the defining
   equations `hX_def : ∀ ω, X₀ (f ω) = X ω`. A hypothesis that cannot be transported stays about the
-  old space, under its `₀` name. The context gains `Z : Ω → E`, `hZ : HasLaw Z μ P` and
-  `hind`, the independence of `Z` from the transported random variables, as a tuple.
+  old space, under its `₀` name. The context gains `Z : Ω → E`, `hZm : Measurable Z`,
+  `hZ : HasLaw Z μ P` and `hind`, the independence of `Z` from the transported random variables
+  and events, as a tuple, an event `s` entering as `fun ω ↦ ω ∈ s`. A random variable whose
+  measurability cannot be proved is left out of the tuple; when nothing is left, `hind` is the
+  independence of `Z` from the map `f`.
 * `extend_space! μ` does the same and clears the old space, the map, and everything that
-  mentions them.
+  mentions them, except what the hypotheses that stay need: when `hZ` or `hind` is stated in terms
+  of `f`, the map stays with `hf`, and the old space with its instances.
 * `extend_space_map μ` is the explicit form: nothing is renamed, the new space is `Ω'` with
-  `P'`, `f : Ω' → Ω`, `hf`, `Z`, `hZ : HasLaw Z μ P'` and `hind : IndepFun f Z P'`, and the goal
-  is restated with `fun ω ↦ X (f ω)` for `X` and `f ⁻¹' s` for `s`. Hypotheses about the old space
-  stay as they are and are pulled back on demand, by `transfer hf at h` or by hand.
+  `P'`, `f : Ω' → Ω`, `hf`, `Z`, `hZm`, `hZ : HasLaw Z μ P'` and `hind : IndepFun f Z P'`, and the
+  goal is restated with `fun ω ↦ X (f ω)` for `X` and `f ⁻¹' s` for `s`. Hypotheses about the old
+  space stay as they are and are pulled back on demand, by `transfer hf at h` or by hand.
+
+Extending twice works as expected: the first draw `Z` and its hypotheses are transported like any
+other random variable, and the second extension names its objects `Z'`, `hZ'`, `f'`, … so as not
+to shadow them. The spaces left behind are `Ω₀`, the one just left, then `Ω₀₀`.
 
 In every case a `transfer` goal is left when the `transfer` tactic cannot discharge it: the
 obligation that the statement pulls back along any measure-preserving map, which is what makes
-the replacement sound. A hypothesis the goal itself depends on, such as a measurability proof
-inside a `Kernel.comap`, is generalized along with the goal.
+the replacement sound. A statement about the points of `Ω`, such as `∀ ω, 0 ≤ X ω`, does not pull
+back, and its obligation is left. A hypothesis the goal itself depends on, such as a measurability
+proof inside a `Kernel.comap`, is generalized along with the goal. The goal may not depend on data
+on `Ω` other than random variables and events, such as a second measure, nor on a local
+definition: neither can be transported, and the tactic fails.
 
 `extend_space κ` for a Markov kernel `κ : Kernel Ω E` gives instead a draw with conditional law
 `κ` given the old space, `hZ : HasCondDistrib Z f κ P'`, and no `hind`. For a draw conditional on
-a random variable `X`, extend with `κ.comap X hX`: `extend_space` then states `hZ` as
-`HasCondDistrib Z X κ P`.
+random variables, extend with `κ.comap g hg`: `extend_space` then states `hZ` as
+`HasCondDistrib Z g κ P`, with `g` read in terms of the transported variables.
 
 Compare `alg_env_trace`: there the new space is not an extension of the old one, only a space with
 the same trajectory law, so its `transfer` obligation is about laws and has to be proved
@@ -95,7 +106,8 @@ universe u v
 
 /-- **The principle behind `extend_space κ`.** To prove a statement `motive` about the probability
 space `(Ω, P)`, it is enough to prove it on a space `(Ω', P')` that projects onto `Ω` by a
-measure-preserving map `f` and carries a draw `Z` with conditional law `κ` given `f`, *provided*
+measure-preserving map `f` and carries a measurable draw `Z` with conditional law `κ` given `f`,
+*provided*
 the statement pulls back along measure-preserving maps, which is what `transfer` asks for.
 
 The space `Ω'` is the product `Ω × E` with the measure `P ⊗ₘ κ`, but `extended` may not use that:
@@ -108,18 +120,19 @@ theorem wlog_extend_kernel {Ω : Type (max u v)} [mΩ : MeasurableSpace Ω] {E :
     (κ : Kernel Ω E) [IsMarkovKernel κ]
     (extended : ∀ (Ω' : Type (max u v)) [MeasurableSpace Ω'] (P' : Measure Ω')
       [IsProbabilityMeasure P'] (f : Ω' → Ω), MeasurePreserving f P' P → ∀ (Z : Ω' → E),
-      HasCondDistrib Z f κ P' → motive Ω' P' f)
+      Measurable Z → HasCondDistrib Z f κ P' → motive Ω' P' f)
     (transfer : ∀ (Ω' : Type (max u v)) [MeasurableSpace Ω'] (P' : Measure Ω')
       [IsProbabilityMeasure P'] (f : Ω' → Ω), MeasurePreserving f P' P →
       motive Ω' P' f → motive Ω P id) :
     motive Ω P id :=
   transfer (Ω × E) (P ⊗ₘ κ) Prod.fst (measurePreserving_fst_compProd κ)
     (extended (Ω × E) (P ⊗ₘ κ) Prod.fst (measurePreserving_fst_compProd κ) Prod.snd
-      (hasCondDistrib_snd_fst_compProd κ))
+      measurable_snd (hasCondDistrib_snd_fst_compProd κ))
 
 /-- **The principle behind `extend_space μ`.** To prove a statement `motive` about the probability
 space `(Ω, P)`, it is enough to prove it on a space `(Ω', P')` that projects onto `Ω` by a
-measure-preserving map `f` and carries a draw `Z` with law `μ`, independent of `f`, *provided*
+measure-preserving map `f` and carries a measurable draw `Z` with law `μ`, independent of `f`,
+*provided*
 the statement pulls back along measure-preserving maps, which is what `transfer` asks for.
 
 The space `Ω'` is the product `Ω × E` with the product measure, but `extended` may not use that:
@@ -132,13 +145,13 @@ theorem wlog_extend {Ω : Type (max u v)} [mΩ : MeasurableSpace Ω] {E : Type v
     (μ : Measure E) [IsProbabilityMeasure μ]
     (extended : ∀ (Ω' : Type (max u v)) [MeasurableSpace Ω'] (P' : Measure Ω')
       [IsProbabilityMeasure P'] (f : Ω' → Ω), MeasurePreserving f P' P → ∀ (Z : Ω' → E),
-      HasLaw Z μ P' → IndepFun f Z P' → motive Ω' P' f)
+      Measurable Z → HasLaw Z μ P' → IndepFun f Z P' → motive Ω' P' f)
     (transfer : ∀ (Ω' : Type (max u v)) [MeasurableSpace Ω'] (P' : Measure Ω')
       [IsProbabilityMeasure P'] (f : Ω' → Ω), MeasurePreserving f P' P →
       motive Ω' P' f → motive Ω P id) :
     motive Ω P id :=
   transfer (Ω × E) (P.prod μ) Prod.fst measurePreserving_fst
-    (extended (Ω × E) (P.prod μ) Prod.fst measurePreserving_fst Prod.snd
+    (extended (Ω × E) (P.prod μ) Prod.fst measurePreserving_fst Prod.snd measurable_snd
       measurePreserving_snd.hasLaw (indepFun_fst_snd_prod μ))
 
 end RDo
@@ -261,10 +274,10 @@ where
       if !deps.contains f || special.contains f then return ← go todo seen acc
       let d ← f.getDecl
       let ty ← instantiateMVars d.type
-      if transportable sp.Ω ty then return ← go todo seen acc
       if d.isLet then throwError
         "extend_space: the goal depends on the local definition {Expr.fvar f}, which cannot be \
-        transported to the extended space"
+        transported to the extended space; unfold it or `clear_value` it first"
+      if transportable sp.Ω ty then return ← go todo seen acc
       go ((Lean.collectFVars {} ty).fvarIds.toList ++ todo) seen (acc.push f)
 
 /-- Index of the binder named `n` in a `∀`-telescope. -/
@@ -301,6 +314,8 @@ structure NewSpace where
   hf : FVarId
   /-- The new draw. -/
   Z : FVarId
+  /-- `Measurable Z`. -/
+  hZm : FVarId
   /-- Its law, or its conditional law given `f`. -/
   hZ : FVarId
   /-- `IndepFun f Z P'`, in the independent case. -/
@@ -340,16 +355,18 @@ partial def foldTransports (f : FVarId) (subst : Array (FVarId × Nat × Bool ×
         | _ => none
       | _ => none
 
-/-- The old-space version of a transported random variable `x : ι₁ → ⋯ → ιₖ → Ω → α`, as a
-random variable `fun ω ↦ fun i₁ … iₖ ↦ x i₁ … iₖ ω` for the independence statement. -/
-partial def oldComponent (Ω ω x ty : Expr) : MetaM Expr :=
-  match ty with
+/-- A transported variable `x` at a point `ω` of its space, as a component of the tuple of the
+independence statement: `fun i₁ … iₖ ↦ x i₁ … iₖ ω` for a random variable
+`x : ι₁ → ⋯ → ιₖ → Ω → α`, and `fun i₁ … iₖ ↦ ω ∈ x i₁ … iₖ` for a family of events. -/
+partial def component (Ω ω x ty : Expr) (isSet : Bool) : MetaM Expr :=
+  if isSet && ty.isAppOfArity ``Set 1 then mkAppM ``Membership.mem #[x, ω]
+  else match ty with
   | .forallE n d b bi =>
     if d == Ω then pure (mkApp x ω)
     else
       let n := if n.hasMacroScopes || n.isAnonymous then `i else n
       withLocalDecl n bi d fun i ↦ do
-        mkLambdaFVars #[i] (← oldComponent Ω ω (mkApp x i) (b.instantiate1 i))
+        mkLambdaFVars #[i] (← component Ω ω (mkApp x i) (b.instantiate1 i) isSet)
   | _ => throwError "extend_space: internal error, {x} : {ty} is not a random variable"
 
 /-- Generalize the transports in the goal: for each transported variable `(X, v, k, isSet, name)`
@@ -408,35 +425,47 @@ def proveTransported (h : FVarId) (φ' : Expr) (new : NewSpace) : TacticM (Optio
     if let some pf ← tryTactic? goal.mvarId! tac then return some pf
   return none
 
-/-- The independence of `Z` from the transported random variables, as the independence of `Z`
-and the tuple of those whose measurability `fun_prop` can prove. -/
+/-- The independence of `Z` from the transported random variables and events, as the independence
+of `Z` and the tuple of those whose measurability `fun_prop` or `measurability` can prove, or a
+`MeasurePreserving` hypothesis gives, an event `s` entering as `fun ω ↦ ω ∈ s`. The tuple is
+written on the new space with the transports, as `X (f ω)` and `ω ∈ f ⁻¹' s`, which is what
+`generalizeTransports` folds into `X ω` and `ω ∈ s`. When no component is left, `hind` stays as it
+is, the independence of `Z` and `f`. -/
 def deriveIndep (g : MVarId) (sp : ProbSpace) (new : NewSpace) (hind : FVarId)
     (transported : Array (FVarId × Expr × Nat × Bool)) : TacticM (Option (FVarId × MVarId)) :=
   g.withContext do
     let ΩE := Expr.fvar sp.Ω
-    let mut comps : Array (Expr × Expr) := #[]
-    for (x, _, _, isSet) in transported do
-      if isSet then continue
+    let Ω'E := Expr.fvar new.Ω
+    -- Each component on the old space, with its measurability, and on the new space.
+    let mut comps : Array (Expr × Expr × Expr) := #[]
+    for (x, v, _, isSet) in transported do
       let ty ← instantiateMVars (← x.getType)
       let c ← withLocalDecl `ω .default ΩE fun ω ↦ do
-        mkLambdaFVars #[ω] (← oldComponent ΩE ω (.fvar x) ty)
-      let c := c.eta
+        mkLambdaFVars #[ω] (← component ΩE ω (.fvar x) ty isSet)
+      let c := if isSet then c else c.eta
       let goal ← mkFreshExprSyntheticOpaqueMVar (← mkAppM ``Measurable #[c])
-      if let some hc ← tryTactic? goal.mvarId! (← `(tactic| fun_prop)) then
-        comps := comps.push (c, hc)
+      -- The map of a previous extension is measurable by its `MeasurePreserving` hypothesis.
+      let some hc ← tryTactic? goal.mvarId! (← `(tactic| first
+          | fun_prop
+          | (exact MeasureTheory.MeasurePreserving.measurable ‹_›)
+          | measurability))
+        | continue
+      let c' ← withLocalDecl `ω .default Ω'E fun ω ↦ do
+        mkLambdaFVars #[ω] (← component Ω'E ω v (← inferType v) isSet)
+      comps := comps.push (c, hc, c')
     if comps.isEmpty then return none
-    let rec mkTuple : List (Expr × Expr) → MetaM (Expr × Expr)
+    let rec mkTuple : List (Expr × Expr × Expr) → MetaM (Expr × Expr × Expr)
       | [] => throwError "extend_space: internal error, empty tuple"
       | [ch] => pure ch
-      | (c, hc) :: rest => do
-        let (r, hr) ← mkTuple rest
+      | (c, hc, c') :: rest => do
+        let (r, hr, r') ← mkTuple rest
         let φ ← withLocalDecl `ω .default ΩE fun ω ↦ do
           mkLambdaFVars #[ω] (← mkAppM ``Prod.mk #[(mkApp c ω).headBeta, (mkApp r ω).headBeta])
-        pure (φ, ← mkAppM ``Measurable.prodMk #[hc, hr])
-    let (φ, hφ) ← mkTuple comps.toList
-    let fE := Expr.fvar new.f
-    let tuple ← withLocalDecl `ω .default (.fvar new.Ω) fun ω ↦ do
-      mkLambdaFVars #[ω] (← Core.betaReduce (mkApp φ (mkApp fE ω)))
+        let φ' ← withLocalDecl `ω .default Ω'E fun ω ↦ do
+          mkLambdaFVars #[ω] (← mkAppM ``Prod.mk #[(mkApp c' ω).headBeta, (mkApp r' ω).headBeta])
+        pure (φ, ← mkAppM ``Measurable.prodMk #[hc, hr], φ')
+    let (_, hφ, tuple) ← mkTuple comps.toList
+    let tuple ← Core.betaReduce tuple
     let ty ← mkAppM ``ProbabilityTheory.IndepFun #[tuple, .fvar new.Z, .fvar new.P]
     let goal ← mkFreshExprSyntheticOpaqueMVar ty
     let hindStx ← Term.exprToSyntax (.fvar hind)
@@ -448,18 +477,18 @@ def deriveIndep (g : MVarId) (sp : ProbSpace) (new : NewSpace) (hind : FVarId)
     let (hind', g) ← g.intro1P
     return some (hind', g)
 
-/-- For a kernel `κ.comap X hX` with `X` a transported variable, the conditional law of `Z` given
-`X` on the new space, `HasCondDistrib Z (fun ω ↦ X (f ω)) κ P'`. -/
-def deriveCondDistrib (g : MVarId) (new : NewSpace) (κ : Expr) (transported : FVarIdSet) :
+/-- For a kernel `κ.comap g hg`, the conditional law of `Z` given `g` on the new space,
+`HasCondDistrib Z (fun ω ↦ g (f ω)) κ P'`. Once `generalizeTransports` has folded the transports,
+`g (f ω)` reads as `g` of the transported variables: `X ω` for `κ.comap X hX`, `(X ω, Y ω)` for a
+kernel conditioned on a pair. -/
+def deriveCondDistrib (g : MVarId) (new : NewSpace) (κ : Expr) :
     TacticM (Option (FVarId × MVarId)) := g.withContext do
   unless κ.isAppOfArity ``ProbabilityTheory.Kernel.comap 9 do return none
   let X := κ.getArg! 7
-  let .fvar x := X | return none
-  unless transported.contains x do return none
   let κ₀ := κ.getArg! 6
   let fE := Expr.fvar new.f
   let Xf ← withLocalDecl `ω .default (.fvar new.Ω) fun ω ↦
-    mkLambdaFVars #[ω] (mkApp X (mkApp fE ω))
+    mkLambdaFVars #[ω] (mkApp X (mkApp fE ω)).headBeta
   let ty ← mkAppM ``ProbabilityTheory.HasCondDistrib #[.fvar new.Z, Xf, κ₀, .fvar new.P]
   let goal ← mkFreshExprSyntheticOpaqueMVar ty
   let hZStx ← Term.exprToSyntax (.fvar new.hZ)
@@ -469,12 +498,65 @@ def deriveCondDistrib (g : MVarId) (new : NewSpace) (κ : Expr) (transported : F
   let (hZ', g) ← g.intro1P
   return some (hZ', g)
 
+/-- `n`, bumped by `bump` until it is not in `taken`. -/
+partial def freshName (bump : Name → Name) (n : Name) (taken : NameSet) : Name :=
+  if taken.contains n then freshName bump (bump n) taken else n
+
+/-- Rename `x` to `n`. A hypothesis already named `n` is first renamed `n₀`, recursively, so that
+`Ω` becomes `Ω₀`, the `Ω₀` of a previous extension becomes `Ω₀₀`, and so on. -/
+partial def renameBumping (g : MVarId) (x : FVarId) (n : Name) : MetaM MVarId := do
+  let g ← g.withContext do
+    match (← getLCtx).findFromUserName? n with
+    | some d =>
+      if d.fvarId != x && !d.isImplementationDetail then
+        renameBumping g d.fvarId (n.appendAfter "₀")
+      else pure g
+    | none => pure g
+  g.rename x n
+
+/-- Remove from `toClear` what the hypotheses that stay need: everything their types mention,
+transitively, and, about those objects, the instances and the hypotheses listed in `about`. With
+`hZ : HasCondDistrib Z f κ₀ P'` staying, this keeps `f` with `hf`, `κ₀` with its Markov instance,
+and the old space with its σ-algebra and probability instance. -/
+def keepNeeded (g : MVarId) (toClear : Array FVarId) (about : Array FVarId) :
+    MetaM (Array FVarId) := g.withContext do
+  let clearSet : FVarIdSet := toClear.foldl (·.insert ·) {}
+  let lctx ← getLCtx
+  let fvarsOf (d : LocalDecl) : MetaM (Array FVarId) := do
+    let mut st := Lean.collectFVars {} (← instantiateMVars d.type)
+    if let some v := d.value? then st := Lean.collectFVars st (← instantiateMVars v)
+    pure st.fvarIds
+  let mut keep : FVarIdSet := {}
+  let mut todo := (Lean.collectFVars {} (← instantiateMVars (← g.getType))).fvarIds
+  for d in lctx do
+    if d.isImplementationDetail || clearSet.contains d.fvarId then continue
+    todo := todo ++ (← fvarsOf d)
+  let mut progress := true
+  while progress do
+    progress := false
+    while !todo.isEmpty do
+      let x := todo.back!
+      todo := todo.pop
+      if keep.contains x || !clearSet.contains x then continue
+      keep := keep.insert x
+      progress := true
+      todo := todo ++ (← fvarsOf (← x.getDecl))
+    for d in lctx do
+      if !clearSet.contains d.fvarId || keep.contains d.fvarId then continue
+      if (← isClass? d.type).isSome || about.contains d.fvarId then
+        if (← instantiateMVars d.type).hasAnyFVar keep.contains then
+          keep := keep.insert d.fvarId
+          progress := true
+          todo := todo ++ (← fvarsOf d)
+  return toClear.filter (!keep.contains ·)
+
 /-- Hide the extension. The new space and its objects take the names of the old ones, which are
 renamed with `₀`; every hypothesis about the old space is transported when possible; the
 transports `fun ω ↦ X (f ω)` become fresh variables `X` with defining equations
 `hX_def : ∀ ω, X₀ (f ω) = X ω`; the independence of `Z` is restated against the transported random
-variables; and, for a kernel `κ.comap X hX`, the conditional law of `Z` is stated given `X`.
-With `clearOld`, the old space, the map and everything mentioning them are cleared. -/
+variables and events; and, for a kernel `κ.comap g hg`, the conditional law of `Z` is stated given
+`g`. With `clearOld`, the old space, the map and everything mentioning them are cleared, except
+what the remaining hypotheses need. -/
 def hidePresentation (g : MVarId) (sp : ProbSpace) (deps special : FVarIdSet) (new : NewSpace)
     (gensOld gensNew : Array FVarId) (κ? : Option Expr) (clearOld : Bool) : TacticM MVarId := do
   let ΩE := Expr.fvar sp.Ω
@@ -489,10 +571,11 @@ def hidePresentation (g : MVarId) (sp : ProbSpace) (deps special : FVarIdSet) (n
         out := out.push (d.fvarId, d.userName)
     pure out
   let origName (x : FVarId) : Name := ((olds.find? (·.1 == x)).map (·.2)).getD .anonymous
-  -- 1. The old objects are renamed with `₀`, and the new space takes the old names.
+  -- 1. The old objects are renamed with `₀`, and the new space takes the old names. A hypothesis
+  -- already named `Ω₀`, left by a previous extension, becomes `Ω₀₀` first.
   let mut g := g
   for (x, n) in olds do
-    unless n.hasMacroScopes do g ← g.rename x (n.appendAfter "₀")
+    unless n.hasMacroScopes do g ← renameBumping g x (n.appendAfter "₀")
   g ← g.rename new.Ω (origName sp.Ω)
   g ← g.rename new.P (origName sp.P)
   unless (origName sp.mΩ).hasMacroScopes do g ← g.rename new.mΩ (origName sp.mΩ)
@@ -509,7 +592,10 @@ def hidePresentation (g : MVarId) (sp : ProbSpace) (deps special : FVarIdSet) (n
     let mut out : Array (FVarId × Expr × Nat × Bool) := #[]
     for (x, _) in olds do
       if special.contains x then continue
-      let ty ← instantiateMVars (← x.getType)
+      let d ← x.getDecl
+      -- A local definition is not transported: its transport would not have its value.
+      if d.isLet then continue
+      let ty ← instantiateMVars d.type
       if ← isProp ty then continue
       if let some (k, isSet) := transportShape sp.Ω ty then
         out := out.push (x, ← transportAlong ΩE Ω'E fE (.fvar x) ty, k, isSet)
@@ -548,7 +634,7 @@ def hidePresentation (g : MVarId) (sp : ProbSpace) (deps special : FVarIdSet) (n
       toClear := toClear.push hind
   -- 6. The conditional law of `Z` given the conditioning variable, for `κ.comap X hX`.
   if let some κ := κ? then
-    if let some (hZ', g') ← deriveCondDistrib g new κ transportedSet then
+    if let some (hZ', g') ← deriveCondDistrib g new κ then
       g := g'
       moved := moved.push hZ'
       toClear := toClear.push new.hZ
@@ -563,7 +649,8 @@ def hidePresentation (g : MVarId) (sp : ProbSpace) (deps special : FVarIdSet) (n
     hdefs := hdefs'
   -- 8. Clean up.
   if clearOld then
-    toClear := toClear ++ hdefs ++ #[new.f, new.hf] ++ olds.map (·.1)
+    toClear ← keepNeeded g (toClear ++ hdefs ++ #[new.f, new.hf] ++ olds.map (·.1))
+      #[new.hf, hfm]
   let sorted ← g.withContext do sortFVarIds toClear
   g.tryClearMany sorted
 
@@ -599,6 +686,12 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
       pure (true, as[1]!, some as[0]!)
     else throwError
       "{tac}: {μE} is neither a measure nor a kernel; it has type{indentExpr μty}"
+  let (instName, what, cls) :=
+    if isKernel then (``IsMarkovKernel, "a Markov kernel", "IsMarkovKernel")
+    else (``IsProbabilityMeasure, "a probability measure", "IsProbabilityMeasure")
+  try discard <| synthInstance (← mkAppM instName #[μE])
+  catch _ => throwError
+    "{tac}: {μE} is not known to be {what}: no `{cls}` instance was found"
   -- The measure to extend.
   let PE ← match P? with
     | some P => pure (Expr.fvar (← getFVarId P))
@@ -617,6 +710,11 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
         "{tac}: the goal mentions several measures, {cands.map Expr.fvar}; choose one with `using`"
   let sp ← ProbSpace.ofMeasure PE
   let ΩE := Expr.fvar sp.Ω
+  if sp.hP.isNone then
+    try discard <| synthInstance (← mkAppM ``IsProbabilityMeasure #[PE])
+    catch _ => throwError
+      "{tac}: {PE} is not known to be a probability measure: no `IsProbabilityMeasure` instance \
+      was found"
   if let some dom := dom? then
     unless ← isDefEq dom ΩE do
       throwError "{tac}: the kernel {μE} is on {dom}, not on {ΩE}"
@@ -632,6 +730,14 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
   let mut special : FVarIdSet := {}
   for f in #[sp.Ω, sp.mΩ, sp.P] ++ sp.hP.toArray do special := special.insert f
   let gens ← sortFVarIds (← toGeneralize sp deps special T₀)
+  -- Generalizing data on `Ω`, a second measure say, would make the extended goal quantify over
+  -- all such data on the new space: not what was asked, and not provable in general.
+  for x in gens do
+    let ty ← instantiateMVars (← x.getType)
+    unless ← isProp ty do
+      throwError "{tac}: the goal depends on{indentExpr (Expr.fvar x)}\nof type{indentExpr ty}\n\
+        which is neither a random variable nor an event on {ΩE}, so it cannot be transported to \
+        the extended space"
   let T ← mkForallFVars (gens.map Expr.fvar) T₀
   -- The motive: the goal on a space `Ω'` with a map `f : Ω' → Ω`.
   let motive ←
@@ -693,17 +799,31 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
     | _, true => 4
   if given.size > nNames then
     throwError "{tac}: at most {nNames} names may be given"
+  -- A default name that a hypothesis of the old space bears, and that its transport will bear
+  -- again, is primed: a second extension names its draw `Z'`. In the explicit form, where nothing
+  -- is renamed, any hypothesis counts.
+  let taken : NameSet ← (← getLCtx).foldlM (init := {}) fun taken d ↦ do
+    if d.isImplementationDetail then return taken
+    let counts := match mode with
+      | .map => true
+      | _ => deps.contains d.fvarId
+    return if counts then taken.insert d.userName else taken
+  let fresh (n : Name) : Name := freshName (·.appendAfter "'") n taken
   let pick (defaults : Array Name) (i : Nat) : Name :=
-    if h : i < given.size then given[i] else defaults[i]!
+    if h : i < given.size then given[i] else fresh defaults[i]!
+  -- `hZm` for a draw `Z`, `hUm` for a draw named `U`; primed like the rest when taken.
+  let hZmName (defaults : Array Name) (i : Nat) : Name :=
+    let z := if h : i < given.size then given[i] else defaults[i]!
+    fresh (Name.mkSimple s!"h{z}m")
   let intros : Array Name := match mode with
     | .map =>
       let d := #[.mkSimple "Ω'", .mkSimple "P'", `f, `hf, `Z, `hZ, `hind]
-      #[pick d 0, `inst, pick d 1, `inst, pick d 2, pick d 3, pick d 4, pick d 5]
+      #[pick d 0, `inst, pick d 1, `inst, pick d 2, pick d 3, pick d 4, hZmName d 4, pick d 5]
         ++ (if isKernel then #[] else #[pick d 6])
     | _ =>
       let d := if isKernel then #[`Z, `hZ, `f, `hf] else #[`Z, `hZ, `hind, `f, `hf]
       let (f, hf) := if isKernel then (pick d 2, pick d 3) else (pick d 3, pick d 4)
-      #[.mkSimple "Ω'", `inst, .mkSimple "P'", `inst, f, hf, pick d 0, pick d 1]
+      #[.mkSimple "Ω'", `inst, .mkSimple "P'", `inst, f, hf, pick d 0, hZmName d 0, pick d 1]
         ++ (if isKernel then #[] else #[pick d 2])
   let (fvs, extended) ← extended.introN intros.size intros.toList
   let gensNames ← gens.toList.mapM fun x ↦ do
@@ -714,7 +834,7 @@ def extendSpace (mode : ExtendMode) (μ : Term) (P? : Option Ident) (given : Arr
     | .map => pure extended
     | _ =>
       let new : NewSpace := ⟨fvs[0]!, fvs[1]!, fvs[2]!, fvs[3]!, fvs[4]!, fvs[5]!, fvs[6]!,
-        fvs[7]!, if isKernel then none else some fvs[8]!⟩
+        fvs[7]!, fvs[8]!, if isKernel then none else some fvs[9]!⟩
       hidePresentation extended sp deps special new gens gensNew
         (if isKernel then some μE else none) (match mode with | .clear => true | _ => false)
   -- The transfer goal, with the original goal as its conclusion rather than `motive Ω P id`.
@@ -749,8 +869,9 @@ are kept: `Ω`, `P`, every random variable `X : Ω → α` and every event `s : 
 objects on the extended space, hypotheses about them are transported, and the goal reads as
 before. The context gains
 
-* `Z : Ω → E`, `hZ : HasLaw Z μ P`, and `hind`, the independence of `Z` from the transported
-  random variables, as a tuple;
+* `Z : Ω → E`, `hZm : Measurable Z`, `hZ : HasLaw Z μ P`, and `hind`, the independence of `Z`
+  from the transported random variables and events, as a tuple, or from the map `f` when none is
+  provably measurable;
 * the old space and its objects, renamed `Ω₀`, `P₀`, `X₀`, …, with `f : Ω → Ω₀`,
   `hf : MeasurePreserving f P P₀`, and the defining equations `hX_def : ∀ ω, X₀ (f ω) = X ω`.
   A hypothesis that cannot be transported stays about the old space, under its `₀` name.
@@ -760,10 +881,13 @@ the statement pulls back along a measure-preserving map, which makes the replace
 `transfer` tactic is run on it, and it is only left when that fails.
 
 * `extend_space! μ` also clears the old space, the map and everything mentioning them, except
+  what the hypotheses that stay need, such as the map when `hZ` or `hind` is stated with it, and
   what Lean does not let a tactic clear: hypotheses introduced by `variable`.
+* Extending twice is fine: the second extension names its objects `Z'`, `hZ'`, `f'`, … so as not
+  to shadow the first draw, which is transported like any other random variable.
 * `extend_space κ` for a Markov kernel `κ : Kernel Ω E` gives instead a draw with conditional law
-  `κ` given the old space, `hZ : HasCondDistrib Z f κ P`, and no `hind`. For `κ.comap X hX` with
-  `X` a random variable, `hZ` is stated as `HasCondDistrib Z X κ P`.
+  `κ` given the old space, `hZ : HasCondDistrib Z f κ P`, and no `hind`. For `κ.comap g hg`, `hZ`
+  is stated as `HasCondDistrib Z g κ P`, with `g` read in terms of the transported variables.
 * `extend_space μ using P` names the measure to extend rather than reading it off the goal.
 * `extend_space μ with Z hZ hind f hf` names what is introduced (`with Z hZ f hf` for a kernel).
 
@@ -778,7 +902,8 @@ syntax (name := extendSpaceClearTac) "extend_space!" ppSpace term (" using " ide
 
 /-- `extend_space_map μ` is the explicit form of `extend_space μ`: nothing is renamed, the goal is
 restated on a new space `Ω'` with a measure-preserving map `f : Ω' → Ω`, and the context gains
-`hf : MeasurePreserving f P' P`, `Z : Ω' → E`, `hZ : HasLaw Z μ P'` and `hind : IndepFun f Z P'`.
+`hf : MeasurePreserving f P' P`, `Z : Ω' → E`, `hZm : Measurable Z`, `hZ : HasLaw Z μ P'` and
+`hind : IndepFun f Z P'`.
 Every random variable `X : Ω → α` of the goal becomes `fun ω ↦ X (f ω)` and every event
 `s : Set Ω` becomes `f ⁻¹' s`. Hypotheses about the old space stay as they are and are pulled back
 on demand, by `transfer hf at h`, `hX.comp hf.hasLaw` for a law, `hind.comp hX measurable_id` for

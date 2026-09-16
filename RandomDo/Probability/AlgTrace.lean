@@ -78,9 +78,10 @@ lemma _root_.Learning.IsAlgEnvSeq.comp_measurePreserving {𝓐 𝓨 Ω Ω' : Typ
   hasCondDistrib_feedback n := (h.hasCondDistrib_feedback n).comp_measurePreserving hf
 
 /-- Being an algorithm-environment sequence is invariant under pulling back along a
-measure-preserving map, for measurable sequences. This is the form the `transfer` tactic uses;
-`h.measurable_action` and `h.measurable_feedback` provide the side conditions when an
-`IsAlgEnvSeq` hypothesis `h` is around. -/
+measure-preserving map, for measurable sequences. This is the form the `transfer` tactic uses. The
+side conditions are the measurability of the sequences: when an `IsAlgEnvSeq` hypothesis `h` is
+around, put `h.measurable_action` and `h.measurable_feedback` in the context for the discharger to
+find them. -/
 @[transfer]
 lemma _root_.MeasureTheory.MeasurePreserving.transfer_isAlgEnvSeq {𝓐 𝓨 Ω Ω' : Type*}
     [MeasurableSpace 𝓐] [MeasurableSpace 𝓨] {_ : MeasurableSpace Ω} {_ : MeasurableSpace Ω'}

@@ -1,7 +1,8 @@
 module
 
-public import Test.Common
 public import Mathlib.Probability.Independence.InfinitePi
+public import RandomDo.Probability.Extend
+public import RandomDo.Probability.MeasurePreserving
 
 set_option linter.style.header false
 
@@ -10,9 +11,9 @@ set_option linter.style.header false
 
 The first sections pin down what `extend_space` produces: the context after the extension, what
 is transported and what is left about the old space, when the `transfer` obligation is closed
-automatically and when it is left, and what `extend_space!` clears. Then come the explicit form
-`extend_space_map`, a draw with a conditional law, an i.i.d. sequence, and the errors the tactic
-reports.
+automatically and when it is left, what `extend_space!` clears and what it has to keep, and what a
+second extension looks like. Then come the explicit form `extend_space_map`, a draw with a
+conditional law, an i.i.d. sequence, and the errors the tactic reports.
 
 Throughout, `Ω` lives in `Type u` and `E` in `Type`: the tactic lifts the product to the universe
 of `Ω`.
@@ -37,16 +38,17 @@ include μ
 
 /-- The names are kept: `Ω`, `P`, `X`, `A` and `s` now live on the extended space, related to the
 old `Ω₀`, `P₀`, `X₀`, … by the map `f` and the defining equations. Hypotheses about them are
-transported, and `Z` is independent of the tuple of the random variables. The goal reads as
-before, and its `transfer` obligation is discharged. -/
+transported, and `Z` is independent of the tuple of the random variables and events. The goal
+reads as before, and its `transfer` obligation is discharged. -/
 example (X : Ω → ℝ) (A : ℕ → Ω → ℝ) (s : Set Ω) (hX : Measurable X) (hA : ∀ n, Measurable (A n))
     (hs : MeasurableSet s) (ν : Measure ℝ) (c : ENNReal) (h1 : P.map X = ν)
     (h2 : ∀ n, P.map (A n) = ν) (h3 : P s = c) :
     P.map X = ν ∧ (∀ n, P.map (A n) = ν) ∧ P s = c := by
   extend_space μ with Z hZ hind f hf
   guard_hyp hf : MeasurePreserving f P P₀
+  guard_hyp hZm : Measurable Z
   guard_hyp hZ : HasLaw Z μ P
-  guard_hyp hind : IndepFun (fun ω ↦ (X ω, fun n ↦ A n ω)) Z P
+  guard_hyp hind : IndepFun (fun ω ↦ (X ω, fun n ↦ A n ω, ω ∈ s)) Z P
   guard_hyp hX_def : ∀ ω, X₀ (f ω) = X ω
   guard_hyp hA_def : ∀ n ω, A₀ n (f ω) = A n ω
   guard_hyp hs_def : f ⁻¹' s₀ = s
@@ -126,6 +128,68 @@ example {Ω : Type u} [MeasurableSpace Ω] {P : Measure Ω} [IsProbabilityMeasur
   guard_hyp hXν : HasLaw X ν P
   exact hXν.map_eq
 
+/-- `extend_space! κ` for a kernel on `Ω`: `hZ` is stated given the map, so the map stays with
+`hf`, and the old space with its instances. The rest is cleared. -/
+example {Ω : Type u} [MeasurableSpace Ω] {P : Measure Ω} [IsProbabilityMeasure P]
+    (X : Ω → ℝ) (hX : Measurable X) (κ : Kernel Ω E) [IsMarkovKernel κ] (ν : Measure ℝ)
+    (hXν : HasLaw X ν P) : P.map X = ν := by
+  extend_space! κ
+  guard_hyp hZ : HasCondDistrib Z f κ₀ P
+  guard_hyp hf : MeasurePreserving f P P₀
+  fail_if_success guard_hyp hX₀ : Measurable X₀
+  fail_if_success guard_hyp hX_def : ∀ ω, X₀ (f ω) = X ω
+  have hκ : IsMarkovKernel κ₀ := inferInstance
+  have hP₀ : IsProbabilityMeasure P₀ := inferInstance
+  clear hκ hP₀
+  exact hXν.map_eq
+
+/-- With only an event in the goal, `hind` is the independence of `Z` and `fun ω ↦ ω ∈ s`, and
+the old space is cleared entirely. -/
+example {Ω : Type u} [MeasurableSpace Ω] {P : Measure Ω} [IsProbabilityMeasure P]
+    (s : Set Ω) (hs : MeasurableSet s) (c : ENNReal) (h : P s = c) : P s = c := by
+  extend_space! μ
+  guard_hyp hind : IndepFun (fun ω ↦ ω ∈ s) Z P
+  fail_if_success guard_hyp f : Ω → Ω₀
+  fail_if_success guard_hyp Ω₀ : Type u
+  exact h
+
+/-! ## Extending twice
+
+The first draw `Z` and its hypotheses `hZm`, `hZ` and `hind` are transported like any other random
+variable, and the second extension names its objects with a prime so as not to shadow them. The
+space left by the first extension is `Ω₀`, the original one `Ω₀₀`; `hf'` relates `P` to `P₀`
+through the new map `f'`, and `hf` to `P₀₀` through the transported map `f`, which is now the
+composite. -/
+
+example (X : Ω → ℝ) (hX : Measurable X) (ν : Measure ℝ) (hXν : HasLaw X ν P) :
+    P.map X = ν := by
+  extend_space μ
+  extend_space μ
+  guard_hyp hZm : Measurable Z
+  guard_hyp hZ : HasLaw Z μ P
+  guard_hyp hind : IndepFun X Z P
+  guard_hyp hZm' : Measurable Z'
+  guard_hyp hZ' : HasLaw Z' μ P
+  guard_hyp hind' : IndepFun (fun ω ↦ (f ω, Z ω, X ω)) Z' P
+  guard_hyp hf' : MeasurePreserving f' P P₀
+  guard_hyp hf : MeasurePreserving f P P₀₀
+  guard_hyp hX_def : ∀ ω, X₀ (f' ω) = X ω
+  guard_hyp hX_def₀ : ∀ ω, X₀₀ (f₀ ω) = X₀ ω
+  exact hXν.map_eq
+
+/-- With `extend_space!`, nothing of the intermediate space is left. -/
+example {Ω : Type u} [MeasurableSpace Ω] {P : Measure Ω} [IsProbabilityMeasure P]
+    (X : Ω → ℝ) (hX : Measurable X) (ν : Measure ℝ) (hXν : HasLaw X ν P) :
+    P.map X = ν := by
+  extend_space! μ
+  extend_space! μ
+  guard_hyp hZ : HasLaw Z μ P
+  guard_hyp hZ' : HasLaw Z' μ P
+  guard_hyp hind : IndepFun X Z P
+  guard_hyp hind' : IndepFun (fun ω ↦ (Z ω, X ω)) Z' P
+  fail_if_success guard_hyp Ω₀ : Type u
+  exact hXν.map_eq
+
 /-! ## Transported hypotheses
 
 Laws, independence, conditional laws, events, integrals and almost-everywhere statements are
@@ -184,6 +248,21 @@ example (X Y : Ω → ℝ) (hX : Measurable X) (hY : Measurable Y) (h : X =ᵐ[P
   extend_space μ
   exact h
 
+/-- Mutual independence of a family. -/
+example (A : ℕ → Ω → ℝ) (hA : ∀ n, Measurable (A n)) (h : iIndepFun A P) (ν : Measure ℝ)
+    (h0 : HasLaw (A 0) ν P) : P.map (A 0) = ν ∧ iIndepFun A P := by
+  extend_space μ
+  guard_hyp h : iIndepFun A P
+  guard_hyp hind : IndepFun (fun ω n ↦ A n ω) Z P
+  exact ⟨h0.map_eq, h⟩
+
+/-- A random variable whose measurability is not at hand is left out of the tuple of `hind`. When
+nothing is left, `hind` is the independence of `Z` and the map. -/
+example (X : Ω → ℝ) (ν : Measure ℝ) (hXν : HasLaw X ν P) : P.map X = ν := by
+  extend_space μ
+  guard_hyp hind : IndepFun f Z P
+  exact hXν.map_eq
+
 /-! ## Using the new draw
 
 A statement that does not mention the space has a trivial `transfer` obligation: this is the
@@ -227,6 +306,13 @@ example (X : Ω → ℝ) (hX : Measurable X) (κ : Kernel Ω E) [IsMarkovKernel 
   guard_hyp hZ : HasCondDistrib Z f κ₀ P
   exact hXν.map_eq
 
+/-- A kernel conditioned on a pair of random variables: `hZ` is stated given that pair. -/
+example (X Y : Ω → ℝ) (hX : Measurable X) (hY : Measurable Y) (κ : Kernel (ℝ × ℝ) E)
+    [IsMarkovKernel κ] (ν : Measure ℝ) (hXν : HasLaw X ν P) : P.map X = ν := by
+  extend_space (κ.comap (fun ω ↦ (X ω, Y ω)) (hX.prodMk hY))
+  guard_hyp hZ : HasCondDistrib Z (fun ω ↦ (X ω, Y ω)) κ P
+  exact hXν.map_eq
+
 /-! ## The explicit form, `extend_space_map` -/
 
 /-- Nothing is renamed: the goal is restated on `Ω'`, with `X ∘ f` for `X` and `f ⁻¹' s` for `s`,
@@ -238,6 +324,7 @@ example (X : Ω → ℝ) (A : ℕ → Ω → ℝ) (s : Set Ω) (hX : Measurable 
     P.map X = ν ∧ (∀ n, P.map (A n) = ν) ∧ P s = c := by
   extend_space_map μ with Ω' P' f hf Z hZ hind
   guard_hyp hf : MeasurePreserving f P' P
+  guard_hyp hZm : Measurable Z
   guard_hyp hZ : HasLaw Z μ P'
   guard_hyp hind : IndepFun f Z P'
   guard_hyp h1 : P.map X = ν
@@ -315,6 +402,69 @@ so the product Ω × E' does not live in the universe of Ω: lift E' with `ULift
 example {E' : Type (u + 1)} [MeasurableSpace E'] (μ' : Measure E') [IsProbabilityMeasure μ']
     (X : Ω → ℝ) : P.map X = P.map X := by
   extend_space μ'
+
+/--
+error: extend_space: the goal depends on
+  Q
+of type
+  Measure Ω
+which is neither a random variable nor an event on Ω, so it cannot be transported to the extended space
+-/
+#guard_msgs in
+example (Q : Measure Ω) (X : Ω → ℝ) : P.map X = Q.map X := by
+  extend_space μ using P
+
+/--
+error: extend_space: the goal depends on the local definition Y, which cannot be transported to the extended space; unfold it or `clear_value` it first
+-/
+#guard_msgs in
+example (X : Ω → ℝ) (ν : Measure ℝ) : ∃ Y : Ω → ℝ, P.map Y = ν := by
+  let Y : Ω → ℝ := X
+  refine ⟨Y, ?_⟩
+  extend_space μ
+
+/--
+error: extend_space: the kernel κ is on ℝ, not on Ω
+-/
+#guard_msgs in
+example (X : Ω → ℝ) (κ : Kernel ℝ E) [IsMarkovKernel κ] (ν : Measure ℝ) : P.map X = ν := by
+  extend_space κ using P
+
+/--
+error: extend_space: X is not a measure
+-/
+#guard_msgs in
+example (X : Ω → ℝ) (ν : Measure ℝ) : P.map X = ν := by
+  extend_space μ using X
+
+/--
+error: extend_space: at most 5 names may be given
+-/
+#guard_msgs in
+example (X : Ω → ℝ) (ν : Measure ℝ) : P.map X = ν := by
+  extend_space μ with a b c d e g
+
+/--
+error: extend_space: the space must be a local hypothesis, but ℕ → ℝ is not
+-/
+#guard_msgs in
+example (Q : Measure (ℕ → ℝ)) [IsProbabilityMeasure Q] (X : (ℕ → ℝ) → ℝ) (ν : Measure ℝ) :
+    Q.map X = ν := by
+  extend_space μ using Q
+
+/--
+error: extend_space: Q is not known to be a probability measure: no `IsProbabilityMeasure` instance was found
+-/
+#guard_msgs in
+example {Q : Measure Ω} (X : Ω → ℝ) (ν : Measure ℝ) : Q.map X = ν := by
+  extend_space μ
+
+/--
+error: extend_space: Measure.map Y P is not known to be a probability measure: no `IsProbabilityMeasure` instance was found
+-/
+#guard_msgs in
+example (X Y : Ω → ℝ) (ν : Measure ℝ) : P.map X = ν := by
+  extend_space (P.map Y)
 
 end Test.Extend
 
