@@ -16,6 +16,7 @@ public import RandomDo.Tactic.Computable.Counterparts
 public import RandomDo.Tactic.Computable.Defs
 public import RandomDo.Tactic.Computable.Deriving
 public import RandomDo.Tactic.Computable.Example
+public import RandomDo.Tactic.Computable.Polymorphic
 public import RandomDo.Tactic.IsMarkov.Defs
 public import RandomDo.Tactic.IsMarkov.Deriving
 public import RandomDo.Tactic.IsMarkov.Elab

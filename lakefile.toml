@@ -1,5 +1,5 @@
 name = "RandomDo"
-defaultTargets = ["RandomDo"]
+defaultTargets = ["RandomDo", "compute", "polymorphic"]
 lintDriver = "batteries/runLinter"
 testDriver = "Test"
 
@@ -29,3 +29,11 @@ name = "Test"
 name = "dump"
 root = "Dump"
 srcDir = "test_data"
+
+[[lean_exe]]
+name = "compute"
+root = "Compute"
+
+[[lean_exe]]
+name = "polymorphic"
+root = "Polymorphic"
