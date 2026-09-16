@@ -8,7 +8,7 @@ module
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Measurable
-public import RandomDo.Tactic.ForInStep
+public import RandomDo.Tactic.IsMarkov.ForInStep
 public import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 public import Mathlib.Data.List.OfFn
 public import Mathlib.Probability.Distributions.Gaussian.Real

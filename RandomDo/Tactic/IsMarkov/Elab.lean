@@ -5,7 +5,7 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import RandomDo.Tactic.Lemmas
+public import RandomDo.Tactic.IsMarkov.Lemmas
 public meta import Lean.Elab.Tactic.Basic
 
 /-!
