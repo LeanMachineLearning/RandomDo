@@ -12,6 +12,15 @@ public import RandomDo.NumLean.PCG64
 public import RandomDo.NumLean.SeedSequence
 public import RandomDo.NumLean.Ziggurat
 public import RandomDo.NumLean.ZigguratSampler
+public import RandomDo.Probability.AlgTrace
+public import RandomDo.Probability.Examples
+public import RandomDo.Probability.Extend
+public import RandomDo.Probability.MeasurePreserving
+public import RandomDo.Probability.Record
+public import RandomDo.Probability.Tactic
+public import RandomDo.Probability.Thompson
+public import RandomDo.Probability.Trace
+public import RandomDo.Probability.Transfer
 public import RandomDo.Tactic.Computable.Counterparts
 public import RandomDo.Tactic.Computable.Defs
 public import RandomDo.Tactic.Computable.Deriving
