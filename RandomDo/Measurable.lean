@@ -55,7 +55,7 @@ lemma measurable_ofFn (n : ℕ) : Measurable (List.ofFn : (Fin n → α) → Lis
 @[fun_prop]
 lemma measurable_finCons {n : ℕ} :
     Measurable fun q : α × (Fin n → α) ↦ (Fin.cons q.1 q.2 : Fin (n + 1) → α) := by
-  refine measurable_pi_lambda _ fun i ↦ ?_
+  refine Measurable.of_eval fun i ↦ ?_
   refine Fin.cases ?_ (fun j ↦ ?_) i
   · simp only [Fin.cons_zero]; fun_prop
   · simp only [Fin.cons_succ]; fun_prop

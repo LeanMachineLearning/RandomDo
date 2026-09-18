@@ -143,8 +143,7 @@ lemma isMarkov (h : HasTrace prog P out) [IsMarkovKernel P] : IsMarkov prog wher
   measurable' := by rw [h.eq_map]; exact Kernel.measurable _
   isProbabilityMeasure c := by
     rw [← h.map_eq c]
-    exact Measure.isProbabilityMeasure_map
-      (h.measurable_out.comp measurable_prodMk_left).aemeasurable
+    infer_instance
 
 lemma congr {prog' : γ → Measure β} (h : HasTrace prog P out) (h' : ∀ c, prog' c = prog c) :
     HasTrace prog' P out :=

@@ -460,11 +460,11 @@ example {Q : Measure Ω} (X : Ω → ℝ) (ν : Measure ℝ) : Q.map X = ν := b
   extend_space μ
 
 /--
-error: extend_space: Measure.map Y P is not known to be a probability measure: no `IsProbabilityMeasure` instance was found
+error: extend_space: μ + μ is not known to be a probability measure: no `IsProbabilityMeasure` instance was found
 -/
 #guard_msgs in
-example (X Y : Ω → ℝ) (ν : Measure ℝ) : P.map X = ν := by
-  extend_space (P.map Y)
+example (X : Ω → ℝ) (ν : Measure ℝ) : P.map X = ν := by
+  extend_space (μ + μ)
 
 end Test.Extend
 

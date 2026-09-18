@@ -249,12 +249,12 @@ trace type cannot be a fixed nest of products. Two shapes work:
   and the two theorems needed are `IsMarkov (loopTrace K upd l)` and
   `forIn l s (fun i s ↦ (K i s).map fun z ↦ .yield (upd i s z)) = (loopTrace K upd l s).map
   (loopOut upd l s)`, both by induction on `l`. The unrolling equations for the induction already
-  exist as `forIn_nil` / `forIn_cons` in [Lemmas.lean](../RandomDo/Tactic/Lemmas.lean) — they are
-  `private` and would need exposing. A third theorem, peeling the head off `loopTrace`, then gives
-  the conditional law of iteration `k` given iterations `< k`.
+  exist as `IsMarkov.forIn_nil` / `IsMarkov.forIn_cons` in
+  [Lemmas.lean](../RandomDo/Tactic/IsMarkov/Lemmas.lean). A third theorem, peeling the head off
+  `loopTrace`, then gives the conditional law of iteration `k` given iterations `< k`.
 
-* **`Π i : Iic n, α`** via Mathlib's `Kernel.partialTraj`. More machinery, but it is the *same*
-  history type as `Learning.Algorithm.policy`, so a loop traced this way plugs straight into LML's
+* **`Fin n → α`**, a fixed number `n` of iterations. It is the shape of LML's histories,
+  `Hist 𝓞 𝓐 𝓨 n = Fin n → Round 𝓞 𝓐 𝓨`, so a loop traced this way plugs straight into LML's
   `IsAlgEnvSeq` filtration and conditional-distribution API.
 
 Either shape would then get its own `traceCore` case in
@@ -268,20 +268,25 @@ need to trace an `ite` finely rather than as one atomic draw.
 ## The algorithm's draws inside an `IsAlgEnvSeq`
 
 [RandomDo/Probability/AlgTrace.lean](../RandomDo/Probability/AlgTrace.lean) closes the loop with
-LML. `IsAlgEnvSeq A Y alg env P` says nothing about *how* the algorithm produced its actions: when
-`alg` comes from an `rdo` program, the draws that program makes are not random variables of
+LML. `IsAlgEnvSeq O A Y alg env P` says nothing about *how* the algorithm produced its actions:
+when `alg` comes from an `rdo` program, the draws that program makes are not random variables of
 `(Ω, P)` at all. This file makes them available.
 
+In LML a round is an observation, then an action, then a feedback, and the policy at step `n` is a
+kernel from `Hist 𝓞 𝓐 𝓨 n × 𝓞` — the `n` rounds so far and the current observation — to `𝓐`.
+Step `0` is the policy at the empty history; there is no separate initial distribution.
+
 A `RDo.AlgTrace alg Ω` bundles what `rdo_trace` produces for a policy: one space `Ω` of internal
-draws, a kernel `K n` for their law at step `n` given the history, and a readout `out n`
-reconstructing the action. From it, `AlgTrace.algorithm` is an algorithm whose actions are pairs
-`(draws, action)` — the draws first, then the action *deterministically* read off them, which is
-what makes the two halves fall straight out of the peeling rule:
+draws, a kernel `K n` for their law at step `n` given the history and the observation, and a
+readout `out n` reconstructing the action. From it, `AlgTrace.algorithm` is an algorithm whose
+actions are pairs `(draws, action)` — the draws first, then the action *deterministically* read
+off them, which is what makes the two halves fall straight out of the peeling rule:
 
 * `AlgTrace.isAlgEnvSeq_snd` — forgetting the draws turns an algorithm-environment sequence for the
   traced algorithm into one for `alg`;
-* `AlgTrace.hasCondDistrib_trace` — the draws have conditional law `K n` given the history;
-* `AlgTrace.action_ae_eq` — and the action is `out n` of the history and the draws.
+* `AlgTrace.hasCondDistrib_trace` — the draws have conditional law `K n` given the history and
+  the observation;
+* `AlgTrace.action_ae_eq` — and the action is `out n` of those and the draws.
 
 Since the traced algorithm faces the same environment, LML's `isAlgEnvSeq_unique` gives the
 punchline, `AlgTrace.exists_isAlgEnvSeq_trace`: **any** algorithm-environment sequence may be
@@ -294,12 +299,13 @@ every conclusion about the actions and feedbacks back.
 
 `alg_env_trace tr` does the replacement in one step. Given an `IsAlgEnvSeq` hypothesis in the
 context and an `AlgTrace tr` for its algorithm, it abstracts the goal — and every hypothesis
-mentioning the probability space, the measure or the two sequences, so nothing is silently lost —
+mentioning the probability space, the measure or the three sequences, so nothing is silently
+lost —
 away from that space, and leaves two goals:
 
-* **`traced`**: the same statement on a space that also carries the draws `T`, with `hT₀` its law,
-  `hT` its conditional law given the history, and `hA₀`/`hA` the equations expressing each action
-  as the readout of the history and the draws;
+* **`traced`**: the same statement on a space that also carries the draws `T`, with `hT` their
+  conditional law given the history and the observation, and `hA` the equations expressing each
+  action as the readout of those and the draws;
 * **`transfer`**: the obligation that the statement depends only on the law of the trajectory, with
   both sequences' `IsAlgEnvSeq` available (so measurability is at hand).
 
@@ -307,32 +313,34 @@ That second goal is what makes the move sound rather than a hole: the traced seq
 different space, and all that relates it to the original is `isAlgEnvSeq_unique`.
 
 ```lean
-example … (h : IsAlgEnvSeq A Y (alg hK) env P) : P.map (A 0) = Measure.dirac ⟨0, hK⟩ := by
-  alg_env_trace (trace hK) with Ω P A Y Z hseq hZ₀ hZ hA₀ hA
-  case traced => exact hseq.hasLaw_action_zero.map_eq
-  case transfer => …
+example … (h : IsAlgEnvSeq O A Y (alg hK) env P) : ∀ᵐ ω ∂P, A 0 ω = ⟨0, hK⟩ := by
+  alg_env_trace (trace hK) with Ω P O A Y Z hseq htr hZ hA
+  filter_upwards [hA 0] with ω hω
+  …
 ```
 
 after which the context reads
 
 ```
-Ω : Type          P : Measure Ω        A : ℕ → Ω → Fin K    Y Z : ℕ → Ω → ℝ
-hseq : IsAlgEnvSeq A Y (alg hK) env P
-hZ₀  : HasLaw (Z 0) (trace hK).K0 P
-hZ   : ∀ n, HasCondDistrib (Z (n+1)) (history A Y n) ((trace hK).K n) P
-hA   : ∀ n, A (n+1) =ᵐ[P] fun ω ↦ (trace hK).out n (history A Y n ω, Z (n+1) ω)
+Ω : Type    P : Measure Ω    O : ℕ → Ω → Unit    A : ℕ → Ω → Fin K    Y Z : ℕ → Ω → ℝ
+hseq : IsAlgEnvSeq O A Y (alg hK) env P
+hZ   : ∀ n, HasCondDistrib (Z n) (fun ω ↦ (history O A Y n ω, O n ω)) ((trace hK).K n) P
+hA   : ∀ n, A n =ᵐ[P] fun ω ↦ (trace hK).out n ((history O A Y n ω, O n ω), Z n ω)
 ```
 
 `alg_env_trace tr using h` names the hypothesis rather than searching for one; `with` names the
 introduced variables. The space, its σ-algebra, the measure, the `IsProbabilityMeasure` hypothesis
-and the two sequences all have to be local hypotheses, since the goal is abstracted over them.
+and the three sequences all have to be local hypotheses, since the goal is abstracted over them.
 `AlgTrace.wlog_trace` is the principle behind it, usable directly.
 
-`RDo.Example` at the end of the file runs the whole thing end to end on a toy policy written as an
-`rdo` program: `rdo_trace` gives the trace, the `AlgTrace` packages it, `Example.exists_noise`
-hands back the noise the policy draws at each step, and the last example drives the tactic.
+[Test/AlgTrace.lean](../Test/AlgTrace.lean) runs the whole thing end to end on a toy bandit policy
+written as an `rdo` program: `rdo_trace` gives the trace, the `AlgTrace` packages it,
+`exists_noise` hands back the noise the policy draws at each step, and the examples drive the
+tactic.
 
-To do the same for `thompson` one still needs the measurable equivalence between `Iic n → 𝓐 × 𝓨`
-and `Vector (𝓐 × 𝓨) (n + 1)` that turns it into a policy — `Vector.v_equiv` in
-`RandomDo/Tactic/Examples.lean`, which is a `sorry` there (and stated one element short of the
-right cardinality). Everything downstream of that point is done.
+To do the same for `thompson`, its history has to be read as an LML history. `thompson` takes a
+`Vector (Fin K × ℝ) n`, and a bandit history is a
+`Hist Unit (Fin K) ℝ n = Fin n → Unit × Fin K × ℝ`: both hold `n` action-reward pairs, so the
+policy is `thompson` precomposed with the measurable map
+`h ↦ Vector.ofFn fun i ↦ ((h i).action, (h i).feedback)`. Everything downstream of that point is
+done.

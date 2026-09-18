@@ -264,7 +264,8 @@ probability measure when the total mass of `target logπ` is finite and positive
 the chain has it as its law at every step. -/
 theorem invariant_mhChain_smul (c : ℝ≥0∞) (n : ℕ) :
     (c • target logπ).bind (mhChain logπ s n) = c • target logπ := by
-  rw [Measure.bind_smul, invariant_mhChain]
+  rw [Measure.bind_smul _ _ (isMarkov_mhChain logπ s n).measurable.aemeasurable,
+    invariant_mhChain]
 
 end Theorems
 
