@@ -136,6 +136,9 @@ def closeLeaf (g : MVarId) : MetaM (List MVarId) := do
   if let some gs ← observing? (g.applyConst ``IsMarkov.gaussianReal) then
     trace[is_markov] "`gaussianReal` leaf: handing back the measurability of its parameters"
     return gs
+  if let some gs ← observing? (g.applyConst ``IsMarkov.bernoulliMeasure) then
+    trace[is_markov] "`bernoulliMeasure` leaf: handing back the measurability of its parameters"
+    return gs
   return [g]
 
 /-- The constant heading the body of `κ`, when it is a definition the tactic could look through. -/
@@ -172,7 +175,9 @@ def abstractLoopVars (vars : Array FVarId) (g : MVarId) : MetaM MVarId := do
 
 /-- Turn a goal `IsMarkov κ` into the list of goals the user is left with. -/
 partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.withContext do
-  let target ← instantiateMVars (← g.getType)
+  /- The annotations a goal may carry, e.g. the one a tactic `have` leaves on the goal after it,
+  would hide the head of the statement. -/
+  let target := (← instantiateMVars (← g.getType)).cleanupAnnotations
   -- `IsMarkov` takes five arguments: `γ`, `α`, their `MeasurableSpace` instances, and `κ`.
   unless target.isAppOfArity ``IsMarkov 5 do
     trace[is_markov] "not an `IsMarkov` goal, handed back: {target}"
@@ -251,7 +256,8 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
         let mut goals := []
         let mut side := []
         for g' in gs do
-          if (← instantiateMVars (← g'.getType)).isAppOfArity ``IsMarkov 5 then
+          let t := (← instantiateMVars (← g'.getType)).cleanupAnnotations
+          if t.isAppOfArity ``IsMarkov 5 then
             goals := goals ++ (← isMarkovCore g' fuel)
           else
             side := side ++ [g']
@@ -280,7 +286,7 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
       if ← g.isAssigned then return leftover
       /- The goal was not closed, so we try to unfold names in the head of the program until we
       reach a known shape. If that fails, we leave the goal to the user. -/
-      match ← unfoldToKnownShape (← instantiateMVars (← g.getType)) fuel with
+      match ← unfoldToKnownShape (← instantiateMVars (← g.getType)).cleanupAnnotations fuel with
       | some target =>
         trace[is_markov] "unfolded the head definition to: {target.appArg!}"
         isMarkovCore (← g.change target) (fuel - 1)
@@ -316,7 +322,7 @@ lemma _root_.isProbabilityMeasure_of_isMarkov {α : Type*} [MeasurableSpace α] 
 /-- Bring a goal of the form `IsProbabilityMeasure μ` into the form `IsMarkov fun _ : Unit ↦ μ`, so
 that `isMarkovCore` can be applied. -/
 def toIsMarkovGoal (g : MVarId) : MetaM MVarId := do
-  let target ← instantiateMVars (← g.getType)
+  let target := (← instantiateMVars (← g.getType)).cleanupAnnotations
   unless target.isAppOfArity ``IsProbabilityMeasure 3 do
     return g
   match ← g.applyConst ``isProbabilityMeasure_of_isMarkov with

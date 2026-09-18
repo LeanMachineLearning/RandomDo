@@ -23,6 +23,8 @@ This file contains results on the measurable structure of lists, arrays and vect
   are measurable.
 * `measurable_of_prodList`: a map out of `δ × List α` is measurable as soon as it is measurable on
   every stratum, which is how one reasons about a program taking a list as an argument.
+* `Measurable.ite_bool`: `if b a then f a else g a` is measurable, for a measurable `b` valued in
+  `Bool`.
 -/
 
 @[expose] public section
@@ -143,5 +145,13 @@ lemma measurable_isSome : Measurable (Option.isSome : Option α → Bool) :=
 @[fun_prop]
 lemma measurable_getD (a : α) : Measurable (fun o : Option α ↦ o.getD a) :=
   measurable_option_iff.2 measurable_id
+
+/-- A choice between two measurable functions on a measurable `Bool`, as in `if b then y else x`
+after drawing `b` from a Bernoulli distribution in an `rdo` program. -/
+@[fun_prop]
+lemma Measurable.ite_bool {β : Type*} [MeasurableSpace β] {b : α → Bool} {f g : α → β}
+    (hb : Measurable b) (hf : Measurable f) (hg : Measurable g) :
+    Measurable fun a ↦ if b a = true then f a else g a :=
+  Measurable.ite (hb (measurableSet_singleton true)) hf hg
 
 end

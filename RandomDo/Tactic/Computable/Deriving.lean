@@ -83,6 +83,11 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
         let x := xs[0]!.fvarId!
         withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
           mkLambdaFVars #[y] (← translate (σ.insert x y) body)
+      -- The type of a function a program takes, e.g. a log-density `ℝ → ℝ`.
+      | .forallE .. => forallBoundedTelescope e (some 1) fun xs body ↦ do
+        let x := xs[0]!.fvarId!
+        withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
+          mkForallFVars #[y] (← translate (σ.insert x y) body)
       | .letE n t v b _ => withLetDecl n t v fun x ↦ do
         withLetDecl n (← translate σ t) (← translate σ v) fun y ↦ do
           mkLetFVars #[y] (← translate (σ.insert x.fvarId! y) (b.instantiate1 x))
@@ -92,6 +97,10 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
 fits, look through it and read its body in its place. -/
 partial def translateApp (σ : FVarSubst) (e : Expr) : MetaM Expr := do
   if e.getAppFn.isLambda then return ← translate σ e.headBeta
+  -- A function the program takes as an argument, e.g. `logπ y`: its translation is applied to the
+  -- translated arguments.
+  if e.getAppFn.isFVar then
+    return mkAppN (← translate σ e.getAppFn) (← e.getAppArgs.mapM (translate σ))
   let .const declName _ := e.getAppFn | throwError "`computable`: cannot translate{indentExpr e}"
   let counterpart? ← computableAs? declName
   let head := counterpart?.getD declName

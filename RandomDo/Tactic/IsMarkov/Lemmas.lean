@@ -12,6 +12,7 @@ public import RandomDo.Tactic.IsMarkov.ForInStep
 public import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 public import Mathlib.Data.List.OfFn
 public import Mathlib.Probability.Distributions.Gaussian.Real
+public import Mathlib.Probability.Distributions.Bernoulli
 
 /-!
 # Markov property of `rdo` programs
@@ -31,6 +32,8 @@ complex program to the Markov property/measurability of its underlying mathemati
   the bound variable is Markovian in the parameter.
 * `gaussianReal`: A Gaussian distribution whose mean and variance depend measurably on the parameter
   is Markovian in the parameter.
+* `bernoulliMeasure`: A Bernoulli distribution whose two outcomes and probability depend measurably
+  on the parameter is Markovian in the parameter.
 * `comp`: Composing a Markov kernel `κ` with a measurable function `g` is Markovian in the
   parameter.
 * `ite`: A conditional `rdo` program that chooses between two Markov kernels `κ` and `η` based on a
@@ -43,6 +46,7 @@ complex program to the Markov property/measurability of its underlying mathemati
 * `forInList_comp`, `forInArray_comp`, `forInVector_comp`: The same three, for a loop over a
   collection the program takes as an argument. The body is then asked to be Markovian jointly in the
   parameter and in the element, which the fixed collections do not need.
+* `forIn_nil`, `forIn_cons`: A `for` loop over a list, unrolled one element at a time.
 * `breakRunK`: The case analysis a program performs after a loop that returns early, on the `Option`
   slot holding the returned value, is Markovian as soon as both of its branches are.
 -/
@@ -51,6 +55,7 @@ complex program to the Markov property/measurability of its underlying mathemati
 
 open MeasureTheory ProbabilityTheory Function
 open MeasurableSpacePure
+open scoped ENNReal
 
 namespace IsMarkov
 
@@ -90,6 +95,18 @@ lemma mBind {κ : γ → Measure α} (hκ : IsMarkov κ) {η : γ → α → Mea
 lemma gaussianReal {m : γ → ℝ} {v : γ → NNReal} (hm : Measurable m) (hv : Measurable v) :
     IsMarkov fun c ↦ ProbabilityTheory.gaussianReal (m c) (v c) :=
   ⟨ProbabilityTheory.measurable_gaussianReal.comp (hm.prodMk hv), fun _ ↦ inferInstance⟩
+
+lemma bernoulliMeasure {x y : γ → α} {p : γ → unitInterval} (hx : Measurable x)
+    (hy : Measurable y) (hp : Measurable p) :
+    IsMarkov fun c ↦ ProbabilityTheory.bernoulliMeasure (x c) (y c) (p c) := by
+  refine ⟨Measure.measurable_of_measurable_coe _ fun s hs ↦ ?_, fun _ ↦ inferInstance⟩
+  simp only [bernoulliMeasure_def, Measure.add_apply, Measure.smul_apply,
+    Measure.dirac_apply' _ hs, ENNReal.smul_def, smul_eq_mul]
+  have hp' : Measurable fun c ↦ ((unitInterval.toNNReal (p c) : ℝ≥0∞)) := by fun_prop
+  have hq' : Measurable fun c ↦ ((unitInterval.toNNReal (unitInterval.symm (p c)) : ℝ≥0∞)) := by
+    fun_prop
+  exact (hp'.mul ((measurable_one.indicator hs).comp hx)).add
+    (hq'.mul ((measurable_one.indicator hs).comp hy))
 
 lemma comp {κ : γ → Measure α} (hκ : IsMarkov κ) {g : σ → γ} (hg : Measurable g) :
     IsMarkov fun c ↦ κ (g c) := ⟨hκ.measurable.comp hg, fun _ ↦ hκ.isProbabilityMeasure _⟩
@@ -228,11 +245,14 @@ private lemma forIn_eq_listLoop (l : List ι) (b : σ) (g : ι → σ → Measur
     MeasurableSpaceForIn.forIn (m := Measure) l b g = listLoop g l b :=
   loop_eq_listLoop g l b l _ (fun _ _ _ ↦ rfl) ⟨[], rfl⟩
 
-private lemma forIn_nil (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+/-- A `for` loop over the empty list returns its initial state. -/
+lemma forIn_nil (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
     MeasurableSpaceForIn.forIn (m := Measure) ([] : List ι) b g = mPure b :=
   forIn_eq_listLoop _ _ _
 
-private lemma forIn_cons (a : ι) (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+/-- A `for` loop over `a :: l` runs its body on `a`, then stops or carries on with the loop over
+`l`. -/
+lemma forIn_cons (a : ι) (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
     MeasurableSpaceForIn.forIn (m := Measure) (a :: l) b g
       = g a b >>=ₘ fun step ↦ ForInStep.casesOn (motive := fun _ ↦ Measure σ) step mPure
           fun b' ↦ MeasurableSpaceForIn.forIn (m := Measure) l b' g := by

@@ -103,6 +103,12 @@ example : IsProbabilityMeasure layerTwo := by is_markov
 
 example : IsProbabilityMeasure layerTwo := by is_markov (fuel := 3)
 
+/-! ## A goal left behind by a tactic `have`, which annotates it -/
+
+example (c : ℝ) (hc : 0 < c) : IsMarkov fun x : ℝ ↦ gaussianReal (c * x) 1 := by
+  have _hc' : 0 ≤ c := hc.le
+  is_markov
+
 /-! ## The resulting instance is a `Kernel` -/
 
 instance : IsMarkov centred := by is_markov
