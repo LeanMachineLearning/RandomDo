@@ -6,15 +6,17 @@ Usage, from the root of the repository:
     python3 scripts/bandit_plot.py --run    # runs `lake exe bandits` first
 
 It checks that a reference implementation in numpy, seeded alike, produces the regret of the first
-seeds of each algorithm, bit for bit. It draws with `default_rng(seed).standard_normal`, which
-`NumLean` reproduces, and computes in doubles as the Lean program does: the reward is
-`fma(sqrt(variance), z, mean)`, as in `NumLean.normal`, the argmax is the first maximal index, as
+seeds of each algorithm, bit for bit. It draws with `default_rng(seed)`: `standard_normal` for the
+rewards, and for ε-greedy `binomial(1, ε)` for the coin and `integers(K)` for the uniform arm, in
+that order, which `NumLean` reproduces. It computes in doubles as the Lean program does: the reward
+is `fma(sqrt(variance), z, mean)`, as in `NumLean.normal`, the argmax is the first maximal index, as
 the `Float` instance of `HasArgmax`, and `sqrt` and `log` are libm's.
 
 It draws, in bandit_output/:
-* bandit_regret.png: the regret of each algorithm against the bound proved for it in
-  `Bandits.Theory`;
-* bandit_compare.png: the three algorithms together, and single runs of explore-then-commit.
+* bandit_regret.png: the regret of each algorithm against the bound proved for it, an upper bound in
+  `Bandits.Theory` for explore-then-commit and UCB, a lower bound in `Bandits.EpsGreedy` for
+  ε-greedy;
+* bandit_compare.png: the four algorithms together, and single runs of explore-then-commit.
 """
 
 import csv
@@ -35,9 +37,11 @@ OUT = Path("bandit_output")
 
 SURFACE, INK, INK_2, MUTED, GRID, AXIS = (
     "#fcfcfb", "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7")
-COLORS = {"etc_m10": "#2a78d6", "etc_m50": "#eb6834", "ucb_c3": "#1baf7a"}
+COLORS = {"etc_m10": "#2a78d6", "etc_m50": "#eb6834", "ucb_c3": "#1baf7a",
+          "epsgreedy_0.1": "#eda100"}
 LABELS = {"etc_m10": "explore-then-commit, m = 10", "etc_m50": "explore-then-commit, m = 50",
-          "ucb_c3": "UCB, c = 3"}
+          "ucb_c3": "UCB, c = 3", "epsgreedy_0.1": "ε-greedy, ε = 0.1"}
+ORDER = ["etc_m10", "etc_m50", "ucb_c3", "epsgreedy_0.1"]
 
 
 def from_hex(h):
@@ -63,6 +67,14 @@ def argmax_first(xs):
     return best
 
 
+def greedy(N, S):
+    """The first arm never pulled, and otherwise the best empirical mean: `greedyArm`."""
+    for a in range(len(N)):
+        if N[a] == 0:
+            return a
+    return argmax_first([S[a] / float(N[a]) for a in range(len(N))])
+
+
 def choose(alg, param, n, N, S, last):
     K = len(N)
     if alg == "etc":
@@ -86,7 +98,12 @@ def run_reference(alg, param, means, var, seed, T):
     sd = math.sqrt(var)
     regret, curve = 0.0, []
     for n in range(T):
-        a = choose(alg, param, n, N, S, last)
+        if alg == "epsgreedy":
+            coin = rng.binomial(1, max(0.0, min(1.0, param)))
+            u = int(rng.integers(K))
+            a = u if coin == 1 else greedy(N, S)
+        else:
+            a = choose(alg, param, n, N, S, last)
         r = fma(sd, rng.standard_normal(), means[a])
         N[a] += 1
         S[a] = S[a] + r
@@ -102,6 +119,11 @@ def etc_bound(gaps, m, var, n):
     """`integral_regret_etc_le`, valid for `n ≥ K m`."""
     K = len(gaps)
     return sum(g * (m + (n - K * m) * math.exp(-m * g * g / (4 * var))) for g in gaps)
+
+
+def epsgreedy_lower_bound(gaps, eps, n):
+    """`le_integral_regret_banditRunRand`: a lower bound."""
+    return n * eps / len(gaps) * sum(gaps)
 
 
 def ucb_bound(gaps, c, var, n, const_sum):
@@ -123,8 +145,8 @@ def load():
             prows = list(csv.DictReader(f))
         seeds = [k for k in prows[0] if k.startswith("seed")]
         runs[name] = dict(
-            alg=c["algorithm"], param=float(c["parameter"]) if c["algorithm"] == "ucb"
-            else int(c["parameter"]), T=int(c["rounds"]), seeds=int(c["seeds"]),
+            alg=c["algorithm"], param=int(c["parameter"]) if c["algorithm"] == "etc"
+            else float(c["parameter"]), T=int(c["rounds"]), seeds=int(c["seeds"]),
             means=[float(x) for x in c["means"].split(";")], var=float(c["variance"]),
             round=np.array([int(r["round"]) for r in rows]),
             mean=np.array([float(r["mean"]) for r in rows]),
@@ -172,6 +194,8 @@ def bound_curve(r):
     means, var = r["means"], r["var"]
     gaps = [max(means) - m for m in means]
     n = r["round"]
+    if r["alg"] == "epsgreedy":
+        return n, np.array([epsgreedy_lower_bound(gaps, r["param"], k) for k in n])
     if r["alg"] == "etc":
         m = r["param"]
         start = len(means) * m
@@ -183,34 +207,39 @@ def bound_curve(r):
 
 
 def plot_regret(runs):
-    fig, axes = plt.subplots(1, 3, figsize=(11, 3.7))
-    for ax, name in zip(axes, ["etc_m10", "etc_m50", "ucb_c3"]):
+    fig, axes = plt.subplots(2, 2, figsize=(10, 7))
+    axes = axes.ravel()
+    for ax, name in zip(axes, ORDER):
         r, color = runs[name], COLORS[name]
         ns, b = bound_curve(r)
-        ax.plot(ns, b, color=INK, linewidth=1.5, label="bound proved in Lean")
+        kind = "lower" if r["alg"] == "epsgreedy" else "upper"
+        ax.plot(ns, b, color=INK, linewidth=1.5, label=f"{kind} bound proved in Lean")
         ax.fill_between(r["round"], r["q10"], r["q90"], color=color, alpha=0.16, linewidth=0,
                         label="10%–90% of the runs")
         ax.plot(r["round"], r["mean"], color=color, label=f"mean over {r['seeds']} runs")
         ax.set_title(LABELS[name])
         ax.set_xlabel("round")
         ax.set_ylim(0, max(b[-1], r["q90"][-1]) * 1.08)
-        ax.annotate(f"{b[-1]:.0f}", (ns[-1], b[-1]), xytext=(-4, 4), textcoords="offset points",
-                    ha="right", color=INK_2, fontsize=8)
-        ax.annotate(f"{r['mean'][-1]:.0f}", (r["round"][-1], r["mean"][-1]), xytext=(-4, 4),
+        below = kind == "lower"
+        ax.annotate(f"{b[-1]:.0f}", (ns[-1], b[-1]), xytext=(-4, -11 if below else 4),
                     textcoords="offset points", ha="right", color=INK_2, fontsize=8)
+        ax.annotate(f"{r['mean'][-1]:.0f}", (r["round"][-1], r["mean"][-1]),
+                    xytext=(-4, 4), textcoords="offset points", ha="right", color=INK_2, fontsize=8)
+        ax.legend(loc="upper left", fontsize=8)
     axes[0].set_ylabel("cumulative pseudo-regret")
-    axes[0].legend(loc="upper left", fontsize=8)
-    fig.suptitle("Regret of the rdo bandit programs against the bounds proved for them "
-                 "(3 Gaussian arms, means 1, 0.5, 0, variance 1)", x=0.01, ha="left",
-                 fontsize=11, fontweight="bold")
-    fig.tight_layout()
+    axes[2].set_ylabel("cumulative pseudo-regret")
+    fig.suptitle("Regret of the rdo bandit programs against the bounds proved for them",
+                 x=0.01, ha="left", fontsize=11, fontweight="bold")
+    fig.text(0.01, 0.945, "3 Gaussian arms, means 1, 0.5 and 0, variance 1; 300 runs of 5,000 "
+             "rounds each", color=INK_2, fontsize=9)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(OUT / "bandit_regret.png", dpi=150)
     plt.close(fig)
 
 
 def plot_compare(runs):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 3.7))
-    for name in ["etc_m10", "etc_m50", "ucb_c3"]:
+    for name in ORDER:
         r = runs[name]
         ax1.plot(r["round"], r["mean"], color=COLORS[name], label=LABELS[name])
     ax1.set_title("Mean regret")

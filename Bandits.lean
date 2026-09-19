@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 module  -- shake: keep-all --deprecated_module: ignore
 
 public import Bandits.Defs
+public import Bandits.EpsGreedy
 public import Bandits.Theory
 
 /-!
@@ -15,6 +16,8 @@ public import Bandits.Theory
   monad and the scalars; explore-then-commit and UCB as the algorithms choosing the arm.
 * `Bandits.Theory`: read at `Measure`, the programs have the law of LeanMachineLearning's
   interaction, so its regret bounds hold for them.
+* `Bandits.EpsGreedy`: ε-greedy, a randomized algorithm whose policy is an `rdo` program; with
+  `alg_env_trace`, its internal draws give an exploration bound and a linear regret lower bound.
 
 To run them and draw the regret against the bounds, from the root of the repository:
 

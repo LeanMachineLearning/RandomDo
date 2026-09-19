@@ -8,9 +8,9 @@ import Bandits.Defs
 /-!
 # Running the Gaussian bandit
 
-`lake exe bandits [rounds] [seeds]` runs explore-then-commit and UCB on a three-armed Gaussian
-bandit, through the program `banditStep` of `Bandits.Defs` read at `RandM` and `Float`, for many
-seeds, and writes the cumulative pseudo-regret in `bandit_output/`:
+`lake exe bandits [rounds] [seeds]` runs explore-then-commit, UCB and ε-greedy on a three-armed
+Gaussian bandit, through the programs `banditStep` and `banditStepRand` of `Bandits.Defs` read at
+`RandM` and `Float`, for many seeds, and writes the cumulative pseudo-regret in `bandit_output/`:
 
 * `<algorithm>.csv`: for each round, the mean regret over the seeds, its standard error, and its
   10% and 90% quantiles;
@@ -18,8 +18,8 @@ seeds, and writes the cumulative pseudo-regret in `bandit_output/`:
   bits of each `Float`, for `scripts/bandit_plot.py` to replay them with numpy;
 * `config.csv`: the parameters, for the same purpose.
 
-It also checks that the one-shot program `banditRun n` lands on the state the round-by-round run
-reaches after `n` rounds.
+It also checks that the one-shot program, `banditRun n` or `banditRunRand n`, lands on the state the
+round-by-round run reaches after `n` rounds.
 -/
 
 open RDoBandit NumLean
@@ -42,13 +42,24 @@ def variance : Float := 1.0
 structure Algo where
   /-- Its name, which names its files. -/
   name : String
-  /-- The arm it pulls at each round, given the state. -/
-  arm : ℕ → State numArms Float → Fin numArms
+  /-- One round, at `RandM` and `Float`. -/
+  step : ℕ → State numArms Float → RandPCG IO (State numArms Float)
+  /-- The one-shot program: `n` rounds from the initial state. -/
+  oneShot : ℕ → RandPCG IO (State numArms Float)
 
-/-- One round, at `RandM` and `Float`. -/
-def Algo.step (alg : Algo) (n : ℕ) (s : State numArms Float) :
-    RandPCG IO (State numArms Float) :=
-  (banditStep (m := RandM) (R := Float) (V := Float) alg.arm means variance n s : RandM _)
+/-- An algorithm choosing its arm deterministically from the state, run by `banditStep`. -/
+def Algo.det (name : String) (arm : ℕ → State numArms Float → Fin numArms) : Algo where
+  name := name
+  step n s := (banditStep (m := RandM) (R := Float) (V := Float) arm means variance n s : RandM _)
+  oneShot n := (banditRun (m := RandM) (R := Float) (V := Float) arm means variance n : RandM _)
+
+/-- An algorithm drawing its arm, run by `banditStepRand`. -/
+def Algo.rand (name : String) (arm : ℕ → State numArms Float → RandM (Fin numArms)) : Algo where
+  name := name
+  step n s :=
+    (banditStepRand (m := RandM) (R := Float) (V := Float) arm means variance n s : RandM _)
+  oneShot n :=
+    (banditRunRand (m := RandM) (R := Float) (V := Float) arm means variance n : RandM _)
 
 /-- `T` rounds, recording the cumulative pseudo-regret after each. -/
 def Algo.run (alg : Algo) (T : ℕ) : RandPCG IO (Array Float × State numArms Float) := do
@@ -96,13 +107,11 @@ def Algo.go (alg : Algo) (T reps : ℕ) (maxPaths : ℕ := 5) : IO Bool := do
   -- The one-shot program, on the first seed: the same draws, in the same order.
   let nCheck := min 500 T
   let (_, sDriver) ← (IO.runRandPCGWith 1 (alg.run nCheck) : IO _)
-  let sOneShot ← (IO.runRandPCGWith 1
-    (banditRun (m := RandM) (R := Float) (V := Float) alg.arm means variance nCheck : RandM _) :
-      IO (State numArms Float))
+  let sOneShot ← (IO.runRandPCGWith 1 (alg.oneShot nCheck) : IO (State numArms Float))
   let ok := sameState sDriver sOneShot
   let final := curves.map (·.back!)
   IO.println s!"{alg.name}: {reps} seeds × {T} rounds, mean final regret \
-    {final.foldl (· + ·) 0 / reps.toFloat}; banditRun {nCheck} = {nCheck} steps: {ok}"
+    {final.foldl (· + ·) 0 / reps.toFloat}; one-shot {nCheck} = {nCheck} steps: {ok}"
   return ok
 
 /-- `lake exe bandits [rounds] [seeds]`, by default 5000 rounds and 300 seeds. -/
@@ -111,9 +120,10 @@ def main (args : List String) : IO UInt32 := do
   let T := (args[0]?.bind String.toNat?).getD 5000
   let reps := (args[1]?.bind String.toNat?).getD 300
   let algos : List (Algo × String) := [
-    ({ name := "etc_m10", arm := etcArm 10 }, "etc,10"),
-    ({ name := "etc_m50", arm := etcArm 50 }, "etc,50"),
-    ({ name := "ucb_c3", arm := ucbArm 3 }, "ucb,3")]
+    (.det "etc_m10" (etcArm 10), "etc,10"),
+    (.det "etc_m50" (etcArm 50), "etc,50"),
+    (.det "ucb_c3" (ucbArm 3), "ucb,3"),
+    (.rand "epsgreedy_0.1" (epsGreedyArm (m := RandM) 0.1), "epsgreedy,0.1")]
   IO.FS.withFile "bandit_output/config.csv" .write fun h ↦ do
     h.putStrLn "name,algorithm,parameter,rounds,seeds,means,variance"
     for (alg, desc) in algos do

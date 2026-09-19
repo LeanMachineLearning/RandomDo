@@ -377,6 +377,87 @@ theorem banditRun_eq_map (arm : ℕ → State K ℝ → Fin K) (harm_meas : ∀ 
 
 end Law
 
+section RandomizedLaw
+
+/-! ### Algorithms drawing their arm
+
+The same statement for an algorithm whose policy, at `Measure`, is a program drawing the arm from
+the state: the step kernel then binds over the arm the policy draws, instead of taking the one it
+chooses. -/
+
+variable {μ : Fin K → ℝ} {σ2 : ℝ≥0}
+
+instance (s : ℝ≥0) : IsMarkov fun x : ℝ ↦ gaussianReal x s :=
+  IsMarkov.gaussianReal measurable_id measurable_const
+
+omit [NeZero K] in
+/-- At `Measure`, one round is the arm drawn by the policy, then its reward, mapped by the
+update. -/
+lemma banditStepRand_eq (arm : ℕ → State K ℝ → Measure (Fin K)) (n : ℕ) (s : State K ℝ) :
+    banditStepRand (m := Measure) arm μ σ2 n s
+      = (arm n s).bind fun a ↦ (gaussianReal (μ a) σ2).map (s.update a) := by
+  change (arm n s).bind (fun a ↦ (gaussianReal (μ a) σ2).bind
+    (fun r ↦ Measure.dirac (s.update a r))) = _
+  congr with a : 1
+  rw [Measure.bind_dirac_eq_map _ (by fun_prop)]
+
+lemma banditRunRand_succ (arm : ℕ → State K ℝ → Measure (Fin K)) (n : ℕ) :
+    banditRunRand (m := Measure) arm μ σ2 (n + 1)
+      = (banditRunRand (m := Measure) arm μ σ2 n).bind
+          (banditStepRand (m := Measure) arm μ σ2 n) := by
+  rw [banditRunRand]
+  rfl
+
+omit [NeZero K] in
+lemma isMarkov_banditStepRand {arm : ℕ → State K ℝ → Measure (Fin K)} {n : ℕ}
+    (harm : IsMarkov (arm n)) : IsMarkov (banditStepRand (m := Measure) arm μ σ2 n) := by
+  have hμ : Measurable μ := measurable_of_countable μ
+  unfold banditStepRand
+  is_markov
+
+omit [NeZero K] in
+/-- One round of an algorithm against the Gaussian arms: the arm its policy draws, then the reward
+of that arm. -/
+lemma map_stepKernel_bind {γ : Type*} [MeasurableSpace γ] (alg : Algorithm Unit (Fin K) ℝ)
+    (n : ℕ) (h : Hist Unit (Fin K) ℝ n) {G : Round Unit (Fin K) ℝ → γ} (hG : Measurable G) :
+    (stepKernel alg (stationaryEnv (arms μ σ2)) n h).map G
+      = (alg.policy n (h, ())).bind fun a ↦ (gaussianReal (μ a) σ2).map fun r ↦ G ((), a, r) := by
+  rw [stepKernel_stationaryEnv, Kernel.compProd_apply_eq_compProd_sectR, Kernel.const_apply,
+    Measure.dirac_unit_compProd, Kernel.sectR_apply, Kernel.compProd_apply_eq_compProd_sectR,
+    Measure.map_map hG measurable_prodMk_left,
+    map_compProd_eq_bind _ _ (hG.comp measurable_prodMk_left)]
+  rfl
+
+/-- **The law of the program**, for an algorithm drawing its arm. If, at every round, the policy
+of `alg` on a history is the program `arm` on the state of that history, then the state after `n`
+rounds of `banditRunRand` has the law of the state of the history of `n` rounds of the
+interaction of `alg` with the Gaussian arms. -/
+theorem banditRunRand_eq_map (alg : Algorithm Unit (Fin K) ℝ)
+    (arm : ℕ → State K ℝ → Measure (Fin K)) (harm_markov : ∀ n, IsMarkov (arm n))
+    (harm : ∀ n h, alg.policy n (h, ()) = arm n (histState n h)) (n : ℕ) :
+    banditRunRand (m := Measure) arm μ σ2 n
+      = (trajMeasure alg (stationaryEnv (arms μ σ2))).map (histState n ∘ IT.hist n) := by
+  induction n with
+  | zero =>
+    have : histState 0 ∘ IT.hist (𝓞 := Unit) (𝓐 := Fin K) (𝓨 := ℝ) 0 = fun _ ↦ State.init := by
+      funext ω
+      exact histState_zero _
+    rw [this, Measure.map_const, measure_univ, one_smul]
+    rfl
+  | succ n ih =>
+    rw [banditRunRand_succ, ih, map_hist_succ _ _ n (measurable_histState (n + 1)),
+      ← Measure.map_map (measurable_histState n) (IT.measurable_hist n),
+      bind_map_eq _ (measurable_histState n) (isMarkov_banditStepRand (harm_markov n)).measurable]
+    congr 1
+    funext h
+    have hG : Measurable fun x ↦ histState (n + 1) (Fin.snoc h x) :=
+      (measurable_histState (n + 1)).comp ((measurable_snoc n).comp
+        (measurable_const.prodMk measurable_id))
+    rw [Function.comp_apply, banditStepRand_eq, map_stepKernel_bind alg n h hG, harm]
+    simp_rw [histState_snoc]
+
+end RandomizedLaw
+
 section Regret
 
 variable (μ : Fin K → ℝ) (σ2 : ℝ≥0)
@@ -476,6 +557,18 @@ theorem integral_regret_ucb_le_of_gt {c : ℝ} (hc : 2 * σ2 < c) (hσ2 : σ2 �
   rw [integral_pseudoRegret_banditRun μ σ2 (hnext := fun n ↦ UCB.measurable_nextArm c n |>.comp
     measurable_fst) (ucbArm c) (measurable_ucbArm c) (fun n h ↦ ucbArm_histState c n h) n]
   exact h
+
+/-- **The expected pseudo-regret of the program is the expected regret of the interaction**, for an
+algorithm drawing its arm. -/
+theorem integral_pseudoRegret_banditRunRand (alg : Algorithm Unit (Fin K) ℝ)
+    (arm : ℕ → State K ℝ → Measure (Fin K)) (harm_markov : ∀ n, IsMarkov (arm n))
+    (harm : ∀ n h, alg.policy n (h, ()) = arm n (histState n h)) (n : ℕ) :
+    ∫ s, pseudoRegret μ s ∂(banditRunRand (m := Measure) arm μ σ2 n)
+      = (trajMeasure alg (stationaryEnv (arms μ σ2)))[regret (arms μ σ2) IT.action n] := by
+  rw [banditRunRand_eq_map alg arm harm_markov harm n,
+    integral_map (by fun_prop) (measurable_pseudoRegret μ).aestronglyMeasurable]
+  congr with ω
+  exact (regret_eq_pseudoRegret μ σ2 n ω).symm
 
 end Regret
 
