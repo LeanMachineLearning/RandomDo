@@ -20,7 +20,13 @@ arm pulled. One round of interaction is `banditStep`, and `banditRun n` plays `n
 
 The programs are polymorphic in the monad and in the scalars, as those of
 `RandomDo.Tactic.Computable.Polymorphic`: read at `Measure` and `ℝ`, they are what
-`Bandits.Theory` proves things about; run at `RandM` and `Float`, they sample.
+`Bandits.Theory` and `Bandits.EpsGreedy` prove things about; run at `RandM` and `Float`, they
+sample. To run them and draw the regret against the bounds, from the root of the repository:
+
+```
+lake exe bandits                  # 300 seeds × 5000 rounds; writes bandit_output/
+python3 scripts/bandit_plot.py    # checks them against numpy, draws bandit_output/*.png
+```
 
 The two algorithms, `etcArm` (explore-then-commit) and `ucbArm` (upper confidence bound), mirror
 the definitions of `Bandits.ETC.nextArm` and `Bandits.UCB.nextArm` in LeanMachineLearning, with the

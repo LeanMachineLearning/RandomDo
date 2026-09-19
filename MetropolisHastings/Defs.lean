@@ -17,7 +17,13 @@ chain stays at `x`. The chain runs `n` such steps from `x₀`.
 
 Both programs denote Markov kernels, written over the Giry monad. `MetropolisHastings.Theory`
 proves what they satisfy, `MetropolisHastings.Computable` and `MetropolisHastings.Polymorphic` turn
-them into programs that run.
+them into programs that run, and `MetropolisHastings.Targets` gives two targets to run them on.
+To run them and draw the plots, from the root of the repository:
+
+```
+lake exe mh                     # runs both samplers, checks they agree, writes mh_output/
+python3 scripts/mh_plot.py      # checks them against numpy, draws mh_output/*.png
+```
 
 ## Main definitions
 

@@ -46,8 +46,8 @@ root = "Polymorphic"
 
 [[lean_exe]]
 name = "mh"
-root = "MetropolisHastings.Main"
+root = "RunMetropolisHastings"
 
 [[lean_exe]]
 name = "bandits"
-root = "Bandits.Main"
+root = "RunBandits"
