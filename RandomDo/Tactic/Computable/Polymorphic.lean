@@ -17,8 +17,8 @@ public import RandomDo.NumLean.Distributions
 A program written over an arbitrary `MeasurableSpaceMonad` `m`, drawing through the classes of this
 file, is read at `m := Measure` to prove things about it and run at `m := RandM` to sample from it.
 Each class has an instance of each kind: the distribution of Mathlib on `ℝ`, and the sampler of
-`NumLean` on `Float`. The scalar classes `HasExp` and `HasLog` do the same for the functions a
-program computes with.
+`NumLean` on `Float`. The scalar classes `HasExp`, `HasLog` and `HasSqrt` do the same for the
+functions a program computes with.
 -/
 
 @[expose] public section
@@ -80,3 +80,19 @@ noncomputable instance : HasLog ℝ := ⟨Real.log⟩
 lemma HasLog.measurable_log_real : Measurable (HasLog.log : ℝ → ℝ) := Real.measurable_log
 
 instance : HasLog Float := ⟨Float.log⟩
+
+/-- A typeclass for scalars with a square root. -/
+class HasSqrt (R : Type) where
+  /-- The square root. -/
+  sqrt : R → R
+
+noncomputable instance : HasSqrt ℝ := ⟨Real.sqrt⟩
+
+@[fun_prop]
+lemma HasSqrt.measurable_sqrt_real : Measurable (HasSqrt.sqrt : ℝ → ℝ) :=
+  Real.continuous_sqrt.measurable
+
+instance : HasSqrt Float := ⟨Float.sqrt⟩
+
+/-- A natural number as a `Float`, so that programs polymorphic in the scalars can cast counts. -/
+instance instNatCastFloat : NatCast Float := ⟨Nat.toFloat⟩

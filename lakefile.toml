@@ -27,6 +27,9 @@ name = "Test"
 [[lean_lib]]
 name = "MetropolisHastings"
 
+[[lean_lib]]
+name = "Bandits"
+
 # Used to run the tests in `scripts`
 [[lean_exe]]
 name = "dump"
@@ -44,3 +47,7 @@ root = "Polymorphic"
 [[lean_exe]]
 name = "mh"
 root = "MetropolisHastings.Main"
+
+[[lean_exe]]
+name = "bandits"
+root = "Bandits.Main"
