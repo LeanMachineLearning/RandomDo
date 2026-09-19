@@ -23,6 +23,10 @@ This file contains results on the measurable structure of lists, arrays and vect
   are measurable.
 * `measurable_of_prodList`: a map out of `δ × List α` is measurable as soon as it is measurable on
   every stratum, which is how one reasons about a program taking a list as an argument.
+* `Vector.measurableEquivTuple`, `measurable_vector_iff`: a vector is measurably a tuple, and a map
+  into vectors is measurable when each of its coordinates is.
+* `Measurable.ite_bool`: `if b a then f a else g a` is measurable, for a measurable `b` valued in
+  `Bool`.
 -/
 
 @[expose] public section
@@ -53,7 +57,7 @@ lemma measurable_ofFn (n : ℕ) : Measurable (List.ofFn : (Fin n → α) → Lis
 @[fun_prop]
 lemma measurable_finCons {n : ℕ} :
     Measurable fun q : α × (Fin n → α) ↦ (Fin.cons q.1 q.2 : Fin (n + 1) → α) := by
-  refine measurable_pi_lambda _ fun i ↦ ?_
+  refine Measurable.of_eval fun i ↦ ?_
   refine Fin.cases ?_ (fun j ↦ ?_) i
   · simp only [Fin.cons_zero]; fun_prop
   · simp only [Fin.cons_succ]; fun_prop
@@ -117,6 +121,24 @@ def Vector.measurableEquivTuple {n : ℕ} : Vector α n ≃ᵐ (Fin n → α) wh
     ext
     simp
 
+@[fun_prop]
+lemma measurable_vector_getElem {n : ℕ} (i : Fin n) : Measurable fun v : Vector α n ↦ v[i] :=
+  (measurable_pi_apply i).comp Vector.measurableEquivTuple.measurable
+
+/-- A map into vectors is measurable when each of its coordinates is. -/
+lemma measurable_vector_iff {n : ℕ} {β : Type*} [MeasurableSpace β] {f : β → Vector α n} :
+    Measurable f ↔ ∀ i : Fin n, Measurable fun b ↦ (f b)[i] :=
+  ⟨fun hf i ↦ (measurable_vector_getElem i).comp hf,
+    fun h ↦ by
+      have h' : Measurable fun b ↦ Vector.ofFn fun i : Fin n ↦ (f b)[i] :=
+        Vector.measurableEquivTuple.symm.measurable.comp (measurable_pi_iff.2 h)
+      simpa using h'⟩
+
+@[fun_prop]
+lemma measurable_vector_ofFn {n : ℕ} {β : Type*} [MeasurableSpace β] {f : β → Fin n → α}
+    (hf : ∀ i, Measurable fun b ↦ f b i) : Measurable fun b ↦ Vector.ofFn (f b) :=
+  measurable_vector_iff.2 fun i ↦ by simpa using hf i
+
 instance instMeasurableSpaceOption : MeasurableSpace (Option α) :=
   MeasurableSpace.map some inferInstance
 
@@ -143,5 +165,13 @@ lemma measurable_isSome : Measurable (Option.isSome : Option α → Bool) :=
 @[fun_prop]
 lemma measurable_getD (a : α) : Measurable (fun o : Option α ↦ o.getD a) :=
   measurable_option_iff.2 measurable_id
+
+/-- A choice between two measurable functions on a measurable `Bool`, as in `if b then y else x`
+after drawing `b` from a Bernoulli distribution in an `rdo` program. -/
+@[fun_prop]
+lemma Measurable.ite_bool {β : Type*} [MeasurableSpace β] {b : α → Bool} {f g : α → β}
+    (hb : Measurable b) (hf : Measurable f) (hg : Measurable g) :
+    Measurable fun a ↦ if b a = true then f a else g a :=
+  Measurable.ite (hb (measurableSet_singleton true)) hf hg
 
 end

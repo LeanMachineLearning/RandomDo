@@ -1,5 +1,5 @@
 name = "RandomDo"
-defaultTargets = ["RandomDo"]
+defaultTargets = ["RandomDo", "MetropolisHastings", "Bandits"]
 lintDriver = "batteries/runLinter"
 testDriver = "Test"
 
@@ -24,8 +24,30 @@ name = "RandomDo"
 [[lean_lib]]
 name = "Test"
 
+[[lean_lib]]
+name = "MetropolisHastings"
+
+[[lean_lib]]
+name = "Bandits"
+
 # Used to run the tests in `scripts`
 [[lean_exe]]
 name = "dump"
 root = "Dump"
 srcDir = "test_data"
+
+[[lean_exe]]
+name = "compute"
+root = "Compute"
+
+[[lean_exe]]
+name = "polymorphic"
+root = "Polymorphic"
+
+[[lean_exe]]
+name = "mh"
+root = "RunMetropolisHastings"
+
+[[lean_exe]]
+name = "bandits"
+root = "RunBandits"

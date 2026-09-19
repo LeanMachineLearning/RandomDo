@@ -5,7 +5,7 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import RandomDo.Tactic.IsMarkov
+public import RandomDo.Tactic.IsMarkov.Defs
 public import RandomDo.Monad.MeasurableSpace
 
 /-!

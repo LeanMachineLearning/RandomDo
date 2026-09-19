@@ -31,6 +31,7 @@ error: No `ControlInfo` inference handler found for `RDo.rdoFor` in syntax
 Register a handler with `@[doElem_control_info RDo.rdoFor]`.
 -/
 #guard_msgs (whitespace := lax) in
+/-- Two nested `for` loops. -/
 def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
   let mut s := 0
   for x in xs rdo
@@ -52,6 +53,7 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
+/-- A `while` loop. -/
 def whileLoop : IdM ℕ := rdo
   let mut i := 0
   while i < 3 do
@@ -70,6 +72,7 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
+/-- A `try … catch` block. -/
 noncomputable def tryCatch : Measure Bool := rdo
   try
     let x ← fairCoin
@@ -90,6 +93,7 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
+/-- A `for` loop over a range. -/
 def overRange : IdM ℕ := rdo
   let mut s := 0
   for _ in [0:3] rdo
@@ -103,6 +107,7 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
+/-- A `for` loop over a `Finset`. -/
 def overFinset : IdM ℕ := rdo
   let mut s := 0
   for _ in Finset.range 3 rdo
