@@ -23,6 +23,8 @@ This file contains results on the measurable structure of lists, arrays and vect
   are measurable.
 * `measurable_of_prodList`: a map out of `δ × List α` is measurable as soon as it is measurable on
   every stratum, which is how one reasons about a program taking a list as an argument.
+* `Vector.measurableEquivTuple`, `measurable_vector_iff`: a vector is measurably a tuple, and a map
+  into vectors is measurable when each of its coordinates is.
 * `Measurable.ite_bool`: `if b a then f a else g a` is measurable, for a measurable `b` valued in
   `Bool`.
 -/
@@ -118,6 +120,24 @@ def Vector.measurableEquivTuple {n : ℕ} : Vector α n ≃ᵐ (Fin n → α) wh
     convert measurable_ofFn n hu
     ext
     simp
+
+@[fun_prop]
+lemma measurable_vector_getElem {n : ℕ} (i : Fin n) : Measurable fun v : Vector α n ↦ v[i] :=
+  (measurable_pi_apply i).comp Vector.measurableEquivTuple.measurable
+
+/-- A map into vectors is measurable when each of its coordinates is. -/
+lemma measurable_vector_iff {n : ℕ} {β : Type*} [MeasurableSpace β] {f : β → Vector α n} :
+    Measurable f ↔ ∀ i : Fin n, Measurable fun b ↦ (f b)[i] :=
+  ⟨fun hf i ↦ (measurable_vector_getElem i).comp hf,
+    fun h ↦ by
+      have h' : Measurable fun b ↦ Vector.ofFn fun i : Fin n ↦ (f b)[i] :=
+        Vector.measurableEquivTuple.symm.measurable.comp (measurable_pi_iff.2 h)
+      simpa using h'⟩
+
+@[fun_prop]
+lemma measurable_vector_ofFn {n : ℕ} {β : Type*} [MeasurableSpace β] {f : β → Fin n → α}
+    (hf : ∀ i, Measurable fun b ↦ f b i) : Measurable fun b ↦ Vector.ofFn (f b) :=
+  measurable_vector_iff.2 fun i ↦ by simpa using hf i
 
 instance instMeasurableSpaceOption : MeasurableSpace (Option α) :=
   MeasurableSpace.map some inferInstance

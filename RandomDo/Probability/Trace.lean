@@ -5,6 +5,8 @@ Authors: Rémy Degenne
 -/
 module
 
+public import RandomDo.ForMathlib.MeasureTheory.Measure.GiryMonad
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
 public import RandomDo.Probability.Record
 public import RandomDo.Tactic.IsMarkov.Defs
 public import RandomDo.Monad.Instances
@@ -66,29 +68,6 @@ open MeasurableSpacePure MeasurableSpaceBind
 namespace RDo
 
 universe u
-
-section Prerequisites
-
-variable {α β δ : Type*} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace δ]
-
-/-- Pushing a measure through a kernel and then through a map, in the form used to peel one `←`
-off a program: the first component of the product is the value the rest of the program sees. -/
-lemma map_compProd (μ : Measure α) [SFinite μ] (κ : Kernel α β) [IsSFiniteKernel κ]
-    {g : α × β → δ} (hg : Measurable g) :
-    (μ ⊗ₘ κ).map g = μ.bind fun a ↦ (κ a).map fun b ↦ g (a, b) := by
-  rw [Measure.compProd_eq_comp_prod, Measure.map_comp _ _ hg]
-  refine Measure.bind_congr_right (.of_forall fun a ↦ ?_)
-  rw [Kernel.map_apply _ hg, Kernel.prod_apply, Kernel.id_apply, Measure.dirac_prod,
-    Measure.map_map hg measurable_prodMk_left]
-  rfl
-
-/-- `Measure.bind` sees through a `Measure.map` on the left. -/
-lemma bind_map (μ : Measure α) {f : α → β} (hf : Measurable f) {k : β → Measure δ}
-    (hk : Measurable k) : (μ.map f).bind k = μ.bind fun a ↦ k (f a) := by
-  rw [Measure.bind, Measure.bind, Measure.map_map hk hf]
-  rfl
-
-end Prerequisites
 
 variable {γ Ω Ω' δ : Type*} {α β : Type u}
   [MeasurableSpace γ] [MeasurableSpace Ω] [MeasurableSpace Ω']
@@ -256,11 +235,11 @@ protected lemma bind {prog : γ → Measure α} {P : Kernel γ Ω} [IsSFiniteKer
     have hcont' : Measurable fun a ↦ cont (c, a) :=
       hcont.comp (measurable_const.prodMk measurable_id)
     have hout : Measurable fun ω ↦ out (c, ω) := h.measurable_out.comp measurable_prodMk_left
-    rw [Kernel.compProd_apply_eq_compProd_sectR, map_compProd _ _ hg]
+    rw [Kernel.compProd_apply_eq_compProd_sectR, Measure.map_compProd_eq_bind _ _ hg]
     change (Measure.bind (P c) fun ω ↦ (Kernel.sectR Q c ω).map fun ω' ↦ out' ((c, ω), ω')) = _
     rw [show (fun ω ↦ (Kernel.sectR Q c ω).map fun ω' ↦ out' ((c, ω), ω'))
         = fun ω ↦ cont (c, out (c, ω)) from funext fun ω ↦ h'.map_eq (c, ω), ← h.map_eq c]
-    exact (bind_map (P c) hout hcont').symm
+    exact (Measure.bind_map (P c) hout hcont').symm
 
 end HasTrace
 

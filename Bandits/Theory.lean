@@ -6,6 +6,11 @@ Authors: Rémy Degenne
 module
 
 public import Bandits.Defs
+public import RandomDo.ForLML.SequentialLearning.FiniteActions
+public import RandomDo.ForLML.SequentialLearning.IonescuTulceaSpace
+public import RandomDo.ForLML.SequentialLearning.SumRewards
+public import RandomDo.ForMathlib.MeasureTheory.Measure.GiryMonad
+public import RandomDo.ForMathlib.Probability.Moments.SubGaussian
 public import LeanMachineLearning.Online.Bandit.Algorithms.Regret.ETC
 public import LeanMachineLearning.Online.Bandit.Algorithms.Regret.UCB
 
@@ -52,29 +57,6 @@ namespace RDoBandit
 
 variable {K : ℕ} [NeZero K]
 
-section Vector
-
-variable {α : Type*} [MeasurableSpace α] {n : ℕ}
-
-@[fun_prop]
-lemma measurable_vector_getElem (i : Fin n) : Measurable fun v : Vector α n ↦ v[i] :=
-  (measurable_pi_apply i).comp Vector.measurableEquivTuple.measurable
-
-lemma measurable_vector_iff {β : Type*} [MeasurableSpace β] {f : β → Vector α n} :
-    Measurable f ↔ ∀ i : Fin n, Measurable fun b ↦ (f b)[i] :=
-  ⟨fun hf i ↦ (measurable_vector_getElem i).comp hf,
-    fun h ↦ by
-      have h' : Measurable fun b ↦ Vector.ofFn fun i : Fin n ↦ (f b)[i] :=
-        Vector.measurableEquivTuple.symm.measurable.comp (measurable_pi_iff.2 h)
-      simpa using h'⟩
-
-@[fun_prop]
-lemma measurable_vector_ofFn {β : Type*} [MeasurableSpace β] {f : β → Fin n → α}
-    (hf : ∀ i, Measurable fun b ↦ f b i) : Measurable fun b ↦ Vector.ofFn (f b) :=
-  measurable_vector_iff.2 fun i ↦ by simpa using hf i
-
-end Vector
-
 /-- The last arm of a history, arm `0` before the first round. -/
 noncomputable def lastArm (n : ℕ) (h : Hist Unit (Fin K) ℝ n) : Fin K :=
   if hn : 0 < n then (h ⟨n - 1, by omega⟩).action else 0
@@ -100,18 +82,6 @@ lemma histState_zero (h : Hist Unit (Fin K) ℝ 0) : histState 0 h = State.init 
   simp only [histState, State.init, lastArm, lt_self_iff_false, dite_false, Prod.mk.injEq,
     and_true]
   constructor <;> ext <;> simp [pullCount'_eq_sum, sumRewards']
-
-omit [NeZero K] in
-lemma pullCount'_snoc (n : ℕ) (h : Hist Unit (Fin K) ℝ n) (a b : Fin K) (r : ℝ) :
-    pullCount' (n + 1) (Fin.snoc h ((), a, r)) b = pullCount' n h b + if a = b then 1 else 0 := by
-  rw [pullCount'_eq_sum, pullCount'_eq_sum, Fin.sum_univ_castSucc]
-  simp [Fin.snoc_castSucc, Fin.snoc_last]
-
-omit [NeZero K] in
-lemma sumRewards'_snoc (n : ℕ) (h : Hist Unit (Fin K) ℝ n) (a b : Fin K) (r : ℝ) :
-    sumRewards' (n + 1) (Fin.snoc h ((), a, r)) b = sumRewards' n h b + if a = b then r else 0 := by
-  rw [sumRewards', sumRewards', Fin.sum_univ_castSucc]
-  simp [Fin.snoc_castSucc, Fin.snoc_last]
 
 lemma histState_snoc (n : ℕ) (h : Hist Unit (Fin K) ℝ n) (a : Fin K) (r : ℝ) :
     histState (n + 1) (Fin.snoc h ((), a, r)) = (histState n h).update a r := by
@@ -150,44 +120,6 @@ lemma ucbArm_histState (c : ℝ) (n : ℕ) (h : Hist Unit (Fin K) ℝ n) :
   · simp only [histState, Fin.getElem_fin, Vector.getElem_ofFn, Fin.eta]
     rfl
 
-section Measures
-
-open MeasurableSpacePure MeasurableSpaceBind
-
-variable {α β γ : Type*} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
-
-/-- Mapping a composition-product is binding the kernel, mapped along the section. -/
-lemma map_compProd_eq_bind (ρ : Measure α) [SFinite ρ] (κ : Kernel α β) [IsSFiniteKernel κ]
-    {F : α × β → γ} (hF : Measurable F) :
-    (ρ ⊗ₘ κ).map F = ρ.bind fun a ↦ (κ a).map fun b ↦ F (a, b) := by
-  have hmap (a : α) {t : Set γ} (ht : MeasurableSet t) :
-      ((κ a).map fun b ↦ F (a, b)) t = κ a (Prod.mk a ⁻¹' (F ⁻¹' t)) :=
-    Measure.map_apply (hF.comp measurable_prodMk_left) ht
-  have hmeas : Measurable fun a ↦ (κ a).map fun b ↦ F (a, b) := by
-    refine Measure.measurable_of_measurable_coe _ fun t ht ↦ ?_
-    simp_rw [hmap _ ht]
-    exact Kernel.measurable_kernel_prodMk_left (hF ht)
-  ext s hs
-  rw [Measure.map_apply hF hs, Measure.compProd_apply (hF hs),
-    Measure.bind_apply hs hmeas.aemeasurable]
-  simp_rw [hmap _ hs]
-
-lemma dirac_compProd_eq_map [MeasurableSingletonClass α] (a : α) (κ : Kernel α β)
-    [IsSFiniteKernel κ] : Measure.dirac a ⊗ₘ κ = (κ a).map (Prod.mk a) := by
-  ext s hs
-  rw [Measure.dirac_compProd_apply hs, Measure.map_apply measurable_prodMk_left hs]
-
-/-- Binding after mapping is binding the composite. -/
-lemma bind_map_eq (ρ : Measure α) {f : α → β} (hf : Measurable f) {g : β → Measure γ}
-    (hg : Measurable g) : (ρ.map f).bind g = ρ.bind (g ∘ f) := by
-  ext s hs
-  have hgs : Measurable fun b ↦ g b s := (Measure.measurable_coe hs).comp hg
-  rw [Measure.bind_apply hs hg.aemeasurable, Measure.bind_apply hs (hg.comp hf).aemeasurable,
-    lintegral_map hgs hf]
-  rfl
-
-end Measures
-
 section Arms
 
 variable (μ : Fin K → ℝ) (σ2 : ℝ≥0)
@@ -206,27 +138,17 @@ omit [NeZero K] in
 lemma integral_arms (a : Fin K) : ∫ x, x ∂(arms μ σ2 a) = μ a := by
   simp [arms_apply, integral_id_gaussianReal]
 
-/-- The gap of an arm: how much less its mean is than the best one. -/
-noncomputable def gapOf (a : Fin K) : ℝ := (⨆ i, μ i) - μ a
-
 omit [NeZero K] in
-lemma gap_arms (a : Fin K) : gap (arms μ σ2) a = gapOf μ a := by
-  simp [gap, gapOf, integral_arms]
+/-- The gap of an arm: how much less its mean is than the best one. -/
+lemma gap_arms (a : Fin K) : gap (arms μ σ2) a = (⨆ i, μ i) - μ a := by
+  simp [gap, integral_arms]
 
 omit [NeZero K] in
 /-- Gaussian rewards are sub-Gaussian, with variance proxy their variance. -/
 lemma hasSubgaussianMGF_arms (a : Fin K) :
     HasSubgaussianMGF (fun x ↦ x - (arms μ σ2 a)[id]) σ2 (arms μ σ2 a) := by
   rw [show (arms μ σ2 a)[id] = μ a from integral_arms μ σ2 a, arms_apply]
-  refine ⟨fun t ↦ ?_, fun t ↦ ?_⟩
-  · have := (integrable_exp_mul_gaussianReal (μ := μ a) (v := σ2) t).const_mul
-      (Real.exp (-(t * μ a)))
-    refine this.congr (Filter.Eventually.of_forall fun x ↦ ?_)
-    simp only
-    rw [← Real.exp_add]
-    ring_nf
-  · rw [mgf_gaussianReal ⟨by fun_prop, gaussianReal_map_sub_const (μ a)⟩ t]
-    simp
+  exact hasSubgaussianMGF_gaussianReal (μ a) σ2
 
 end Arms
 
@@ -294,43 +216,6 @@ lemma measurable_banditStep {arm : ℕ → State K ℝ → Fin K} {n : ℕ} (har
   simp_rw [hmap]
   exact Kernel.measurable_kernel_prodMk_left (hu ht)
 
-omit [NeZero K] in
-lemma measurable_snoc {X : Type*} [MeasurableSpace X] (n : ℕ) :
-    Measurable fun p : (Fin n → X) × X ↦ (Fin.snoc p.1 p.2 : Fin (n + 1) → X) := by
-  refine Measurable.of_eval fun i ↦ ?_
-  refine Fin.lastCases ?_ (fun j ↦ ?_) i
-  · simp only [Fin.snoc_last]
-    exact measurable_snd
-  · simp only [Fin.snoc_castSucc]
-    exact (measurable_pi_apply j).comp measurable_fst
-
-omit [NeZero K] in
-lemma hist_succ_eq (n : ℕ) :
-    IT.hist (𝓞 := Unit) (𝓐 := Fin K) (𝓨 := ℝ) (n + 1)
-      = fun ω ↦ Fin.snoc (IT.hist n ω) (IT.step n ω) := by
-  funext ω i
-  refine Fin.lastCases ?_ (fun j ↦ ?_) i
-  · simp [IT.hist, IT.step]
-  · simp [IT.hist]
-
-omit [NeZero K] in
-/-- The history after `n + 1` rounds is the history after `n` rounds, followed by one round drawn
-from the step kernel. -/
-lemma map_hist_succ {γ : Type*} [MeasurableSpace γ] (alg : Algorithm Unit (Fin K) ℝ)
-    (env : Environment Unit (Fin K) ℝ) (n : ℕ) {F : Hist Unit (Fin K) ℝ (n + 1) → γ}
-    (hF : Measurable F) :
-    (trajMeasure alg env).map (F ∘ IT.hist (n + 1))
-      = ((trajMeasure alg env).map (IT.hist n)).bind
-          fun h ↦ (stepKernel alg env n h).map fun x ↦ F (Fin.snoc h x) := by
-  have e : F ∘ IT.hist (n + 1)
-      = (fun p ↦ F (Fin.snoc p.1 p.2)) ∘ (fun ω ↦ (IT.hist n ω, IT.step n ω)) := by
-    rw [hist_succ_eq]
-    rfl
-  rw [e, ← Measure.map_map (g := fun p ↦ F (Fin.snoc p.1 p.2))
-    (f := fun ω ↦ (IT.hist n ω, IT.step n ω)) (hF.comp (measurable_snoc n)) (by fun_prop),
-    (IT.hasCondDistrib_step alg env n).map_eq,
-    map_compProd_eq_bind (F := fun p ↦ F (Fin.snoc p.1 p.2)) _ _ (hF.comp (measurable_snoc n))]
-
 variable {nextA : (n : ℕ) → Hist Unit (Fin K) ℝ n × Unit → Fin K}
   {hnext : ∀ n, Measurable (nextA n)}
 
@@ -343,7 +228,7 @@ lemma map_stepKernel {γ : Type*} [MeasurableSpace γ] (n : ℕ) (h : Hist Unit 
       = (gaussianReal (μ (nextA n (h, ()))) σ2).map fun r ↦ G ((), nextA n (h, ()), r) := by
   rw [stepKernel_stationaryEnv, Kernel.compProd_apply_eq_compProd_sectR, Kernel.const_apply,
     Measure.dirac_unit_compProd, Kernel.sectR_apply, Kernel.compProd_apply_eq_compProd_sectR,
-    detAlgorithm_policy, Kernel.deterministic_apply, dirac_compProd_eq_map, Kernel.sectR_apply,
+    detAlgorithm_policy, Kernel.deterministic_apply, Measure.dirac_compProd, Kernel.sectR_apply,
     Kernel.prodMkLeft_apply, arms_apply, Measure.map_map hG measurable_prodMk_left,
     Measure.map_map (hG.comp measurable_prodMk_left) measurable_prodMk_left]
   rfl
@@ -364,15 +249,14 @@ theorem banditRun_eq_map (arm : ℕ → State K ℝ → Fin K) (harm_meas : ∀ 
     rw [this, Measure.map_const, measure_univ, one_smul]
     rfl
   | succ n ih =>
-    rw [banditRun_succ, ih, map_hist_succ _ _ n (measurable_histState (n + 1)),
+    rw [banditRun_succ, ih, IT.map_hist_succ _ _ n (measurable_histState (n + 1)),
       ← Measure.map_map (measurable_histState n) (IT.measurable_hist n),
-      bind_map_eq _ (measurable_histState n) (measurable_banditStep (harm_meas n))]
+      Measure.bind_map _ (measurable_histState n) (measurable_banditStep (harm_meas n))]
     congr 1
     funext h
     have hG : Measurable fun x ↦ histState (n + 1) (Fin.snoc h x) :=
-      (measurable_histState (n + 1)).comp ((measurable_snoc n).comp
-        (measurable_const.prodMk measurable_id))
-    rw [Function.comp_apply, banditStep_eq, map_stepKernel n h hG, harm]
+      (measurable_histState (n + 1)).comp (measurable_const.finSnoc measurable_id)
+    rw [banditStep_eq, map_stepKernel n h hG, harm]
     simp_rw [histState_snoc]
 
 end Law
@@ -425,7 +309,7 @@ lemma map_stepKernel_bind {γ : Type*} [MeasurableSpace γ] (alg : Algorithm Uni
   rw [stepKernel_stationaryEnv, Kernel.compProd_apply_eq_compProd_sectR, Kernel.const_apply,
     Measure.dirac_unit_compProd, Kernel.sectR_apply, Kernel.compProd_apply_eq_compProd_sectR,
     Measure.map_map hG measurable_prodMk_left,
-    map_compProd_eq_bind _ _ (hG.comp measurable_prodMk_left)]
+    Measure.map_compProd_eq_bind _ _ (hG.comp measurable_prodMk_left)]
   rfl
 
 /-- **The law of the program**, for an algorithm drawing its arm. If, at every round, the policy
@@ -445,15 +329,15 @@ theorem banditRunRand_eq_map (alg : Algorithm Unit (Fin K) ℝ)
     rw [this, Measure.map_const, measure_univ, one_smul]
     rfl
   | succ n ih =>
-    rw [banditRunRand_succ, ih, map_hist_succ _ _ n (measurable_histState (n + 1)),
+    rw [banditRunRand_succ, ih, IT.map_hist_succ _ _ n (measurable_histState (n + 1)),
       ← Measure.map_map (measurable_histState n) (IT.measurable_hist n),
-      bind_map_eq _ (measurable_histState n) (isMarkov_banditStepRand (harm_markov n)).measurable]
+      Measure.bind_map _ (measurable_histState n)
+        (isMarkov_banditStepRand (harm_markov n)).measurable]
     congr 1
     funext h
     have hG : Measurable fun x ↦ histState (n + 1) (Fin.snoc h x) :=
-      (measurable_histState (n + 1)).comp ((measurable_snoc n).comp
-        (measurable_const.prodMk measurable_id))
-    rw [Function.comp_apply, banditStepRand_eq, map_stepKernel_bind alg n h hG, harm]
+      (measurable_histState (n + 1)).comp (measurable_const.finSnoc measurable_id)
+    rw [banditStepRand_eq, map_stepKernel_bind alg n h hG, harm]
     simp_rw [histState_snoc]
 
 end RandomizedLaw
@@ -462,22 +346,24 @@ section Regret
 
 variable (μ : Fin K → ℝ) (σ2 : ℝ≥0)
 
-/-- The pseudo-regret of a state: the number of pulls of each arm, times its gap. -/
-noncomputable def pseudoRegret (s : State K ℝ) : ℝ := ∑ a, ((s.1[a] : ℕ) : ℝ) * gapOf μ a
+/-- The pseudo-regret of a state against the rewards `ν`: the number of pulls of each arm, times its
+gap. -/
+noncomputable def pseudoRegret (ν : Kernel (Fin K) ℝ) (s : State K ℝ) : ℝ :=
+  ∑ a, ((s.1[a] : ℕ) : ℝ) * gap ν a
 
 omit [NeZero K] in
 @[fun_prop]
-lemma measurable_pseudoRegret : Measurable (pseudoRegret (K := K) μ) := by
+lemma measurable_pseudoRegret (ν : Kernel (Fin K) ℝ) : Measurable (pseudoRegret ν) := by
   unfold pseudoRegret
   refine Finset.measurable_sum _ fun a _ ↦ ?_
   exact ((measurable_of_countable (fun k : ℕ ↦ (k : ℝ))).comp
     ((measurable_vector_getElem a).comp measurable_fst)).mul_const _
 
 /-- The regret of the interaction is the pseudo-regret of the state of its history. -/
-lemma regret_eq_pseudoRegret (n : ℕ) (ω : ℕ → Round Unit (Fin K) ℝ) :
-    regret (arms μ σ2) IT.action n ω = pseudoRegret μ (histState n (IT.hist n ω)) := by
+lemma regret_eq_pseudoRegret (ν : Kernel (Fin K) ℝ) (n : ℕ) (ω : ℕ → Round Unit (Fin K) ℝ) :
+    regret ν IT.action n ω = pseudoRegret ν (histState n (IT.hist n ω)) := by
   rw [regret_eq_sum_pullCount_mul_gap]
-  simp only [pseudoRegret, histState, Fin.getElem_fin, Vector.getElem_ofFn, gap_arms]
+  simp only [pseudoRegret, histState, Fin.getElem_fin, Vector.getElem_ofFn]
   congr with a
   rw [pullCount_eq_pullCount' (O := IT.obs) (R' := IT.feedback), IT.history_obs_action_feedback]
 
@@ -488,13 +374,13 @@ variable {nextA : (n : ℕ) → Hist Unit (Fin K) ℝ n × Unit → Fin K}
 theorem integral_pseudoRegret_banditRun (arm : ℕ → State K ℝ → Fin K)
     (harm_meas : ∀ n, Measurable (arm n)) (harm : ∀ n h, arm n (histState n h) = nextA n (h, ()))
     (n : ℕ) :
-    ∫ s, pseudoRegret μ s ∂(banditRun (m := Measure) arm μ σ2 n)
+    ∫ s, pseudoRegret (arms μ σ2) s ∂(banditRun (m := Measure) arm μ σ2 n)
       = (trajMeasure (detAlgorithm nextA hnext) (stationaryEnv (arms μ σ2)))[
           regret (arms μ σ2) IT.action n] := by
   rw [banditRun_eq_map (hnext := hnext) arm harm_meas harm n,
-    integral_map (by fun_prop) (measurable_pseudoRegret μ).aestronglyMeasurable]
+    integral_map (by fun_prop) (measurable_pseudoRegret _).aestronglyMeasurable]
   congr with ω
-  exact (regret_eq_pseudoRegret μ σ2 n ω).symm
+  exact (regret_eq_pseudoRegret _ n ω).symm
 
 omit [NeZero K] in
 @[fun_prop]
@@ -522,38 +408,36 @@ lemma measurable_ucbArm (c : ℝ) (n : ℕ) : Measurable (ucbArm (K := K) (R := 
 
 /-- **Regret of explore-then-commit.** The bound of `Bandits.ETC.regret_le`, for the program. -/
 theorem integral_regret_etc_le {m : ℕ} (hm : m ≠ 0) {n : ℕ} (hn : K * m ≤ n) :
-    ∫ s, pseudoRegret μ s ∂(banditRun (m := Measure) (etcArm m) μ σ2 n)
-      ≤ ∑ a, gapOf μ a * (m + (n - K * m) * Real.exp (- (m : ℝ) * gapOf μ a ^ 2 / (4 * σ2))) := by
+    ∫ s, pseudoRegret (arms μ σ2) s ∂(banditRun (m := Measure) (etcArm m) μ σ2 n)
+      ≤ ∑ a, gap (arms μ σ2) a
+          * (m + (n - K * m) * Real.exp (- (m : ℝ) * gap (arms μ σ2) a ^ 2 / (4 * σ2))) := by
   have h := ETC.regret_le
     (IT.isAlgEnvSeq_trajMeasure (etcAlgorithm K m) (stationaryEnv (arms μ σ2)))
     (hasSubgaussianMGF_arms μ σ2) hm n hn
-  simp only [gap_arms] at h
   rw [integral_pseudoRegret_banditRun μ σ2 (hnext := fun n ↦ ETC.measurable_nextArm m n |>.comp
     measurable_fst) (etcArm m) (measurable_etcArm m) (fun n h ↦ etcArm_histState m n h) n]
   exact h
 
 /-- **Regret of UCB.** The bound of `Bandits.UCB.regret_le'`, for the program. -/
 theorem integral_regret_ucb_le {c : ℝ} (hc : 0 < c) (hσ2 : σ2 ≠ 0) (n : ℕ) :
-    ∫ s, pseudoRegret μ s ∂(banditRun (m := Measure) (ucbArm c) μ σ2 n)
-      ≤ ∑ a, (8 * c * Real.log (n + 1) / gapOf μ a
-        + gapOf μ a * (2 + 2 * UCB.constSum (c / σ2) n)) := by
+    ∫ s, pseudoRegret (arms μ σ2) s ∂(banditRun (m := Measure) (ucbArm c) μ σ2 n)
+      ≤ ∑ a, (8 * c * Real.log (n + 1) / gap (arms μ σ2) a
+        + gap (arms μ σ2) a * (2 + 2 * UCB.constSum (c / σ2) n)) := by
   have h := UCB.regret_le'
     (IT.isAlgEnvSeq_trajMeasure (ucbAlgorithm K c) (stationaryEnv (arms μ σ2)))
     (hasSubgaussianMGF_arms μ σ2) hσ2 hc n
-  simp only [gap_arms] at h
   rw [integral_pseudoRegret_banditRun μ σ2 (hnext := fun n ↦ UCB.measurable_nextArm c n |>.comp
     measurable_fst) (ucbArm c) (measurable_ucbArm c) (fun n h ↦ ucbArm_histState c n h) n]
   exact h
 
 /-- **Regret of UCB**, for `c > 2 σ2`: logarithmic in the number of rounds. -/
 theorem integral_regret_ucb_le_of_gt {c : ℝ} (hc : 2 * σ2 < c) (hσ2 : σ2 ≠ 0) (n : ℕ) :
-    ∫ s, pseudoRegret μ s ∂(banditRun (m := Measure) (ucbArm c) μ σ2 n)
-      ≤ ∑ a, (8 * c * Real.log (n + 1) / gapOf μ a
-        + gapOf μ a * (4 + 2 * σ2 / (c - 2 * σ2))) := by
+    ∫ s, pseudoRegret (arms μ σ2) s ∂(banditRun (m := Measure) (ucbArm c) μ σ2 n)
+      ≤ ∑ a, (8 * c * Real.log (n + 1) / gap (arms μ σ2) a
+        + gap (arms μ σ2) a * (4 + 2 * σ2 / (c - 2 * σ2))) := by
   have h := UCB.regret_le_of_gt_two'
     (IT.isAlgEnvSeq_trajMeasure (ucbAlgorithm K c) (stationaryEnv (arms μ σ2)))
     (hasSubgaussianMGF_arms μ σ2) hσ2 hc n
-  simp only [gap_arms] at h
   rw [integral_pseudoRegret_banditRun μ σ2 (hnext := fun n ↦ UCB.measurable_nextArm c n |>.comp
     measurable_fst) (ucbArm c) (measurable_ucbArm c) (fun n h ↦ ucbArm_histState c n h) n]
   exact h
@@ -563,12 +447,12 @@ algorithm drawing its arm. -/
 theorem integral_pseudoRegret_banditRunRand (alg : Algorithm Unit (Fin K) ℝ)
     (arm : ℕ → State K ℝ → Measure (Fin K)) (harm_markov : ∀ n, IsMarkov (arm n))
     (harm : ∀ n h, alg.policy n (h, ()) = arm n (histState n h)) (n : ℕ) :
-    ∫ s, pseudoRegret μ s ∂(banditRunRand (m := Measure) arm μ σ2 n)
+    ∫ s, pseudoRegret (arms μ σ2) s ∂(banditRunRand (m := Measure) arm μ σ2 n)
       = (trajMeasure alg (stationaryEnv (arms μ σ2)))[regret (arms μ σ2) IT.action n] := by
   rw [banditRunRand_eq_map alg arm harm_markov harm n,
-    integral_map (by fun_prop) (measurable_pseudoRegret μ).aestronglyMeasurable]
+    integral_map (by fun_prop) (measurable_pseudoRegret _).aestronglyMeasurable]
   congr with ω
-  exact (regret_eq_pseudoRegret μ σ2 n ω).symm
+  exact (regret_eq_pseudoRegret _ n ω).symm
 
 end Regret
 

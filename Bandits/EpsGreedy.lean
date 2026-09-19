@@ -209,13 +209,13 @@ lemma policy_eq_epsGreedyArm (n : ℕ) (h : Hist Unit (Fin K) ℝ n) :
 /-- **ε-greedy has linear regret**, for the program that runs: the expected pseudo-regret of
 `banditRunRand` with `epsGreedyArm`, against Gaussian arms, is at least `n ε / K ∑ₐ Δₐ`. -/
 theorem le_integral_regret_banditRunRand (μ : Fin K → ℝ) (σ2 : ℝ≥0) (n : ℕ) :
-    (n : ℝ) * ((ε : ℝ) / K) * ∑ a, gapOf μ a
-      ≤ ∫ s, pseudoRegret μ s
+    (n : ℝ) * ((ε : ℝ) / K) * ∑ a, gap (arms μ σ2) a
+      ≤ ∫ s, pseudoRegret (arms μ σ2) s
           ∂(banditRunRand (m := Measure) (epsGreedyArm (m := Measure) (ε : ℝ)) μ σ2 n) := by
   rw [integral_pseudoRegret_banditRunRand μ σ2 (alg ε) _ (isMarkov_epsGreedyArm ε)
     (policy_eq_epsGreedyArm ε) n]
   have h := le_integral_regret ε (arms μ σ2)
     (IT.isAlgEnvSeq_trajMeasure (alg (K := K) ε) (stationaryEnv (arms μ σ2))) n
-  simpa only [gap_arms] using h
+  exact h
 
 end RDoBandit.EpsGreedy

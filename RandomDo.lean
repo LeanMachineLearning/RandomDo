@@ -1,6 +1,13 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
+public import RandomDo.ForLML.SequentialLearning.FiniteActions
+public import RandomDo.ForLML.SequentialLearning.IonescuTulceaSpace
+public import RandomDo.ForLML.SequentialLearning.SumRewards
+public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Constructions
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
+public import RandomDo.ForMathlib.MeasureTheory.Measure.GiryMonad
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
+public import RandomDo.ForMathlib.Probability.Moments.SubGaussian
 public import RandomDo.Measurable
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
