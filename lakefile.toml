@@ -1,5 +1,5 @@
 name = "RandomDo"
-defaultTargets = ["RandomDo"]
+defaultTargets = ["RandomDo", "MetropolisHastings", "Bandits"]
 lintDriver = "batteries/runLinter"
 testDriver = "Test"
 
