@@ -83,6 +83,10 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
         let x := xs[0]!.fvarId!
         withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
           mkLambdaFVars #[y] (← translate (σ.insert x y) body)
+      | .forallE .. => forallBoundedTelescope e (some 1) fun xs body ↦ do
+        let x := xs[0]!.fvarId!
+        withLocalDeclD (← x.getUserName) (← translate σ (← x.getType)) fun y ↦ do
+          mkForallFVars #[y] (← translate (σ.insert x y) body)
       | .letE n t v b _ => withLetDecl n t v fun x ↦ do
         withLetDecl n (← translate σ t) (← translate σ v) fun y ↦ do
           mkLetFVars #[y] (← translate (σ.insert x.fvarId! y) (b.instantiate1 x))
@@ -91,6 +95,8 @@ partial def translate (σ : FVarSubst) (e : Expr) : MetaM Expr :=
 /-- Rebuild an application from the counterpart of its head; where nothing known about that head
 fits, look through it and read its body in its place. -/
 partial def translateApp (σ : FVarSubst) (e : Expr) : MetaM Expr := do
+  if e.getAppFn.isFVar then
+    return mkAppN (← translate σ e.getAppFn) (← e.getAppArgs.mapM (translate σ))
   if e.getAppFn.isLambda then return ← translate σ e.headBeta
   let .const declName _ := e.getAppFn | throwError "`computable`: cannot translate{indentExpr e}"
   let counterpart? ← computableAs? declName
