@@ -145,8 +145,8 @@ deviation. -/
 /-- Draw samples from a binomial distribution. -/
 def binomial (n : Nat) (p : Float) : RandPCG IO Nat := do
   -- The comparisons are the `Bool` ones: through `Decidable`, each costs more than a draw.
-  if p.lt 0.0 || Float.lt 1.0 p || p.isNaN then
-    throw <| IO.userError "p < 0, p > 1 or p is NaN"
+  if p < 0.0 || 1.0 < p || p.isNaN then
+    throw <| IO.userError s!"expected 0 ≤ p ≤ 1, got {p}"
   let n := n.toUInt64.toFloat
   if n == 0 || p == 0.0 then return 0
   if Float.le p 0.5 then

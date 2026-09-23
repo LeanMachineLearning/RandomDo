@@ -9,4 +9,5 @@ public import Test.Instances
 public import Test.IsMarkov
 public import Test.Loops
 public import Test.MonadLaws
+public import Test.Polymorphic
 public import Test.Sample

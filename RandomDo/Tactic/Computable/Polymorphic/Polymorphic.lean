@@ -55,7 +55,7 @@ noncomputable instance : HasBernoulli Measure ℝ where
 
 /-- A probability outside `[0, 1]` is clamped to it, as in the instance on `Measure`. -/
 instance : HasBernoulli RandM Float where
-  bernoulli p := show RandPCG IO Bool from return (← bernoulli (max 0 (min 1 p))) == 1
+  bernoulli p := return (← NumLean.bernoulli p) == 1
 
 /-- A typeclass for scalars with an exponential. -/
 class HasExp (R : Type) where
