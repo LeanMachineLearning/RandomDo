@@ -29,6 +29,11 @@ instance {m : Type u → Type v} [Monad m] :
   mPure := pure
   mBind := bind
 
+/-- The unbounded loop behind `while … rdo`, at a core monad, is core's loop over `Lean.Loop`. -/
+instance {m : Type u → Type v} [Monad m] :
+    MeasurableSpaceForIn (Monad.toMeasurableSpaceMonad m) Lean.Loop Unit where
+  forIn xs b f := ForIn.forIn (m := m) xs b f
+
 /-- A measurable space monad for pseudo random number generation. -/
 abbrev PseudoRandomM := Monad.toMeasurableSpaceMonad Rand
 

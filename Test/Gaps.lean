@@ -20,10 +20,28 @@ namespace Test.Gaps
 
 /-! ## Unbounded and conditional iteration
 
-TODO: `while`, `repeat` and `repeat … until` all expand to `for _ in Loop.mk do …`, which reaches
-core's `doFor` and so asks for a `ForIn` instance. Supporting them needs the macros re-pointed at
-`rdoFor` and, at `Measure`, a denotation for an iteration that need not terminate.
+`while … rdo` is a loop over `Lean.Loop`, which has an instance at the core monads only.
+TODO: at `Measure`, a denotation for an iteration that need not terminate: the least fixed point of
+its unfolding, where the runs that never stop carry no mass. And `repeat` and `repeat … until`,
+which still expand to core's `for _ in Loop.mk do …`, need `rdo` counterparts.
 -/
+
+/--
+error: failed to synthesize instance of type class
+  MeasurableSpaceForIn Measure Lean.Loop ?α
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
+-/
+#guard_msgs in
+noncomputable def whileAtMeasure : Measure ℕ := rdo
+  let mut n := 0
+  let mut go := true
+  while go rdo
+    let b ← fairCoin
+    n := n + 1
+    if b then
+      go := false
+  return n
 
 /--
 error: failed to synthesize instance of type class
@@ -32,10 +50,12 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def whileLoop : IdM ℕ := rdo
+def repeatLoop : IdM ℕ := rdo
   let mut i := 0
-  while i < 3 do
+  repeat
     i := i + 1
+    if 3 ≤ i then
+      break
   return i
 
 /-! ## Exceptions

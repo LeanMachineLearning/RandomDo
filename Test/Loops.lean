@@ -1,14 +1,18 @@
 module
 
 public import Test.Common
+meta import Test.Common
+public import Std.Tactic.Do
 
 set_option linter.style.header false
+set_option linter.hashCommand false
 
 /-!
-# `rdo`: `for` loops over a single collection
+# `rdo`: `for` and `while` loops
 
 `rdo` has its own `for … rdo …` parser, expander and elaborator, mirroring core's but emitting
-`MeasurableSpaceForIn.forIn`. Instances exist for `List`, `Array` and `Vector`.
+`MeasurableSpaceForIn.forIn`. Instances exist for `List`, `Array` and `Vector`, and for `Lean.Loop`,
+which `while … rdo` loops over, at the core monads.
 
 A loop can sit under another construct, including another loop: the enclosing one learns what the
 loop does to the control flow from the `ControlInfo` handler of `rdoFor`, which is that of core's
@@ -234,6 +238,100 @@ noncomputable def countPairsOfHeads (n : ℕ) : Measure ℕ := rdo
       if b then
         c := c + 1
   return c
+
+/-! ## `while` loops
+
+`while c rdo body` is a loop over `Lean.Loop`, as in core. At a core monad it is core's loop, which
+the kernel cannot unfold, so these programs are checked with `#guard` rather than `rfl`, and proved
+through `mvcgen`. There is no instance at `Measure` yet.
+-/
+
+/-- A `while` loop, counting down from `n`. -/
+def countdown (n : ℕ) : IdM ℕ := rdo
+  let mut i := n
+  let mut steps := 0
+  while 0 < i rdo
+    i := i - 1
+    steps := steps + 1
+  return steps
+
+#guard IdM.run (countdown 5) = 5
+
+#guard IdM.run (countdown 0) = 0
+
+open Std.Do in
+set_option mvcgen.warning false in
+theorem countdown_eq (n : ℕ) : IdM.run (countdown n) = n := by
+  generalize h : IdM.run (countdown n) = r
+  apply Id.of_wp_run_eq h
+  simp only [countdown, MeasurableSpaceForIn.forIn, MeasurableSpaceBind.mBind,
+    MeasurableSpacePure.mPure]
+  dsimp only [IdM, Monad.toMeasurableSpaceMonad]
+  mvcgen invariants
+  · fun st => ⟨st.1⟩
+  · ⇓ c => match c with
+      | .inl st => ⌜st.1 + st.2 = n⌝
+      | .inr st => ⌜st.2 = n⌝
+  all_goals simp_all <;> omega
+
+/-- `break` out of a `while` loop. -/
+def halveUntilOdd (n : ℕ) : IdM ℕ := rdo
+  let mut k := n
+  while 0 < k rdo
+    if k % 2 = 1 then
+      break
+    k := k / 2
+  return k
+
+#guard IdM.run (halveUntilOdd 24) = 3
+
+#guard IdM.run (halveUntilOdd 0) = 0
+
+/-- An early `return` out of a `while` loop. -/
+def firstSquareAbove (n : ℕ) : IdM ℕ := rdo
+  let mut k := 0
+  while true rdo
+    if k * k > n then
+      return k
+    k := k + 1
+  return 0
+
+#guard IdM.run (firstSquareAbove 10) = 4
+
+/-- `while let`, consuming a list one element at a time. -/
+def sumByPopping (xs : List ℕ) : IdM ℕ := rdo
+  let mut rest := xs
+  let mut s := 0
+  while let x :: xs' := rest rdo
+    s := s + x
+    rest := xs'
+  return s
+
+#guard IdM.run (sumByPopping [1, 2, 3]) = 6
+
+/-- `while h : c`, which hands the body a proof of the condition. -/
+def countdownWithProof (n : ℕ) : IdM ℕ := rdo
+  let mut i := n
+  let mut steps := 0
+  while h : 0 < i rdo
+    have : i - 1 < i := Nat.sub_lt h Nat.one_pos
+    i := i - 1
+    steps := steps + 1
+  return steps
+
+#guard IdM.run (countdownWithProof 4) = 4
+
+/-- A `while` loop nested inside a `for` loop. -/
+def sumOfLogs (xs : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  for x in xs rdo
+    let mut k := x
+    while 1 < k rdo
+      k := k / 2
+      s := s + 1
+  return s
+
+#guard IdM.run (sumOfLogs [1, 2, 8]) = 4
 
 end Test.Loops
 

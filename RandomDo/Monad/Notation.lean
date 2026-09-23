@@ -260,6 +260,17 @@ def rdoForDecl := leading_parser
           dec.continueWithUnit
   mkBindApp σ γ forIn rest
 
+/-- parser for `rdo` while loops -/
+@[doElem_parser] def rdoWhile := leading_parser
+  "while " >> withForbidden "rdo" doIfCond >> " rdo " >> doSeq
+
+/-- Define expander for `while` loops in `rdo` notation. As in core, `while c rdo body` is a loop
+over `Loop.mk` that runs `body` while `c` holds and breaks otherwise. -/
+@[macro rdoWhile] def expandRDoWhile : Macro
+  | `(rdoWhile| while%$tk $cond:doIfCond rdo $body) =>
+    `(doElem| for%$tk _ in Lean.Loop.mk rdo if $cond:doIfCond then $body else break)
+  | _ => Macro.throwUnsupported
+
 /-- Infer the `ControlInfo` of an `rdo` loop as that of the core `for` loop with the same body. -/
 @[doElem_control_info rdoFor] def controlInfoRDoFor : ControlInfoHandler := fun stx => do
   let `(rdoFor| for $_:rdoForDecl,* rdo $body) := stx | throwUnsupportedSyntax
