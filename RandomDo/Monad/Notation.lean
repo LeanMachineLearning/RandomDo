@@ -260,6 +260,11 @@ def rdoForDecl := leading_parser
           dec.continueWithUnit
   mkBindApp σ γ forIn rest
 
+/-- Infer the `ControlInfo` of an `rdo` loop as that of the core `for` loop with the same body. -/
+@[doElem_control_info rdoFor] def controlInfoRDoFor : ControlInfoHandler := fun stx => do
+  let `(rdoFor| for $_:rdoForDecl,* rdo $body) := stx | throwUnsupportedSyntax
+  inferControlInfoElem (← `(doElem| for _ in #[()] do $body))
+
 end LoopElab
 
 end RDo

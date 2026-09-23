@@ -18,26 +18,6 @@ open MeasureTheory ProbabilityTheory
 
 namespace Test.Gaps
 
-/-! ## Nested loops
-
-TODO: register a `ControlInfo` inference handler for `RDo.rdoFor`, mirroring the rule core states
-inline for `doFor` in `Lean/Elab/Do/InferControlInfo.lean`.
--/
-
-/--
-error: No `ControlInfo` inference handler found for `RDo.rdoFor` in syntax
-  for y in ys rdo
-    s := s + x * y
-Register a handler with `@[doElem_control_info RDo.rdoFor]`.
--/
-#guard_msgs (whitespace := lax) in
-def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
-  let mut s := 0
-  for x in xs rdo
-    for y in ys rdo
-      s := s + x * y
-  return s
-
 /-! ## Unbounded and conditional iteration
 
 TODO: `while`, `repeat` and `repeat … until` all expand to `for _ in Loop.mk do …`, which reaches

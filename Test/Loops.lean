@@ -10,9 +10,9 @@ set_option linter.style.header false
 `rdo` has its own `for … rdo …` parser, expander and elaborator, mirroring core's but emitting
 `MeasurableSpaceForIn.forIn`. Instances exist for `List`, `Array` and `Vector`.
 
-There is no test for a loop nested inside another: `rdoFor` has no registered `ControlInfo`
-inference handler, so the outer loop cannot work out what the inner one does to the control flow,
-and such a program is rejected before elaboration.
+A loop can sit under another construct, including another loop: the enclosing one learns what the
+loop does to the control flow from the `ControlInfo` handler of `rdoFor`, which is that of core's
+`for` loop with the same body.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -137,6 +137,102 @@ noncomputable def countHeads (n : ℕ) : Measure ℕ := rdo
     let b ← fairCoin
     if b then
       c := c + 1
+  return c
+
+/-! ## Loops under other constructs -/
+
+/-- A loop nested inside another, reassigning a variable of the enclosing block. -/
+def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  for x in xs rdo
+    for y in ys rdo
+      s := s + x * y
+  return s
+
+example : IdM.run (nestedLoops [1, 2] [3, 4]) = 21 := rfl
+
+example : IdM.run (nestedLoops [1, 2] []) = 0 := rfl
+
+/-- `break` in the inner loop leaves the inner loop only. -/
+def innerBreak (xs ys : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  for x in xs rdo
+    for y in ys rdo
+      if y = 0 then
+        break
+      s := s + x * y
+  return s
+
+example : IdM.run (innerBreak [1, 2] [3, 0, 5]) = 9 := rfl
+
+/-- `continue` in the inner loop skips to the next inner iteration. -/
+def innerContinue (xs ys : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  for x in xs rdo
+    for y in ys rdo
+      if y = 0 then
+        continue
+      s := s + x * y
+  return s
+
+example : IdM.run (innerContinue [1, 2] [3, 0, 5]) = 24 := rfl
+
+/-- An early `return` in the inner loop leaves the whole program. -/
+def firstProductOver (xs ys : List ℕ) (limit : ℕ) : IdM ℕ := rdo
+  for x in xs rdo
+    for y in ys rdo
+      if x * y > limit then
+        return x * y
+  return 0
+
+example : IdM.run (firstProductOver [1, 2, 3] [1, 2] 3) = 4 := rfl
+
+example : IdM.run (firstProductOver [1, 2] [1, 2] 10) = 0 := rfl
+
+/-- An inner loop over several collections, which the expander rewrites first. -/
+def nestedZip (xs ys zs : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  for x in xs rdo
+    for y in ys, z in zs rdo
+      s := s + x * y * z
+  return s
+
+example : IdM.run (nestedZip [1, 2] [1, 2] [3, 4]) = 33 := rfl
+
+/-- A loop in a branch of an `if`. -/
+def sumIf (b : Bool) (xs : List ℕ) : IdM ℕ := rdo
+  let mut s := 0
+  if b then
+    for x in xs rdo
+      s := s + x
+  return s
+
+example : IdM.run (sumIf true [1, 2, 3]) = 6 := rfl
+
+example : IdM.run (sumIf false [1, 2, 3]) = 0 := rfl
+
+/-- A loop in an arm of a `match`. -/
+def sumHead (xss : List (List ℕ)) : IdM ℕ := rdo
+  let mut s := 0
+  match xss with
+  | [] => pure ()
+  | xs :: _ =>
+    for x in xs rdo
+      s := s + x
+  return s
+
+example : IdM.run (sumHead [[1, 2], [10]]) = 3 := rfl
+
+example : IdM.run (sumHead []) = 0 := rfl
+
+/-- Nested loops whose body binds monadically, at `Measure`. -/
+noncomputable def countPairsOfHeads (n : ℕ) : Measure ℕ := rdo
+  let mut c := 0
+  for _ in List.range n rdo
+    for _ in List.range n rdo
+      let b ← fairCoin
+      if b then
+        c := c + 1
   return c
 
 end Test.Loops
