@@ -8,3 +8,6 @@ public import Test.Instances
 public import Test.IsMarkov
 public import Test.Loops
 public import Test.MonadLaws
+public import Test.Program
+public import Test.RandomM
+public import Test.SampleM
