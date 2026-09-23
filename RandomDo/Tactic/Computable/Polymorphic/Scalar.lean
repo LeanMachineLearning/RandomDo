@@ -7,6 +7,13 @@ module
 
 public import Mathlib.MeasureTheory.MeasurableSpace.Defs
 
+/-!
+# Polymorphic scalar classes
+
+A typeclass for measurable spaces with the operations and numerals of a field, but none of its
+axioms, so that it applies to both `ℝ` and `Float`.
+-/
+
 @[expose] public section
 
 /-- `Scalar R` bundles a measurable space structure on `R` with the operations and numerals of a
