@@ -18,31 +18,10 @@ open MeasureTheory ProbabilityTheory
 
 namespace Test.Gaps
 
-/-! ## Nested loops
-
-TODO: register a `ControlInfo` inference handler for `RDo.rdoFor`, mirroring the rule core states
-inline for `doFor` in `Lean/Elab/Do/InferControlInfo.lean`.
--/
-
-/--
-error: No `ControlInfo` inference handler found for `RDo.rdoFor` in syntax
-  for y in ys rdo
-    s := s + x * y
-Register a handler with `@[doElem_control_info RDo.rdoFor]`.
--/
-#guard_msgs (whitespace := lax) in
-def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
-  let mut s := 0
-  for x in xs rdo
-    for y in ys rdo
-      s := s + x * y
-  return s
-
 /-! ## Unbounded and conditional iteration
 
-TODO: `while`, `repeat` and `repeat … until` all expand to `for _ in Loop.mk do …`, which reaches
-core's `doFor` and so asks for a `ForIn` instance. Supporting them needs the macros re-pointed at
-`rdoFor` and, at `Measure`, a denotation for an iteration that need not terminate.
+`while … rdo` is supported. TODO: `repeat` and `repeat … until`, which still expand to core's
+`for _ in Loop.mk do …`, need `rdo` counterparts.
 -/
 
 /--
@@ -52,10 +31,12 @@ error: failed to synthesize instance of type class
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def whileLoop : IdM ℕ := rdo
+def repeatLoop : IdM ℕ := rdo
   let mut i := 0
-  while i < 3 do
+  repeat
     i := i + 1
+    if 3 ≤ i then
+      break
   return i
 
 /-! ## Exceptions
