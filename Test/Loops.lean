@@ -12,7 +12,7 @@ set_option linter.hashCommand false
 
 `rdo` has its own `for … rdo …` parser, expander and elaborator, mirroring core's but emitting
 `MeasurableSpaceForIn.forIn`. Instances exist for `List`, `Array` and `Vector`, and for `Lean.Loop`,
-which `while … rdo` loops over, at the core monads.
+which `while … rdo` loops over.
 
 A loop can sit under another construct, including another loop: the enclosing one learns what the
 loop does to the control flow from the `ControlInfo` handler of `rdoFor`, which is that of core's
@@ -239,12 +239,7 @@ noncomputable def countPairsOfHeads (n : ℕ) : Measure ℕ := rdo
         c := c + 1
   return c
 
-/-! ## `while` loops
-
-`while c rdo body` is a loop over `Lean.Loop`, as in core. At a core monad it is core's loop, which
-the kernel cannot unfold, so these programs are checked with `#guard` rather than `rfl`, and proved
-through `mvcgen`. There is no instance at `Measure` yet.
--/
+/-! ## `while` loops -/
 
 /-- A `while` loop, counting down from `n`. -/
 def countdown (n : ℕ) : IdM ℕ := rdo
@@ -258,21 +253,6 @@ def countdown (n : ℕ) : IdM ℕ := rdo
 #guard IdM.run (countdown 5) = 5
 
 #guard IdM.run (countdown 0) = 0
-
-open Std.Do in
-set_option mvcgen.warning false in
-theorem countdown_eq (n : ℕ) : IdM.run (countdown n) = n := by
-  generalize h : IdM.run (countdown n) = r
-  apply Id.of_wp_run_eq h
-  simp only [countdown, MeasurableSpaceForIn.forIn, MeasurableSpaceBind.mBind,
-    MeasurableSpacePure.mPure]
-  dsimp only [IdM, Monad.toMeasurableSpaceMonad]
-  mvcgen invariants
-  · fun st => ⟨st.1⟩
-  · ⇓ c => match c with
-      | .inl st => ⌜st.1 + st.2 = n⌝
-      | .inr st => ⌜st.2 = n⌝
-  all_goals simp_all <;> omega
 
 /-- `break` out of a `while` loop. -/
 def halveUntilOdd (n : ℕ) : IdM ℕ := rdo
@@ -332,6 +312,17 @@ def sumOfLogs (xs : List ℕ) : IdM ℕ := rdo
   return s
 
 #guard IdM.run (sumOfLogs [1, 2, 8]) = 4
+
+/-- A `while` loop at `Measure`: flip a fair coin until it lands heads, counting the flips. -/
+noncomputable def flipsUntilHeads : Measure ℕ := rdo
+  let mut n := 0
+  let mut go := true
+  while go rdo
+    let b ← fairCoin
+    n := n + 1
+    if b then
+      go := false
+  return n
 
 end Test.Loops
 

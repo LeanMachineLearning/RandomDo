@@ -10,9 +10,9 @@ set_option linter.style.header false
 # Polymorphic `rdo` programs
 
 The programs of `Test.Computable`, written once over an arbitrary `MeasurableSpaceMonad` `m` and
-drawing through `HasGaussian` and `HasBernoulli`. Read at `m := Measure`, each one is a probability
-measure, checked by `is_markov`, and is the program of `Test.IsMarkov` when there is one. Run at
-`m := RandM`, it samples.
+drawing through `HasGaussian` and `HasBernoulli`. Read at `m := Measure`, each one without a `while`
+loop is a probability measure, checked by `is_markov`, and is the program of `Test.IsMarkov` when
+there is one. Run at `m := RandM`, it samples.
 -/
 
 @[expose] public section
@@ -113,6 +113,17 @@ def ex1 [HasGaussian m R V R] : m R := rdo
 example : IsProbabilityMeasure (ex1 (m := Measure) (R := ℝ) (V := NNReal)) := by is_markov
 
 run_cmd logPolymorphic (ex1 (m := RandM) (R := Float) (V := Float))
+
+def flipsUntilHeads [HasBernoulli m R] [MeasurableSpaceMonadWhile m] (p : R) : m ℕ := rdo
+  let mut n := 0
+  while true rdo
+    let heads ← coin (m := m) p
+    n := n + 1
+    if heads then
+      break
+  return n
+
+run_cmd logPolymorphic (flipsUntilHeads (m := RandM) (0.5 : Float))
 
 end Test.Polymorphic
 
