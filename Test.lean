@@ -11,5 +11,6 @@ public import Test.Instances
 public import Test.IsMarkov
 public import Test.Loops
 public import Test.MonadLaws
+public import Test.RandomSource
 public import Test.Sample
 public import Test.Transfer
