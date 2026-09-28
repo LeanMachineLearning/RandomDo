@@ -10,6 +10,7 @@ public import Mathlib.Probability.Independence.InfinitePi
 public import Mathlib.Probability.HasCondDistrib
 public import Mathlib.Probability.Distributions.Gaussian.Real
 public import Mathlib.Probability.Distributions.Bernoulli
+public import Bandits.EpsGreedy
 
 set_option linter.style.header false
 
@@ -1029,7 +1030,7 @@ theorem isAlgEnvSeq :
     · exact not_prefix_part (by decide) a ha
     · exact not_prefix_part (by decide) a ha
 
-/-! ### ε-greedy against two Gaussian arms
+/-! ### ε-greedy against Gaussian arms
 
 The same interaction, for a concrete algorithm written in `rdo`. Its internal draws — the
 exploration coin and the uniform arm — are entries of the table, so they are random variables on
@@ -1040,56 +1041,49 @@ section EpsGreedy
 
 variable {m : (α : Type) → [MeasurableSpace α] → Type} [MeasurableSpaceMonad m] [HasSample m]
 
-/-- The arm played last, or `true` before the first round. -/
-def lastAction : (n : ℕ) → Hist Unit Bool ℝ n → Bool
-  | 0, _ => true
-  | n + 1, h => (h (Fin.last n)).2.1
+variable {K : ℕ} [NeZero K] (ε : I)
 
-@[fun_prop] lemma measurable_lastAction (n : ℕ) : Measurable (lastAction n) := by
-  cases n with
-  | zero => exact measurable_const
-  | succ n => exact (measurable_pi_apply (Fin.last n)).snd.fst
-
-variable (ε : I)
-
-/-- ε-greedy with two arms: with probability `ε` play a uniformly random arm, otherwise replay the
-last one. The policy of round `n` reads the history and the (trivial) observation. -/
-def epsPolicy (n : ℕ) (x : Hist Unit Bool ℝ n × Unit) : m Bool := rdo
+open RDoBandit.EpsGreedy in
+/-- ε-greedy with `K` arms: with probability `ε` play a uniformly random arm, otherwise the greedy
+arm of the history (the first arm never pulled if there is one, and otherwise the one with the
+best empirical mean). The policy of round `n` reads the history and the (trivial) observation.
+Unlike `RDoBandit.EpsGreedy.policy`, the uniform arm is only drawn when exploring. -/
+def epsPolicy (n : ℕ) (x : Hist Unit (Fin K) ℝ n × Unit) : m (Fin K) := rdo
   let explore ← draw (bernoulliMeasure true false ε)
   if explore then
-    let u ← draw fairCoin
+    let u ← draw uniformArm
     return u
   else
-    return lastAction n x.1
+    return greedyArm n x.1
 
 lemma realizes_epsPolicy (n : ℕ) :
-    Realizes (epsPolicy (m := Src) ε n) (epsPolicy (m := Measure) ε n) := by
+    Realizes (epsPolicy (m := Src) (K := K) ε n) (epsPolicy (m := Measure) ε n) := by
   unfold epsPolicy; realize
 
-variable (μ : Bool → ℝ)
+variable (μ : Fin K → ℝ)
 
-/-- Two Gaussian arms with means `μ true` and `μ false`. -/
-def arms : Kernel Bool ℝ := Kernel.ofFunOfCountable fun a ↦ gaussianReal (μ a) 1
+/-- Gaussian arms, arm `a` with mean `μ a` and variance `1`. -/
+def arms : Kernel (Fin K) ℝ := Kernel.ofFunOfCountable fun a ↦ gaussianReal (μ a) 1
 
 instance : IsMarkovKernel (arms μ) := ⟨fun a ↦ by unfold arms; exact inferInstanceAs
   (IsProbabilityMeasure (gaussianReal (μ a) 1))⟩
 
 /-- ε-greedy, as table programs. -/
-def epsAlg : SrcAlg Unit Bool ℝ where
+def epsAlg : SrcAlg Unit (Fin K) ℝ where
   policy n := epsPolicy (m := Src) ε n
   measurable n := (realizes_epsPolicy ε n).measurable
 
 /-- The Gaussian arms, as table programs: no observation, and the reward of the arm played. -/
-def gaussEnv : SrcEnv Unit Bool ℝ where
+def gaussEnv : SrcEnv Unit (Fin K) ℝ where
   obs _ _ := mPure ()
   feedback _ x := HasSample.sample (m := Src) (arms μ) x.2
   measurable_obs _ := measurable_const
   measurable_feedback n :=
-    ((Realizes.sample (arms μ)).comp (g := fun x : (Hist Unit Bool ℝ n × Unit) × Bool ↦ x.2)
+    ((Realizes.sample (arms μ)).comp (g := fun x : (Hist Unit (Fin K) ℝ n × Unit) × Fin K ↦ x.2)
       measurable_snd).measurable
 
 /-- The LeanMachineLearning algorithm is the `rdo` program. -/
-lemma epsAlg_policy (n : ℕ) (x : Hist Unit Bool ℝ n × Unit) :
+lemma epsAlg_policy (n : ℕ) (x : Hist Unit (Fin K) ℝ n × Unit) :
     (epsAlg ε).toAlgorithm.policy n x = epsPolicy (m := Measure) ε n x := by
   change lawK ((epsAlg ε).policy n) x = _
   rw [lawK_apply ((epsAlg ε).measurable n)]
@@ -1105,17 +1099,19 @@ def Explore (t : ℕ) (ω : Table) : Bool :=
   sampler (Kernel.const Unit (bernoulliMeasure true false ε)) () (ω [t, 1, 0])
 
 /-- The uniform arm of round `t`: a random variable whether or not round `t` explores. It reads
-`[t, 1, 1]` rather than `[t, 1, 1, 0]` because `rdo` elaborates `let u ← draw fairCoin; return u`
-to `draw fairCoin`: addresses follow the elaborated program. -/
-def Unif (t : ℕ) (ω : Table) : Bool := coin (ω [t, 1, 1])
+`[t, 1, 1]` rather than `[t, 1, 1, 0]` because `rdo` elaborates `let u ← draw uniformArm; return u`
+to `draw uniformArm`: addresses follow the elaborated program. -/
+def Unif (t : ℕ) (ω : Table) : Fin K :=
+  sampler (Kernel.const Unit RDoBandit.EpsGreedy.uniformArm) () (ω [t, 1, 1])
 
 /-- **The action, pathwise.** -/
 theorem A_eps (t : ℕ) (ω : Table) :
-    A (epsAlg ε) (gaussEnv μ) t ω
-      = if Explore ε t ω then Unif t ω else lastAction t (H (epsAlg ε) (gaussEnv μ) t ω) := by
+    A (epsAlg ε) (gaussEnv μ) t ω = if Explore ε t ω then Unif t ω
+      else RDoBandit.EpsGreedy.greedyArm t (H (epsAlg ε) (gaussEnv μ) t ω) := by
   rw [A_eq]
-  change (if Explore ε t ω = true then (draw fairCoin : Src Bool)
-    else mPure (lastAction t (H (epsAlg ε) (gaussEnv μ) t ω))) (subAt [1] (subAt [t, 1] ω)) = _
+  change (if Explore ε t ω = true then (draw RDoBandit.EpsGreedy.uniformArm : Src (Fin K))
+    else mPure (RDoBandit.EpsGreedy.greedyArm t (H (epsAlg ε) (gaussEnv μ) t ω)))
+      (subAt [1] (subAt [t, 1] ω)) = _
   cases Explore ε t ω <;> rfl
 
 /-- Given the history and the observation, round `t` explores with probability `ε`. -/
@@ -1129,12 +1125,13 @@ theorem hasCondDistrib_Explore (t : ℕ) :
   rintro (⟨j, hj, _, h⟩ | ⟨_, h⟩) <;> simp_all
 
 /-- **Every arm is explored**: at every round, each arm is played with probability at least
-`ε · ½`. The proof reads it off the pathwise form of the action: exploring and drawing `a`
+`ε / K`. The proof reads it off the pathwise form of the action: exploring and drawing `a`
 are two independent entries of the table. -/
-theorem le_map_A (t : ℕ) (a : Bool) :
-    (unitInterval.toNNReal ε : ℝ≥0∞) * fairCoin {a} ≤ U.map (A (epsAlg ε) (gaussEnv μ) t) {a} := by
+theorem le_map_A (t : ℕ) (a : Fin K) :
+    (unitInterval.toNNReal ε : ℝ≥0∞) * RDoBandit.EpsGreedy.uniformArm {a}
+      ≤ U.map (A (epsAlg ε) (gaussEnv μ) t) {a} := by
   have hE : Measurable (Explore ε t) := by unfold Explore; fun_prop
-  have hU : Measurable (Unif t) := by unfold Unif; fun_prop
+  have hU : Measurable (Unif (K := K) t) := by unfold Unif; fun_prop
   have hind : IndepFun (Explore ε t) (Unif t) U :=
     indepFun_of_dependsOn hE hU (S := {[t, 1, 0]}) (T := {[t, 1, 1]})
       (fun _ _ h ↦ by simp [Explore, h _ rfl]) (fun _ _ h ↦ by simp [Unif, h _ rfl]) (by simp)
@@ -1143,9 +1140,9 @@ theorem le_map_A (t : ℕ) (a : Bool) :
       (hasLaw_sampler (Kernel.const Unit (bernoulliMeasure true false ε)) () [t, 1, 0]).map_eq
     rw [← Measure.map_apply hE (measurableSet_singleton _), hmap]
     exact bernoulliMeasure_apply_of_mem_of_notMem _ (measurableSet_singleton _) rfl (by simp)
-  have hlawU : U (Unif t ⁻¹' {a}) = fairCoin {a} := by
-    have hmap : U.map (Unif t) = fairCoin :=
-      (hasLaw_sampler (Kernel.const Unit fairCoin) () [t, 1, 1]).map_eq
+  have hlawU : U (Unif t ⁻¹' {a}) = RDoBandit.EpsGreedy.uniformArm {a} := by
+    have hmap : U.map (Unif (K := K) t) = RDoBandit.EpsGreedy.uniformArm :=
+      (hasLaw_sampler (Kernel.const Unit RDoBandit.EpsGreedy.uniformArm) () [t, 1, 1]).map_eq
     rw [← Measure.map_apply hU (measurableSet_singleton _), hmap]
   rw [← hlawE, ← hlawU, ← (indepFun_iff_measure_inter_preimage_eq_mul.1 hind) _ _
       (measurableSet_singleton _) (measurableSet_singleton _),
@@ -1157,11 +1154,12 @@ theorem le_map_A (t : ℕ) (a : Bool) :
 /-- **The same bound on any space.** The law of the trajectory does not depend on the space, so
 the bound proved on the table holds for every algorithm-environment sequence of ε-greedy. -/
 theorem le_map_action {Ω : Type} [MeasurableSpace Ω] {P : Measure Ω} [IsProbabilityMeasure P]
-    {O' : ℕ → Ω → Unit} {A' : ℕ → Ω → Bool} {Y' : ℕ → Ω → ℝ}
+    {O' : ℕ → Ω → Unit} {A' : ℕ → Ω → Fin K} {Y' : ℕ → Ω → ℝ}
     (h : IsAlgEnvSeq O' A' Y' (epsAlg ε).toAlgorithm (gaussEnv μ).toEnvironment P) (t : ℕ)
-    (a : Bool) :
-    (unitInterval.toNNReal ε : ℝ≥0∞) * fairCoin {a} ≤ P.map (A' t) {a} := by
-  have hf : Measurable fun τ : ℕ → Round Unit Bool ℝ ↦ (τ t).2.1 := by fun_prop
+    (a : Fin K) :
+    (unitInterval.toNNReal ε : ℝ≥0∞) * RDoBandit.EpsGreedy.uniformArm {a}
+      ≤ P.map (A' t) {a} := by
+  have hf : Measurable fun τ : ℕ → Round Unit (Fin K) ℝ ↦ (τ t).2.1 := by fun_prop
   have key : P.map (A' t) = U.map (A (epsAlg ε) (gaussEnv μ) t) := by
     have := isAlgEnvSeq_unique h (isAlgEnvSeq_eps ε μ)
     rw [show A' t = (fun τ ↦ (τ t).2.1) ∘ trajectory O' A' Y' from rfl,
