@@ -114,16 +114,16 @@ example : IsProbabilityMeasure (ex1 (m := Measure) (R := ℝ) (V := NNReal)) := 
 
 run_cmd logPolymorphic (ex1 (m := RandM) (R := Float) (V := Float))
 
-def flipsUntilHeads [HasBernoulli m R] [MeasurableSpaceMonadWhile m] (p : R) : m ℕ := rdo
+def flipsUntilHeads [HasBernoulli m R] [MeasurableSpaceMonadWhile m] : m ℕ := rdo
   let mut n := 0
   while true rdo
-    let heads ← coin (m := m) p
+    let heads ← coin (m := m) (0.5 : R)
     n := n + 1
     if heads then
       break
   return n
 
-run_cmd logPolymorphic (flipsUntilHeads (m := RandM) (0.5 : Float))
+run_cmd logPolymorphic (flipsUntilHeads (m := RandM) (R := Float))
 
 end Test.Polymorphic
 

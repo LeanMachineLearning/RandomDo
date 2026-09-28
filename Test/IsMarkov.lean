@@ -11,7 +11,7 @@ set_option linter.style.header false
 node. There is one test here per construct it recognises.
 -/
 
-open MeasureTheory ProbabilityTheory
+open MeasureTheory ProbabilityTheory MeasurableSpacePure
 
 @[expose] public section
 
@@ -92,6 +92,47 @@ noncomputable def overList (xs : List ℝ) : Measure ℝ := rdo
   return s
 
 example : IsMarkov overList := by is_markov
+
+/-! ## `while`, whose termination is handed back
+
+`is_markov` proves the measurability of a `while` loop, and hands back its termination: the loop is
+a probability measure exactly when the mass of its runs still going after `n` steps tends to `0`.
+Each test takes that as a hypothesis, which closes the only goal left. -/
+
+noncomputable def untilHeads : Measure ℕ := rdo
+  let mut n := 0
+  while true rdo
+    let heads ← fairCoin
+    n := n + 1
+    if heads then
+      break
+  return n
+
+example (h : ∀ _ : Unit, Filter.Tendsto (fun k ↦ MeasurableSpaceMonad.loopRun (m := Measure)
+    (fun n : ℕ ↦ fairCoin >>=ₘ fun heads ↦
+      if heads then mPure (ForInStep.done (n + 1)) else mPure (ForInStep.yield (n + 1)))
+    k 0 Set.univ) Filter.atTop (nhds 0)) :
+    IsProbabilityMeasure untilHeads := by
+  is_markov
+  exact h
+
+/-- A `while` loop whose condition reads the parameter. -/
+noncomputable def climbFrom (k : ℕ) : Measure ℕ := rdo
+  let mut n := k
+  while n < k + 3 rdo
+    let heads ← fairCoin
+    if heads then
+      n := n + 1
+  return n
+
+example (h : ∀ k, Filter.Tendsto (fun j ↦ MeasurableSpaceMonad.loopRun (m := Measure)
+    (fun n : ℕ ↦ if n < k + 3 then
+        fairCoin >>=ₘ fun heads ↦
+          if heads then mPure (ForInStep.yield (n + 1)) else mPure (ForInStep.yield n)
+      else mPure (ForInStep.done n)) j k Set.univ) Filter.atTop (nhds 0)) :
+    IsMarkov climbFrom := by
+  is_markov
+  exact h
 
 /-! ## Looking through definitions, and the `fuel` argument -/
 
