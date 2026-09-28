@@ -525,8 +525,8 @@ lemma Realizes.draw {γ α : Type} [MeasurableSpace γ] [MeasurableSpace α] [St
   (Realizes.sample _).comp measurable_const
 
 /-- Prove `Realizes` for a program built from `return`, `←`, `if`, `for` over a list, `sample` and
-`draw`, one construct at a time. This is the analogue of `rdo_trace`, but it only has to check that each
-construct is realized: the random variables themselves come for free, from running the program. -/
+`draw`, one construct at a time. This is the analogue of `rdo_trace`, but it only has to check that
+each construct is realized: the random variables themselves come free, from running the program. -/
 macro "realize" : tactic => `(tactic| repeat' first
   | exact Realizes.pure (by fun_prop)
   | exact Realizes.draw _
