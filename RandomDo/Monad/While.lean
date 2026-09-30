@@ -8,7 +8,6 @@ module
 public import RandomDo.Monad.Instances
 public import RandomDo.Tactic.IsMarkov.Defs
 import RandomDo.Monad.Notation
-public import Mathlib.Probability.Distributions.Bernoulli
 
 /-!
 # `while` loops
@@ -151,7 +150,8 @@ private lemma loopRun_succ (f : σ → Measure (ForInStep σ)) (n : ℕ) (b : σ
     loopRun f (n + 1) b = (f b).bind fun t ↦
       ForInStep.casesOn (motive := fun _ ↦ Measure σ) t (fun _ ↦ 0) (loopRun f n) := rfl
 
-private lemma measurable_casesOn {γ : Type*} [MeasurableSpace γ] {d y : σ → γ}
+/-- A case analysis on the outcome of a step is measurable as soon as its two branches are. -/
+lemma measurable_casesOn {γ : Type*} [MeasurableSpace γ] {d y : σ → γ}
     (hd : Measurable d) (hy : Measurable y) :
     Measurable fun t : ForInStep σ ↦ ForInStep.casesOn (motive := fun _ ↦ γ) t d y :=
   fun _ hs ↦ ⟨hy hs, hd hs⟩

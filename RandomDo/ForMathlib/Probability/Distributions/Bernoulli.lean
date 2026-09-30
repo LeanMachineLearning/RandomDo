@@ -22,17 +22,11 @@ namespace ProbabilityTheory
 
 variable {X Y : Type*} [MeasurableSpace X] [MeasurableSpace Y]
 
-lemma bernoulliMeasure_bind (x y : X) (p : I) {g : X → Measure Y} (hg : Measurable g) :
-    Ber(x, y, p).bind g = (toNNReal p : ℝ≥0∞) • g x + (toNNReal (σ p) : ℝ≥0∞) • g y := by
-  rw [bernoulliMeasure_def, bind_add hg.aemeasurable, bind_smul, bind_smul, dirac_bind hg,
-    dirac_bind hg]
-  rfl
-
 /-- Binding a Bernoulli distribution on a space whose points are measurable: the continuation needs
 no measurability, and the two weights are real numbers, so that `simp` can use it and `norm_num`
 can compute with the result. -/
 @[simp]
-lemma bernoulliMeasure_bind' [MeasurableSingletonClass X] (x y : X) (p : I) (g : X → Measure Y) :
+lemma bernoulliMeasure_bind [MeasurableSingletonClass X] (x y : X) (p : I) (g : X → Measure Y) :
     Ber(x, y, p).bind g = ENNReal.ofReal p • g x + ENNReal.ofReal (1 - p) • g y := by
   have h (q : I) : ((toNNReal q : NNReal) : ℝ≥0∞) = ENNReal.ofReal q := by
     rw [ENNReal.ofReal, Real.toNNReal_of_nonneg q.2.1]

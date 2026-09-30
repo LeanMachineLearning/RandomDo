@@ -22,8 +22,7 @@ largest one making both `ForInStep.yield` and `ForInStep.done` measurable.
 ## Main results
 * `measurable_yield`, `measurable_run`, `measurable_isDone`: the maps relating `ForInStep β` to `β`
   and to `Bool` are measurable.
-* The points of `ForInStep β` are measurable as soon as those of `β` are, and `ForInStep.yield` is a
-  measurable embedding.
+* The points of `ForInStep β` are measurable as soon as those of `β` are.
 * `measurable_CasesOn`: a case analysis on a `ForInStep`, measurable in each of its two branches, is
   measurable.
 * `IsMarkov.forInStepCasesOn`: the same statement for the Markov property.
@@ -64,17 +63,6 @@ instance [MeasurableSingletonClass β] : MeasurableSingletonClass (ForInStep β)
   measurableSet_singleton t := by
     -- A singleton's preimages under `yield` and `done` are a singleton and the empty set.
     constructor <;> cases t <;> change MeasurableSet (_ ⁻¹' _) <;> simp [Set.preimage]
-
-lemma measurableEmbedding_yield : MeasurableEmbedding (ForInStep.yield : β → ForInStep β) where
-  injective _ _ h := ForInStep.yield.inj h
-  measurable := measurable_yield
-  measurableSet_image' S hS := by
-    refine ⟨?_, ?_⟩
-    · change MeasurableSet (ForInStep.yield ⁻¹' _)
-      rwa [Set.preimage_image_eq _ fun _ _ h ↦ ForInStep.yield.inj h]
-    · change MeasurableSet (ForInStep.done ⁻¹' _)
-      convert MeasurableSet.empty (α := β)
-      ext; simp
 
 instance [Countable β] : Countable (ForInStep β) :=
   Function.Injective.countable (f := fun t : ForInStep β ↦ (t.isDone, t.run)) <| by

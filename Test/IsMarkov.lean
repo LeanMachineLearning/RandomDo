@@ -135,22 +135,17 @@ noncomputable def climbFrom (k : ℕ) : Measure ℕ := rdo
       n := n + 1
   return n
 
-/-- The variant rule of McIver and Morgan (Lemma 2.7.1) on the loop `while n < k + 3 do body`: the
-states where the loop runs are finitely many, so the variant `k + 3 - n` needs no bounds. -/
+/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
+invariant bound `k + 3`, the variant is `k + 4 - n` while the loop runs. -/
 example : IsMarkov climbFrom := by
   is_markov
-  intro k
-  convert Terminates.mcIverMorgan_variantRule_of_finite (G := (· < k + 3)) (Inv := (k ≤ ·))
-    (body := fun n ↦ fairCoin >>=ₘ fun heads ↦ if heads then mPure (n + 1) else mPure n)
-    (fun n ↦ (k : ℤ) + 3 - n) (1 / 2) (by norm_num) (by norm_num)
-    (fun h ↦ absurd ((Set.finite_Ico k (k + 3)).subset fun s hs ↦ ⟨hs.2, hs.1⟩) h)
-    (fun s _ hs ↦ ?_) (fun N s _ _ hN ↦ ?_) le_rfl using 1
-  · funext n
-    by_cases h : n < k + 3 <;> simp [whileStep, h, fairCoin, Measure.map_add, Measure.map_smul,
-      ForInStep.measurable_yield]
-  · norm_num [fairCoin, hs, show k ≤ s + 1 by omega]
-  · subst hN
-    norm_num [fairCoin]
+  refine fun k ↦ .majumdarSathiyanarayana_variantRule (fun t ↦ t.run ≤ k + 3)
+    (fun t ↦ if t.isDone then 0 else (k : ℤ) + 4 - t.run) 0 (k + 5) (1 / 4) (by norm_num)
+    (by simp) (fun n (hn : n ≤ k + 3) ↦ ?_) (fun t ht ↦ by split_ifs <;> omega)
+    (fun _ _ ↦ by simp) (fun n (hn : n ≤ k + 3) ↦ ?_)
+  · rw [ae_iff]
+    by_cases h : n < k + 3 <;> simp [h, hn.not_gt, fairCoin]
+  · by_cases h : n < k + 3 <;> norm_num [h, fairCoin, show (n : ℤ) < k + 4 by omega]
 
 /-- A deterministic countdown, whose counter is bounded only by its initial value. -/
 noncomputable def countdown (k : ℕ) : Measure ℕ := rdo
@@ -159,21 +154,16 @@ noncomputable def countdown (k : ℕ) : Measure ℕ := rdo
     i := i - 1
   return i
 
-/-- The variant rule of McIver and Morgan with a variant that cannot increase (p. 56): the counter
-itself. -/
+/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
+invariant bound `k`, the variant is the counter plus one while the loop runs. -/
 example : IsMarkov countdown := by
   is_markov
-  intro k
-  convert Terminates.mcIverMorgan_variantRule_of_antitone (b := k) (G := fun i : ℕ ↦ 0 < i)
-    (Inv := fun _ ↦ True) (body := fun i ↦ (mPure (i - 1) : Measure ℕ)) (fun i ↦ (i : ℤ)) 0 1
-    one_pos (fun _ _ _ ↦ by positivity) (fun _ _ _ ↦ by simp) (fun N i hi _ hN ↦ ?_)
-    (fun N i hi _ hN ↦ ?_) trivial using 1
-  · funext i
-    by_cases h : 0 < i <;> simp [whileStep, h, ForInStep.measurable_yield]
-  · subst hN
-    simp [hi]
-  · subst hN
-    simp
+  refine fun k ↦ .majumdarSathiyanarayana_variantRule (fun t ↦ t.run ≤ k)
+    (fun t ↦ if t.isDone then 0 else (t.run : ℤ) + 1) 0 (k + 2) (1 / 2) (by norm_num) le_rfl
+    (fun i (hi : i ≤ k) ↦ ?_) (fun t ht ↦ by split_ifs <;> omega) (fun _ _ ↦ by simp)
+    (fun i _ ↦ by by_cases h : 0 < i <;> norm_num [h])
+  rw [ae_iff]
+  by_cases h : 0 < i <;> simp [h, hi.not_gt, show ¬k < i - 1 by omega]
 
 /-- A `while` loop over two mutable variables: the flips until two heads. -/
 noncomputable def untilTwoHeads : Measure ℕ := rdo
@@ -186,21 +176,17 @@ noncomputable def untilTwoHeads : Measure ℕ := rdo
       heads := heads + 1
   return flips
 
-/-- The variant rule of McIver and Morgan (Lemma 7.5.1), with the variant `2 - heads` between `1`
-and `3`. -/
+/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
+invariant bound `2` on the heads, the variant is `3 - heads` while the loop runs. -/
 example : IsProbabilityMeasure untilTwoHeads := by
   is_markov
-  intro _
-  convert Terminates.mcIverMorgan_variantRule (b := (0, 0)) (G := fun p : ℕ × ℕ ↦ p.1 < 2)
-    (Inv := fun _ ↦ True) (body := fun p ↦ fairCoin >>=ₘ fun b ↦
-      if b then mPure (p.1 + 1, p.2 + 1) else mPure (p.1, p.2 + 1))
-    (fun p ↦ 2 - (p.1 : ℤ)) 1 3 (1 / 2) (by norm_num) (fun p hp _ ↦ by omega)
-    (fun _ _ _ ↦ by norm_num [fairCoin]) (fun N p hp _ hN ↦ ?_) trivial using 1
-  · funext p
-    by_cases h : p.1 < 2 <;> simp [whileStep, h, fairCoin, Measure.map_add, Measure.map_smul,
-      ForInStep.measurable_yield]
-  · subst hN
-    norm_num [fairCoin]
+  refine fun _ ↦ .majumdarSathiyanarayana_variantRule (fun t ↦ t.run.1 ≤ 2)
+    (fun t ↦ if t.isDone then 0 else 3 - (t.run.1 : ℤ)) 0 4 (1 / 4) (by norm_num) (by simp)
+    (fun p (hp : p.1 ≤ 2) ↦ ?_) (fun t ht ↦ by split_ifs <;> omega) (fun _ _ ↦ by simp)
+    (fun p (hp : p.1 ≤ 2) ↦ ?_)
+  · rw [ae_iff]
+    by_cases h : p.1 < 2 <;> simp [h, hp.not_gt, fairCoin]
+  · by_cases h : p.1 < 2 <;> norm_num [h, fairCoin, show p.1 < 3 by omega]
 
 /-- The symmetric random walk on the integers, stopped at `0`: it stops almost surely, but after an
 infinite expected number of steps, and no bounded variant proves it. -/
@@ -239,7 +225,7 @@ example : IsMarkov randomWalk := by
     have h2 : (2⁻¹ : ℝ≥0∞) = ENNReal.ofReal 2⁻¹ := by
       rw [ENNReal.ofReal_inv_of_pos two_pos, ENNReal.ofReal_ofNat]
     simp only [ne_eq, hy, not_false_eq_true, ↓reduceIte, fairCoin, one_div, mPure_def, mBind_def,
-      bernoulliMeasure_bind', Nat.ofNat_pos, ENNReal.ofReal_inv_of_pos, ENNReal.ofReal_ofNat,
+      bernoulliMeasure_bind, Nat.ofNat_pos, ENNReal.ofReal_inv_of_pos, ENNReal.ofReal_ofNat,
       Bool.false_eq_true, Nat.cast_natAbs, Int.cast_abs, lintegral_add_measure,
       lintegral_smul_measure, lintegral_dirac, ForInStep.isDone_yield, ForInStep.run_yield,
       Int.cast_add, Int.cast_one, smul_eq_mul, Int.cast_sub]
@@ -261,62 +247,6 @@ example : IsMarkov randomWalk := by
     · have h1 : ¬(y + 1).natAbs < y.natAbs := by omega
       have h2 : (y - 1).natAbs < y.natAbs := by omega
       norm_num [hy, fairCoin, h1, h2]
-
-/-- The new variant rule of McIver, Morgan, Kaminski and Katoen, with the super-martingale `|y|`,
-which decreases by `1` with probability `1 / 2`. -/
-example : IsMarkov randomWalk := by
-  is_markov
-  intro x
-  -- Away from `0`, one of `y + 1` and `y - 1` is one closer to `0`, the other one further.
-  have habs : ∀ y : ℤ, y ≠ 0 →
-      (|(y : ℝ) + 1| = |(y : ℝ)| + 1 ∧ |(y : ℝ) - 1| = |(y : ℝ)| - 1) ∨
-      (|(y : ℝ) + 1| = |(y : ℝ)| - 1 ∧ |(y : ℝ) - 1| = |(y : ℝ)| + 1) := by
-    intro y hy
-    rcases lt_or_gt_of_ne hy with h | h
-    · have : (y : ℝ) ≤ -1 := by exact_mod_cast Int.le_sub_one_of_lt h
-      right
-      rw [abs_of_nonpos (show (y : ℝ) + 1 ≤ 0 by linarith),
-        abs_of_neg (show (y : ℝ) - 1 < 0 by linarith), abs_of_neg (show (y : ℝ) < 0 by linarith)]
-      constructor <;> ring
-    · have : (1 : ℝ) ≤ y := by exact_mod_cast h
-      left
-      rw [abs_of_pos (show (0 : ℝ) < y + 1 by linarith),
-        abs_of_nonneg (show (0 : ℝ) ≤ y - 1 by linarith), abs_of_pos (show (0 : ℝ) < y by linarith)]
-      constructor <;> ring
-  -- `max (a, 0)` is at most the mean of `max (a - 1, 0)` and `max (a + 1, 0)`.
-  have hconv : ∀ a : ℝ, ENNReal.ofReal a ≤
-      ENNReal.ofReal (1 / 2) * ENNReal.ofReal (a - 1) +
-        ENNReal.ofReal (1 / 2) * ENNReal.ofReal (a + 1) := by
-    intro a
-    rcases le_or_gt a 1 with h | h
-    · calc ENNReal.ofReal a ≤ ENNReal.ofReal (1 / 2 * (a + 1)) :=
-            ENNReal.ofReal_le_ofReal (by linarith)
-        _ = ENNReal.ofReal (1 / 2) * ENNReal.ofReal (a + 1) := ENNReal.ofReal_mul (by norm_num)
-        _ ≤ _ := le_add_self
-    · rw [← ENNReal.ofReal_mul (by norm_num), ← ENNReal.ofReal_mul (by norm_num),
-        ← ENNReal.ofReal_add (by nlinarith) (by nlinarith)]
-      exact ENNReal.ofReal_le_ofReal (by linarith)
-  convert Terminates.mcIverMorganKaminskiKatoen (b := x) (G := fun y : ℤ ↦ y ≠ 0)
-    (I := fun _ ↦ True) (body := fun y ↦ fairCoin >>=ₘ fun b ↦
-      if b then mPure (y + 1) else mPure (y - 1))
-    (fun y ↦ |(y : ℝ)|) (fun _ ↦ abs_nonneg _) (fun _ ↦ 1 / 2) (fun _ ↦ 1)
-    (fun _ _ ↦ by norm_num) (fun _ _ ↦ one_pos) antitoneOn_const antitoneOn_const
-    (fun _ _ _ ↦ by norm_num [fairCoin]) (fun y hy _ ↦ by positivity)
-    (fun R _ y hy _ hR ↦ ?_) (fun H _ y hy _ ↦ ?_) trivial using 1
-  · funext y
-    by_cases h : y = 0 <;> simp [whileStep, h, fairCoin, Measure.map_add, Measure.map_smul,
-      ForInStep.measurable_yield]
-  · -- The step towards `0` has probability `1 / 2`.
-    subst hR
-    have : ¬|(y : ℝ)| + 1 ≤ |(y : ℝ)| - 1 := by linarith
-    rcases habs y hy with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> norm_num [fairCoin, h1, h2, this]
-  · -- `H ⊖ |y|` is a submartingale away from `0`.
-    norm_num [fairCoin]
-    rcases habs y hy with ⟨h1, h2⟩ | ⟨h1, h2⟩
-    · rw [h1, h2]
-      simpa [sub_sub, sub_add] using hconv (H - |(y : ℝ)|)
-    · rw [h1, h2, add_comm]
-      simpa [sub_sub, sub_add] using hconv (H - |(y : ℝ)|)
 
 /-! ## Looking through definitions, and the `fuel` argument -/
 
