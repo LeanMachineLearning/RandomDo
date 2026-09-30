@@ -253,30 +253,28 @@ have a mass that tends to `0`. -/
 def Terminates (f : σ → Measure (ForInStep σ)) (b : σ) : Prop :=
   Tendsto (fun n ↦ loopRun f n b Set.univ) atTop (𝓝 0)
 
-/-- The expected number of steps of the loop whose step is `f`, from `b`: the sum over `n` of the
-probability that it is still going after `n` steps. -/
-noncomputable def expectedSteps (f : σ → Measure (ForInStep σ)) (b : σ) : ℝ≥0∞ :=
-  ∑' n, loopRun f n b Set.univ
-
-/-- A `while` loop whose step is a Markov kernel is a probability measure exactly when it stops
-almost surely. -/
-theorem isProbabilityMeasure_loop_iff (f : σ → Measure (ForInStep σ)) [hf : IsMarkov f]
-    (b : σ) : IsProbabilityMeasure (loop f b) ↔ Terminates f b := by
+/-- The runs still going after `n` steps have a mass that tends to the probability that the loop
+never stops: `1` minus the mass of the loop. -/
+lemma tendsto_loopRun_apply_univ (f : σ → Measure (ForInStep σ)) [IsMarkov f] (b : σ) :
+    Tendsto (fun n ↦ loopRun f n b Set.univ) atTop (𝓝 (1 - loop f b Set.univ)) := by
   -- The runs that stop within `n` steps have a mass that tends to the mass of the loop.
   have hExit : Tendsto (fun n ↦ ∑ k ∈ Finset.range n, loopExit f k b Set.univ) atTop
       (𝓝 (loop f b Set.univ)) := by
     change Tendsto _ _ (𝓝 (Measure.sum (fun n ↦ loopExit f n b) Set.univ))
     rw [Measure.sum_apply _ MeasurableSet.univ]
     exact ENNReal.tendsto_nat_tsum _
-  -- So the runs still going after `n` steps have a mass that tends to `1` minus it.
-  have hRun : Tendsto (fun n ↦ loopRun f n b Set.univ) atTop (𝓝 (1 - loop f b Set.univ)) := by
-    have h n : loopRun f n b Set.univ =
-        1 - ∑ k ∈ Finset.range n, loopExit f k b Set.univ := by
-      have hsum := sum_loopExit_add_loopRun f n b
-      refine ENNReal.eq_sub_of_add_eq ?_ ((add_comm _ _).trans hsum)
-      exact ne_top_of_le_ne_top ENNReal.one_ne_top (hsum ▸ le_self_add)
-    simp_rw [h]
-    exact ENNReal.Tendsto.sub tendsto_const_nhds hExit (Or.inl ENNReal.one_ne_top)
+  have h n : loopRun f n b Set.univ = 1 - ∑ k ∈ Finset.range n, loopExit f k b Set.univ := by
+    have hsum := sum_loopExit_add_loopRun f n b
+    refine ENNReal.eq_sub_of_add_eq ?_ ((add_comm _ _).trans hsum)
+    exact ne_top_of_le_ne_top ENNReal.one_ne_top (hsum ▸ le_self_add)
+  simp_rw [h]
+  exact ENNReal.Tendsto.sub tendsto_const_nhds hExit (Or.inl ENNReal.one_ne_top)
+
+/-- A `while` loop whose step is a Markov kernel is a probability measure exactly when it stops
+almost surely. -/
+theorem isProbabilityMeasure_loop_iff (f : σ → Measure (ForInStep σ)) [hf : IsMarkov f]
+    (b : σ) : IsProbabilityMeasure (loop f b) ↔ Terminates f b := by
+  have hRun := tendsto_loopRun_apply_univ f b
   rw [isProbabilityMeasure_iff, Terminates]
   constructor
   · intro h
