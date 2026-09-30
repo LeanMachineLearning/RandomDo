@@ -52,8 +52,7 @@ complex program to the Markov property/measurability of its underlying mathemati
   slot holding the returned value, is Markovian as soon as both of its branches are.
 * `forInLoop`: A `while` loop, whose initial state depends measurably on the parameter and whose
   step is Markovian in the parameter and in the state, is measurable in the parameter. It is
-  Markovian as soon as it stops almost surely, i.e. as soon as its runs still going after `n` steps
-  have a mass that tends to `0`, which is left as a hypothesis.
+  Markovian as soon as it stops almost surely, which is left as a hypothesis.
 -/
 
 @[expose] public section
@@ -403,29 +402,30 @@ lemma breakRunK {o : α → Option γ} (ho : Measurable o)
 
 section While
 
+open MeasurableSpaceMonadWhile
+
 /-- The runs of a `while` loop that stop at the `n + 1`-th step are measurable jointly in the
 parameter and in the starting state, as soon as the step is Markovian in both. -/
 private lemma measurable_loopExit {f : γ → σ → Measure (ForInStep σ)}
     (hf : IsMarkov fun p : γ × σ ↦ f p.1 p.2) (n : ℕ) :
-    Measurable fun p : γ × σ ↦ MeasurableSpaceMonad.loopExit (f p.1) n p.2 := by
+    Measurable fun p : γ × σ ↦ loopExit (f p.1) n p.2 := by
   induction n with
   | zero =>
-    simp only [MeasurableSpaceMonad.loopExit, mBind_def, mPure_def]
+    simp only [loopExit, mBind_def, mPure_def]
     exact measurable_bind hf (ForInStep.measurable_CasesOn (done := fun _ b ↦ Measure.dirac b)
       (yield := fun _ _ ↦ 0) (by fun_prop) measurable_const)
   | succ n ih =>
-    simp only [MeasurableSpaceMonad.loopExit, mBind_def]
+    simp only [loopExit, mBind_def]
     exact measurable_bind hf (ForInStep.measurable_CasesOn (done := fun _ _ ↦ 0)
-      (yield := fun (p : γ × σ) b ↦ MeasurableSpaceMonad.loopExit (f p.1) n b) measurable_const
+      (yield := fun (p : γ × σ) b ↦ loopExit (f p.1) n b) measurable_const
       (ih.comp (measurable_fst.fst.prodMk measurable_snd)))
 
 lemma forInLoop {b : γ → σ} {f : γ → Unit → σ → Measure (ForInStep σ)} (hb : Measurable b)
     (hf : IsMarkov fun p : γ × σ ↦ f p.1 () p.2)
-    (hterm : ∀ c, Filter.Tendsto
-      (fun n ↦ MeasurableSpaceMonad.loopRun (f c ()) n (b c) Set.univ) Filter.atTop (𝓝 0)) :
+    (hterm : ∀ c, Terminates (f c ()) (b c)) :
     IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) Lean.Loop.mk (b c) (f c) := by
   refine ⟨?_, fun c ↦ ?_⟩
-  · change Measurable fun c ↦ Measure.sum fun n ↦ MeasurableSpaceMonad.loopExit (f c ()) n (b c)
+  · change Measurable fun c ↦ Measure.sum fun n ↦ loopExit (f c ()) n (b c)
     refine Measure.measurable_of_measurable_coe _ fun s hs ↦ ?_
     simp_rw [Measure.sum_apply _ hs]
     exact Measurable.tsum fun n ↦ (Measure.measurable_coe hs).comp
@@ -433,7 +433,7 @@ lemma forInLoop {b : γ → σ} {f : γ → Unit → σ → Measure (ForInStep �
   -- For a fixed parameter, the step is a Markov kernel in the state.
   · have : IsMarkov (f c ()) :=
       hf.comp (g := fun s ↦ (c, s)) (measurable_const.prodMk measurable_id)
-    exact (MeasurableSpaceMonadWhile.isProbabilityMeasure_loop_iff (f c ()) (b c)).2 (hterm c)
+    exact (isProbabilityMeasure_loop_iff (f c ()) (b c)).2 (hterm c)
 
 end While
 

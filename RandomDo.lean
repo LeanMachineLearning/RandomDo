@@ -1,5 +1,6 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
+public import RandomDo.ForMathlib.Algebra.Notation.Indicator
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.ForMathlib.MeasureTheory.Measure.GiryMonad
 public import RandomDo.ForMathlib.Probability.Distributions.Bernoulli
@@ -26,3 +27,4 @@ public import RandomDo.Tactic.IsMarkov.Deriving
 public import RandomDo.Tactic.IsMarkov.Elab
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import RandomDo.Tactic.IsMarkov.Lemmas
+public import RandomDo.Tactic.IsMarkov.Termination

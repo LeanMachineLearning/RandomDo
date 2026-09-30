@@ -8,7 +8,7 @@ module
 public import Mathlib.MeasureTheory.Measure.GiryMonad
 
 /-!
-# The bind of a sum of two measures
+# The bind of a sum of two measures, and of a Dirac mass
 
 -/
 
@@ -25,5 +25,15 @@ theorem bind_add {μ ν : Measure α} {f : α → Measure β} (hf : AEMeasurable
   obtain ⟨hμ, hν⟩ := aemeasurable_add_measure_iff.1 hf
   ext s hs
   rw [add_apply, bind_apply hs hf, bind_apply hs hμ, bind_apply hs hν, lintegral_add_measure]
+
+/-- Binding a Dirac mass at a point of a space whose points are measurable: the continuation needs
+no measurability. -/
+@[simp]
+theorem dirac_bind' [MeasurableSingletonClass α] (a : α) (f : α → Measure β) :
+    (dirac a).bind f = f a := by
+  rw [Measure.bind, map_congr (ae_eq_dirac f)]
+  change (map (fun _ ↦ f a) (dirac a)).join = f a
+  rw [map_const]
+  simp
 
 end MeasureTheory.Measure
