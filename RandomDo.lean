@@ -27,4 +27,5 @@ public import RandomDo.Tactic.IsMarkov.Elab
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import RandomDo.Tactic.IsMarkov.Lemmas
 public import RandomDo.Tactic.IsMarkov.While.LoopInvariant
+public import RandomDo.Tactic.IsMarkov.While.Tactic
 public import RandomDo.Tactic.IsMarkov.While.Termination

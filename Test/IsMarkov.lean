@@ -12,7 +12,7 @@ node. There is one test here per construct it recognises.
 -/
 
 open scoped ENNReal
-open MeasureTheory ProbabilityTheory MeasurableSpacePure MeasurableSpaceMonadWhile
+open MeasureTheory ProbabilityTheory MeasurableSpacePure
 
 @[expose] public section
 
@@ -97,8 +97,8 @@ example : IsMarkov overList := by is_markov
 /-! ## `while`, whose termination is handed back
 
 `is_markov` proves that a `while` loop is Markovian up to its termination, which it hands back as a
-goal `Terminates`. Each test closes it with a proof rule of the literature, from
-`RandomDo.Tactic.IsMarkov.While.Termination`. -/
+goal `Terminates`. Each test closes it with `terminates`, which applies a proof rule of the
+literature from `RandomDo.Tactic.IsMarkov.While.Termination`. -/
 
 noncomputable def untilHeads : Measure ℕ := rdo
   let mut n := 0
@@ -109,14 +109,10 @@ noncomputable def untilHeads : Measure ℕ := rdo
       break
   return n
 
-/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: with the
-invariant that always holds, the variant is `1` while the loop runs, `0` once it has stopped. -/
+/-- Immediate escape: every step stops with probability `1 / 2`. -/
 example : IsProbabilityMeasure untilHeads := by
   is_markov
-  refine fun _ ↦ .majumdarSathiyanarayana_variantRule ⊤ (fun t ↦ if t.isDone then 0 else 1) 0 2
-    (1 / 4) (by norm_num) trivial (fun t _ ↦ by split_ifs <;> simp)
-    fun n _ ↦ ?_
-  norm_num [fairCoin]
+  terminates (prob := 1 / 2) [fairCoin]
 
 /-- A `while` loop whose condition reads the parameter. -/
 noncomputable def climbFrom (k : ℕ) : Measure ℕ := rdo
@@ -127,19 +123,13 @@ noncomputable def climbFrom (k : ℕ) : Measure ℕ := rdo
       n := n + 1
   return n
 
-/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
-invariant bound `k + 3`, the variant is `k + 4 - n` while the loop runs. -/
+/-- The variant rule: below the invariant bound `k + 3`, the variant `k + 3 - n` decreases with
+probability `1 / 2`. -/
 example : IsMarkov climbFrom := by
   is_markov
-  refine fun k ↦ .majumdarSathiyanarayana_variantRule
-    { running := (· ≤ k + 3), step := fun n (hn : n ≤ k + 3) ↦ ?_ }
-    (fun t ↦ if t.isDone then 0 else (k : ℤ) + 4 - t.run) 0 (k + 5) (1 / 4) (by norm_num)
-    (Nat.le_add_right k 3) (fun t ht ↦ by cases t <;> simp at ht ⊢ <;> omega)
-    (fun n (hn : n ≤ k + 3) ↦ ?_)
-  · rw [ae_iff]
-    by_cases h : n < k + 3 <;> simp [h, hn.not_gt, fairCoin]
-    omega
-  · by_cases h : n < k + 3 <;> norm_num [h, fairCoin, show (n : ℤ) < k + 4 by omega]
+  intro k
+  terminates (invariant := (· ≤ k + 3)) (variant := (k + 3 - ·)) (bound := k + 3) (prob := 1 / 2)
+    [fairCoin]
 
 /-- A deterministic countdown, whose counter is bounded only by its initial value. -/
 noncomputable def countdown (k : ℕ) : Measure ℕ := rdo
@@ -148,18 +138,11 @@ noncomputable def countdown (k : ℕ) : Measure ℕ := rdo
     i := i - 1
   return i
 
-/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
-invariant bound `k`, the variant is the counter plus one while the loop runs. -/
+/-- The variant rule: below the invariant bound `k`, the counter decreases at every step. -/
 example : IsMarkov countdown := by
   is_markov
-  refine fun k ↦ .majumdarSathiyanarayana_variantRule
-    { running := (· ≤ k), step := fun i (hi : i ≤ k) ↦ ?_ }
-    (fun t ↦ if t.isDone then 0 else (t.run : ℤ) + 1) 0 (k + 2) (1 / 2) (by norm_num) le_rfl
-    (fun t ht ↦ by cases t <;> simp at ht ⊢ <;> omega)
-    (fun i _ ↦ by by_cases h : 0 < i <;> norm_num [h])
-  rw [ae_iff]
-  by_cases h : 0 < i <;> simp [h]
-  omega
+  intro k
+  terminates (invariant := (· ≤ k)) (variant := id) (bound := k) (prob := 1)
 
 /-- A `while` loop over two mutable variables: the flips until two heads. -/
 noncomputable def untilTwoHeads : Measure ℕ := rdo
@@ -172,18 +155,85 @@ noncomputable def untilTwoHeads : Measure ℕ := rdo
       heads := heads + 1
   return flips
 
-/-- The variant rule of McIver and Morgan, as stated by Majumdar and Sathiyanarayana: below the
-invariant bound `2` on the heads, the variant is `3 - heads` while the loop runs. -/
+/-- The variant rule, on the pairs `(heads, flips)`: below the invariant bound `2` on the heads, the
+variant `2 - heads` decreases with probability `1 / 2`. -/
 example : IsProbabilityMeasure untilTwoHeads := by
   is_markov
-  refine fun _ ↦ .majumdarSathiyanarayana_variantRule
-    { running := fun p ↦ p.1 ≤ 2, step := fun p (hp : p.1 ≤ 2) ↦ ?_ }
-    (fun t ↦ if t.isDone then 0 else 3 - (t.run.1 : ℤ)) 0 4 (1 / 4) (by norm_num) (by simp)
-    (fun t ht ↦ by cases t <;> simp at ht ⊢; omega)
-    (fun p (hp : p.1 ≤ 2) ↦ ?_)
-  · rw [ae_iff]
-    by_cases h : p.1 < 2 <;> simp [h, hp.not_gt, fairCoin]
-  · by_cases h : p.1 < 2 <;> norm_num [h, fairCoin, show p.1 < 3 by omega]
+  terminates (invariant := fun p ↦ p.1 ≤ 2) (variant := fun p ↦ 2 - p.1) (bound := 2)
+    (prob := 1 / 2) [fairCoin]
+
+/-- The flips of a coin of bias `p` until heads. -/
+noncomputable def geometric (p : unitInterval) : Measure ℕ := rdo
+  let mut n := 0
+  while true rdo
+    let b ← bernoulliMeasure true false p
+    n := n + 1
+    if b then
+      break
+  return n
+
+/-- Immediate escape, with a symbolic probability. -/
+example (p : unitInterval) (hp : 0 < (p : ℝ)) : IsProbabilityMeasure (geometric p) := by
+  is_markov
+  terminates (prob := p)
+
+/-- The gambler's ruin: a fair random walk stopped at `0` and at `N`. -/
+noncomputable def ruin (N x : ℕ) : Measure ℕ := rdo
+  let mut y := x
+  while 0 < y ∧ y < N rdo
+    let b ← fairCoin
+    if b then
+      y := y + 1
+    else
+      y := y - 1
+  return y
+
+/-- The variant rule, with the distance to the nearest barrier as the variant. -/
+example (N : ℕ) : IsMarkov (ruin N) := by
+  is_markov
+  terminates (variant := fun y ↦ min y (N - y)) (bound := N) (prob := 1 / 2) [fairCoin]
+
+/-- A die by rejection: three flips give a number below `8`, kept if it is below `6`. -/
+noncomputable def die : Measure ℕ := rdo
+  let mut r := 6
+  while 6 ≤ r rdo
+    let a ← fairCoin
+    let b ← fairCoin
+    let c ← fairCoin
+    r := (if a then 4 else 0) + (if b then 2 else 0) + (if c then 1 else 0)
+  return r
+
+/-- The variant rule, with the variant `1` on the rejected numbers: a step keeps the number it draws
+with probability `3 / 4`. -/
+example : IsProbabilityMeasure die := by
+  is_markov
+  terminates (variant := fun r ↦ if 6 ≤ r then 1 else 0) (bound := 1) (prob := 3 / 4) [fairCoin]
+
+/-- A Gaussian random walk, stopped once it leaves `(-1, 1)`. -/
+noncomputable def gaussianWalk (x : ℝ) : Measure ℝ := rdo
+  let mut y := x
+  while |y| < 1 rdo
+    let z ← gaussianReal 0 1
+    y := y + z
+  return y
+
+/-- The variant rule, with the variant `1` inside `(-1, 1)`: a step leaves it with probability at
+least `P(Z ≥ 2)`. The goals left are about the Gaussian distribution only. -/
+example : IsMarkov gaussianWalk := by
+  is_markov
+  intro x
+  terminates (variant := fun y ↦ if |y| < 1 then 1 else 0) (bound := 1)
+    (prob := (gaussianReal 0 1 (Set.Ici 2)).toReal)
+  · -- From `|s| < 1`, a step of at least `2` leaves `(-1, 1)`.
+    rename_i h
+    refine measure_mono fun a (ha : 2 ≤ a) ↦ ?_
+    have := (abs_lt.1 h).1
+    simp [show ¬|s + a| < 1 from fun h' ↦ by linarith [(abs_lt.1 h').2]]
+  · exact ENNReal.toReal_le_of_le_ofReal zero_le_one (by simp [prob_le_one])
+  · refine ENNReal.toReal_pos (fun h ↦ ?_) (measure_ne_top _ _)
+    simpa using gaussianReal_absolutelyContinuous' 0 one_ne_zero h
+  · exact Measurable.ite (measurableSet_lt (by fun_prop) measurable_const) measurable_const
+      measurable_const
 
 /-! ## Looking through definitions, and the `fuel` argument -/
 

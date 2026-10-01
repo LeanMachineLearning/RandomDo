@@ -45,10 +45,6 @@ namespace LoopInvariant
 instance : CoeFun (LoopInvariant f) fun _ ↦ ForInStep σ → Prop where
   coe I t := ForInStep.casesOn t I.stopped I.running
 
-/-- The invariant that always holds. -/
-instance : Top (LoopInvariant f) where
-  top := { running := fun _ ↦ True, step := fun _ _ ↦ .of_forall fun t ↦ by cases t <;> trivial }
-
 end LoopInvariant
 
 end MeasurableSpaceMonadWhile

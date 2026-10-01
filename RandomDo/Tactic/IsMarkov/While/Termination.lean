@@ -22,6 +22,9 @@ hypotheses of its paper.
 * `Terminates.majumdarSathiyanarayana_variantRule`: the variant rule of McIver and Morgan, as
   presented by Majumdar and Sathiyanarayana (POPL 2025, Proof Rule 3.1), derived from the zero-one
   law as McIver and Morgan derive their variant rule (2005, Lemma 2.7.1).
+* `Terminates.mcIverMorgan_immediateEscape`: termination when every step stops with probability at
+  least some fixed `ε > 0`, the stronger condition McIver and Morgan remark after their zero-one law
+  (2005, p. 54).
 
 ## Implementation notes
 
@@ -190,6 +193,27 @@ theorem majumdarSathiyanarayana_variantRule (I : LoopInvariant f) (U : ForInStep
   rw [ENNReal.sub_le_sub_iff_left (pow_le_one₀ bot_le (hε1 s hs)) ENNReal.one_ne_top,
     ← ENNReal.ofReal_pow hε.le] at hlim
   exact (ENNReal.ofReal_le_iff_le_toReal (ne_top_of_le_ne_top ENNReal.one_ne_top hloop)).1 hlim
+
+/-- **Immediate escape** (McIver and Morgan 2005, p. 54: the stronger condition they remark after
+the zero-one law, Lemma 2.6.1).
+
+If, from every non-terminal state of the invariant `I`, one step stops with probability at least
+some fixed `ε > 0`, then the program terminates almost surely from `yield b`. This is the condition
+of a rejection sampling loop, which stops as soon as its sample satisfies a property of probability
+at least `ε`. It is the variant rule with the variant `1` on the non-terminal states and `0` on the
+terminal ones. -/
+theorem mcIverMorgan_immediateEscape (I : LoopInvariant f) (ε : ℝ) (hε : 0 < ε) (hb : I.running b)
+    (hstop : ∀ s, I.running s → ε ≤ (f s {t | t.isDone}).toReal)
+    (hf : IsMarkov f := by is_markov) : Terminates f b := by
+  refine majumdarSathiyanarayana_variantRule I (fun t ↦ if t.isDone then 0 else 1) 0 2 (ε / 2)
+    (half_pos hε) hb (fun t _ ↦ by split_ifs <;> simp) (fun s hs ↦ ?_)
+    (Measurable.ite (ForInStep.measurable_isDone (measurableSet_singleton true))
+      measurable_const measurable_const) hf
+  -- The successors that decrease the variant are the terminal ones.
+  refine (half_lt_self hε).trans_le ((hstop s hs).trans_eq ?_)
+  congr 2
+  ext t
+  cases t <;> simp
 
 end Terminates
 
