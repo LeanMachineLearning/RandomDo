@@ -22,6 +22,7 @@ largest one making both `ForInStep.yield` and `ForInStep.done` measurable.
 ## Main results
 * `measurable_yield`, `measurable_run`, `measurable_isDone`: the maps relating `ForInStep β` to `β`
   and to `Bool` are measurable.
+* The points of `ForInStep β` are measurable as soon as those of `β` are.
 * `measurable_CasesOn`: a case analysis on a `ForInStep`, measurable in each of its two branches, is
   measurable.
 * `IsMarkov.forInStepCasesOn`: the same statement for the Markov property.
@@ -56,6 +57,16 @@ lemma measurable_yield : Measurable (ForInStep.yield : β → ForInStep β) := f
 
 @[fun_prop]
 lemma measurable_run : Measurable (ForInStep.run : ForInStep β → β) := fun _ hs => ⟨hs, hs⟩
+
+/-- The points of `ForInStep β` are measurable as soon as those of `β` are. -/
+instance [MeasurableSingletonClass β] : MeasurableSingletonClass (ForInStep β) where
+  measurableSet_singleton t := by
+    -- A singleton's preimages under `yield` and `done` are a singleton and the empty set.
+    constructor <;> cases t <;> change MeasurableSet (_ ⁻¹' _) <;> simp [Set.preimage]
+
+instance [Countable β] : Countable (ForInStep β) :=
+  Function.Injective.countable (f := fun t : ForInStep β ↦ (t.isDone, t.run)) <| by
+    rintro (_ | _) (_ | _) h <;> simp_all
 
 @[fun_prop]
 lemma measurable_isDone : Measurable (ForInStep.isDone : ForInStep β → Bool) := by
