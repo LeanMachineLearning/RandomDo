@@ -24,6 +24,9 @@ name = "RandomDo"
 [[lean_lib]]
 name = "Test"
 
+[[lean_lib]]
+name = "Examples"
+
 # Used to run the tests in `scripts`
 [[lean_exe]]
 name = "dump"

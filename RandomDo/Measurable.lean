@@ -123,6 +123,19 @@ instance instMeasurableSpaceOption : MeasurableSpace (Option α) :=
 theorem measurableSet_option_iff {s : Set (Option α)} :
     MeasurableSet s ↔ MeasurableSet (some ⁻¹' s) := Iff.rfl
 
+instance [MeasurableSingletonClass α] : MeasurableSingletonClass (Option α) where
+  measurableSet_singleton x := by
+    rw [measurableSet_option_iff]
+    cases x with
+    | none =>
+      convert MeasurableSet.empty (α := α) using 1
+      ext a
+      simp
+    | some a =>
+      convert measurableSet_singleton a using 1
+      ext b
+      simp
+
 theorem measurable_option_iff {Y : Type*} [MeasurableSpace Y] {f : Option α → Y} :
     Measurable f ↔ Measurable (f ∘ some) := Iff.rfl
 

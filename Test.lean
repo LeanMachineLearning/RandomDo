@@ -12,3 +12,5 @@ public import Test.MetropolisTests
 public import Test.MonadLaws
 public import Test.Polymorphic
 public import Test.Sample
+public import Test.VCGen
+public import Test.VonNeumann

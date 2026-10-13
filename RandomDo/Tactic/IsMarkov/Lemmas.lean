@@ -213,6 +213,8 @@ lemma forInVector {n : ℕ} {as : Vector ι n} {b : γ → σ} {f : γ → ι �
 
 section Unroll
 
+variable {ι : Type*}
+
 /-- The denotation of a `for` loop over a list, as a plain structural recursion. -/
 private noncomputable def listLoop (g : ι → σ → Measure (ForInStep σ)) :
     List ι → σ → Measure σ
@@ -261,6 +263,8 @@ lemma forIn_cons (a : ι) (l : List ι) (b : σ) (g : ι → σ → Measure (For
   cases step with
   | done b' => rfl
   | yield b' => exact (forIn_eq_listLoop l b' g).symm
+
+variable {ι : Type v}
 
 /-- The array loop counts an index down from `as.size`, so at step `i` it is traversing the last
 `i` elements of the underlying list. -/

@@ -227,6 +227,10 @@ variable {α : Type u} [mα : MeasurableSpace α] (m : (α : Type u) → [Measur
 instance instMeasurableSpace {β : Type u} [mβ : MeasurableSpace β] :
     MeasurableSpace (ForInStep β) := mβ.map ForInStep.yield ⊓ mβ.map ForInStep.done
 
+instance {β : Type u} [MeasurableSpace β] [DiscreteMeasurableSpace β] :
+    DiscreteMeasurableSpace (ForInStep β) where
+  forall_measurableSet _ := ⟨MeasurableSet.of_discrete, MeasurableSet.of_discrete⟩
+
 /--
 Monadic iteration in `rdo`-blocks, using the `for x in xs` notation.
 -/
