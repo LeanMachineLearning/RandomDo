@@ -10,9 +10,9 @@ set_option linter.style.header false
 # Polymorphic `rdo` programs
 
 The programs of `Test.Computable`, written once over an arbitrary `MeasurableSpaceMonad` `m` and
-drawing through `HasGaussian` and `HasBernoulli`. Read at `m := Measure`, each one is a probability
-measure, checked by `is_markov`, and is the program of `Test.IsMarkov` when there is one. Run at
-`m := RandM`, it samples.
+drawing through `HasGaussian`, `HasUniform` and `HasBernoulli`. Read at `m := Measure`, each one is
+a probability measure, checked by `is_markov`, and is the program of `Test.IsMarkov` when there is
+one. Run at `m := RandM`, it samples.
 -/
 
 @[expose] public section
@@ -74,6 +74,41 @@ run_cmd logPolymorphic (branchOn (m := RandM) (R := Float) (V := Float) 20)
 
 run_cmd logPolymorphic (branchOn (m := RandM) (R := Float) (V := Float) (-1))
 
+def uniformDraw [HasUniform m R] (low high : R) : m R := rdo
+  let x ← HasUniform.uniform (m := m) low high
+  return x
+
+example (low high : ℝ) [Fact (low ≤ high)] :
+    IsProbabilityMeasure (uniformDraw (m := Measure) low high) := by is_markov
+
+example : IsProbabilityMeasure (uniformDraw (m := Measure) (0 : ℝ) 1) := by is_markov
+
+-- A proper subinterval has its relative length as probability, even on a non-unit interval.
+example : (HasUniform.uniform (m := Measure) (2 : ℝ) 6 (Set.Ico 2 4)).toReal = 1 / 2 := by
+  norm_num [HasUniform.uniform, cond_apply measurableSet_Ico, Set.Ico_inter_Ico, Real.volume_Ico]
+
+-- Equal bounds give a point mass, not the zero measure of an empty half-open interval.
+example (x : ℝ) : HasUniform.uniform (m := Measure) x x = Measure.dirac x := by
+  simp [HasUniform.uniform]
+
+example (low high : ℝ) (h : high < low) :
+    HasUniform.uniform (m := Measure) low high = 0 := by
+  simp [HasUniform.uniform, ne_of_gt h, Set.Ico_eq_empty_of_le h.le]
+
+run_cmd do
+  let x ← (IO.runRandPCGWith 42 (uniformDraw (m := RandM) (-2 : Float) 3) : IO Float)
+  unless (-2 : Float) ≤ x ∧ x < 3 do
+    throwError "uniform sample outside its bounds: {x}"
+  let x ← (IO.runRandPCGWith 42 (uniformDraw (m := RandM) (7 : Float) 7) : IO Float)
+  unless x == 7 do
+    throwError "uniform sample with equal bounds: expected 7, got {x}"
+
+/--
+error: low > high
+-/
+#guard_msgs in
+run_cmd logPolymorphic (uniformDraw (m := RandM) (2 : Float) 1)
+
 def coin [HasBernoulli m R] (p : R) : m Bool := rdo
   let b ← HasBernoulli.bernoulli (m := m) p
   return b
@@ -82,17 +117,48 @@ example : IsProbabilityMeasure (coin (m := Measure) (1 / 2 : ℝ)) := by is_mark
 
 run_cmd logPolymorphic (coin (m := RandM) (0.5 : Float))
 
+example : HasBernoulli.bernoulli (m := Measure) (-1 : ℝ) = Measure.dirac false := by
+  norm_num [HasBernoulli.bernoulli, Set.projIcc]
+
+example : HasBernoulli.bernoulli (m := Measure) (2 : ℝ) = Measure.dirac true := by
+  norm_num [HasBernoulli.bernoulli, Set.projIcc]
+
+-- The polymorphic sampler clamps to the endpoints, including infinite inputs.
+run_cmd do
+  for (p, expected) in ([(-1, false), (0, false), (1, true), (2, true),
+      (-(1 / 0), false), (1 / 0, true)] : List (Float × Bool)) do
+    let actual ← (IO.runRandPCGWith 42 (coin (m := RandM) p) : IO Bool)
+    unless actual == expected do
+      throwError "clamped Bernoulli with p = {p}: expected {expected}, got {actual}"
+
+-- Valid probabilities preserve the NumLean sampler's seeded sequence.
+run_cmd do
+  for p in ([0, 0.2, 0.5, 0.8, 1] : List Float) do
+    let actual ← (IO.runRandPCGWith 42
+      ((List.range 20).mapM fun _ => coin (m := RandM) p) : IO (List Bool))
+    let expected ← (IO.runRandPCGWith 42
+      ((List.range 20).mapM fun _ => NumLean.bernoulli p) : IO (List Nat))
+    unless actual == expected.map (· == 1) do
+      throwError "Bernoulli sequence changed for p = {p}"
+
+/--
+error: expected 0 ≤ p ≤ 1, got NaN
+-/
+#guard_msgs in
+run_cmd logPolymorphic (coin (m := RandM) (0 / 0 : Float))
+
+-- The underlying NumLean sampler retains NumPy's strict validation.
 /--
 error: expected 0 ≤ p ≤ 1, got 2.000000
 -/
 #guard_msgs in
-run_cmd logPolymorphic (coin (m := RandM) (2 : Float))
+run_cmd logPolymorphic (NumLean.bernoulli 2)
 
 /--
 error: expected 0 ≤ p ≤ 1, got -1.000000
 -/
 #guard_msgs in
-run_cmd logPolymorphic (coin (m := RandM) (-1 : Float))
+run_cmd logPolymorphic (NumLean.bernoulli (-1))
 
 def twoCoins [HasBernoulli m R] (p : R) : m Bool := rdo
   let x ← coin (m := m) p

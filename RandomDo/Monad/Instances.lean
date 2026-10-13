@@ -54,7 +54,7 @@ section RandomM
 
 open Function
 
-/-- A monad for random number generation. -/
+/-- A monad for "true" random number generation. -/
 structure RandomM (Ω : Type w) [MeasurableSpace Ω] (P : Measure Ω)
     (α : Type u) [MeasurableSpace α] where
   /-- Draws a value from a state of the source of randomness, and hands back the state left for the

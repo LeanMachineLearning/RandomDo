@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Probability.Distributions.Gaussian.Real
 public import Mathlib.Probability.Distributions.Bernoulli
+public import Mathlib.Probability.ConditionalProbability
 public import Mathlib.MeasureTheory.Function.SpecialFunctions.Basic
 public import RandomDo.Monad.Instances
 public import RandomDo.NumLean.Distributions
@@ -44,6 +45,39 @@ instance instMeasurableSpaceFloat : MeasurableSpace Float := ⊤
 instance : HasGaussian RandM Float Float Float where
   gaussian μ v := normal' μ v
 
+/-- A typeclass for monads that can draw from a uniform distribution on a real interval. -/
+class HasUniform (m : (α : Type) → [MeasurableSpace α] → Type v)
+    (R : Type) [MeasurableSpace R] where
+  /-- Draw uniformly between `low` and `high`. For `low < high`, the interval is `[low, high)`;
+  equal bounds return that value. The bounds must satisfy `low ≤ high`. -/
+  uniform : R → R → m R
+
+/-- Normalized Lebesgue measure on `[low, high)`, or a point mass when the bounds coincide.
+Reversed bounds give the zero measure. -/
+noncomputable instance : HasUniform Measure ℝ where
+  uniform low high := if low = high then Measure.dirac low else cond volume (Set.Ico low high)
+
+/-- Sample using `NumLean.uniform`, which raises an error for reversed bounds. -/
+instance : HasUniform RandM Float where
+  uniform low high := NumLean.uniform low high
+
+/-- A uniform distribution with ordered bounds is a probability measure, including equal bounds. -/
+lemma HasUniform.isProbabilityMeasure_uniform_real {low high : ℝ} (h : low ≤ high) :
+    IsProbabilityMeasure (HasUniform.uniform (m := Measure) low high) := by
+  by_cases heq : low = high
+  · simp only [HasUniform.uniform, heq, ite_true]
+    infer_instance
+  · simp only [HasUniform.uniform, heq, ite_false]
+    apply cond_isProbabilityMeasure_of_finite
+    · simpa only [Real.volume_Ico, ne_eq, ENNReal.ofReal_eq_zero, not_le] using
+        sub_pos.mpr (lt_of_le_of_ne h heq)
+    · rw [Real.volume_Ico]
+      exact ENNReal.ofReal_ne_top
+
+instance (low high : ℝ) [Fact (low ≤ high)] :
+    IsProbabilityMeasure (HasUniform.uniform (m := Measure) low high) :=
+  HasUniform.isProbabilityMeasure_uniform_real Fact.out
+
 /-- A typeclass for monads that can draw from a Bernoulli distribution. -/
 class HasBernoulli (m : (α : Type) → [MeasurableSpace α] → Type v) (P : Type) where
   /-- Draw `true` with probability `p`, and `false` otherwise. -/
@@ -53,9 +87,12 @@ class HasBernoulli (m : (α : Type) → [MeasurableSpace α] → Type v) (P : Ty
 noncomputable instance : HasBernoulli Measure ℝ where
   bernoulli p := bernoulliMeasure true false (Set.projIcc 0 1 zero_le_one p)
 
-/-- A probability outside `[0, 1]` is clamped to it, as in the instance on `Measure`. -/
+/-- A probability outside `[0, 1]` is clamped to it, as in the instance on `Measure`.
+`NaN` raises an error. -/
 instance : HasBernoulli RandM Float where
-  bernoulli p := return (← NumLean.bernoulli p) == 1
+  bernoulli p := do
+    let p := if p < 0.0 then 0.0 else if 1.0 < p then 1.0 else p
+    return (← NumLean.bernoulli p) == 1
 
 /-- A typeclass for scalars with an exponential. -/
 class HasExp (R : Type) where
