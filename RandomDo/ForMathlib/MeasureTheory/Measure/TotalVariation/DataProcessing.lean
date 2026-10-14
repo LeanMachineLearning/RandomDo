@@ -48,7 +48,8 @@ lemma etvDist_comp_le (κ : Kernel 𝓧 𝓨) [IsMarkovKernel κ] (μ ν : Measu
       (κ ∘ₘ (μ.restrict s + ν.restrict sᶜ) + κ ∘ₘ (ν.restrict s - μ.restrict s)) := by
     rw [← Measure.comp_add, ← Measure.comp_add, ← hμ, ← hν]
   _ ≤ (κ ∘ₘ (μ.restrict sᶜ - ν.restrict sᶜ)) Set.univ
-      + (κ ∘ₘ (ν.restrict s - μ.restrict s)) Set.univ := etvDist_add_left_le _ _ _
+      + (κ ∘ₘ (ν.restrict s - μ.restrict s)) Set.univ :=
+    (etvDist_add_left _ _ _).trans_le etvDist_le_add
   _ = ν s - μ s + (μ sᶜ - ν sᶜ) := by
     rw [Measure.comp_apply_univ, Measure.comp_apply_univ,
       Measure.sub_apply .univ hs.ge_on_compl, Measure.sub_apply .univ hs.le_on, add_comm]

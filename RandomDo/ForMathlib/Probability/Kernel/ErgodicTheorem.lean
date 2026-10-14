@@ -228,7 +228,8 @@ lemma etvDist_pow_comp_le [IsMarkovKernel κ] [IsProbabilityMeasure π] (hπ : �
   obtain ⟨g, a', b', hg, hag, hbg, ha', hb', hab, h_le⟩ :=
     exists_split_pow_comp hπ hB hsmall hK ha i
   rw [hag, hbg]
-  calc etvDist (g + a') (g + b') ≤ a' Set.univ + b' Set.univ := etvDist_add_left_le g a' b'
+  calc etvDist (g + a') (g + b') ≤ a' Set.univ + b' Set.univ :=
+    (etvDist_add_left g a' b').trans_le etvDist_le_add
   _ = 2 * a' Set.univ := by rw [← hab, two_mul]
   _ ≤ 2 * (K * π Bᶜ + (1 - ν Set.univ) ^ i * a Set.univ) := by gcongr
 

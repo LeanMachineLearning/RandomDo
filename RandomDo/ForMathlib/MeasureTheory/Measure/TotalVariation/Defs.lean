@@ -8,11 +8,12 @@ module
 public import Mathlib.MeasureTheory.Measure.TotalVariation.Defs
 
 /-!
-# Total variation distance of measures with a common part
+# Translation invariance of the total variation distance
 
 ## Main statements
 
-* `etvDist_add_left_le`: `etvDist (ξ + μ) (ξ + ν) ≤ μ univ + ν univ`.
+* `etvDist_add_left`, `etvDist_add_right`: `etvDist (ξ + μ) (ξ + ν) = etvDist μ ν` for a finite
+  measure `ξ`.
 -/
 
 @[expose] public section
@@ -23,15 +24,25 @@ namespace MeasureTheory
 
 variable {𝓧 : Type*} {m𝓧 : MeasurableSpace 𝓧}
 
-/-- If two measures have a common part `ξ`, their total variation distance is at most the sum of
-the masses of the remaining parts. -/
-lemma etvDist_add_left_le (ξ μ ν : Measure 𝓧) [IsFiniteMeasure ξ] :
-    etvDist (ξ + μ) (ξ + ν) ≤ μ Set.univ + ν Set.univ := by
-  calc etvDist (ξ + μ) (ξ + ν)
-  _ ≤ etvDist (ξ + μ) ξ + etvDist ξ (ξ + ν) := etvDist_triangle _ _ _
-  _ = μ Set.univ + ν Set.univ := by
-    rw [etvDist_of_ge (Measure.le_add_right le_rfl), etvDist_of_le (Measure.le_add_right le_rfl),
-      Measure.add_apply, Measure.add_apply, ENNReal.add_sub_cancel_left (measure_ne_top _ _),
-      ENNReal.add_sub_cancel_left (measure_ne_top _ _)]
+/-- The total variation distance is invariant by translation: adding a common finite part `ξ`
+to two measures does not change their distance. -/
+lemma etvDist_add_left (ξ μ ν : Measure 𝓧) [IsFiniteMeasure ξ] :
+    etvDist (ξ + μ) (ξ + ν) = etvDist μ ν := by
+  by_cases h : IsFiniteMeasure μ ∧ IsFiniteMeasure ν
+  · obtain ⟨_, _⟩ := h
+    rw [etvDist_eq_etvDist_toSignedMeasure, etvDist_eq_etvDist_toSignedMeasure,
+      Measure.toSignedMeasure_add, Measure.toSignedMeasure_add, VectorMeasure.etvDist,
+      VectorMeasure.etvDist, add_sub_add_left_eq_sub]
+  · have h' : ¬ (IsFiniteMeasure (ξ + μ) ∧ IsFiniteMeasure (ξ + ν)) := by
+      rintro ⟨hμ, hν⟩
+      exact h ⟨isFiniteMeasure_of_le (ξ + μ) (Measure.le_add_left le_rfl),
+        isFiniteMeasure_of_le (ξ + ν) (Measure.le_add_left le_rfl)⟩
+    rw [etvDist_of_not_isFiniteMeasure h', etvDist_of_not_isFiniteMeasure h]
+
+/-- The total variation distance is invariant by translation: adding a common finite part `ξ`
+to two measures does not change their distance. -/
+lemma etvDist_add_right (μ ν ξ : Measure 𝓧) [IsFiniteMeasure ξ] :
+    etvDist (μ + ξ) (ν + ξ) = etvDist μ ν := by
+  rw [add_comm μ, add_comm ν, etvDist_add_left]
 
 end MeasureTheory
