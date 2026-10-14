@@ -1,5 +1,6 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
+public import RandomDo.DifferentialPrivacy
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.Measurable
 public import RandomDo.Monad.ForInInstances
