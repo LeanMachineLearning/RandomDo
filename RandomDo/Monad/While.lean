@@ -39,7 +39,8 @@ universe u v
 open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
 
 /-- A measurable space monad with an unbounded loop, the one behind `while … rdo`. -/
-class MeasurableSpaceMonadWhile (m : (α : Type u) → [MeasurableSpace α] → Type v) where
+class MeasurableSpaceMonadWhile (m : (α : Type u) → [MeasurableSpace α] → Type v)
+    extends MeasurableSpaceMonad m where
   /-- Run the step `f` from `b`, then from each state it carries on with, until it stops. -/
   loop {β : Type u} [MeasurableSpace β] (f : β → m (ForInStep β)) (b : β) : m β
 
