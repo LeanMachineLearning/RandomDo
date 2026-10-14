@@ -6,7 +6,7 @@ Authors: Gaëtan Serré
 module
 
 public import RandomDo.Monad.ForInInstances
-public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
+public import LeanMachineLearning.ForMathlib.MeasureTheory.MeasurableSpace.Sigma
 public import Mathlib.MeasureTheory.MeasurableSpace.Prod
 public import Mathlib.Data.List.OfFn
 
@@ -44,7 +44,7 @@ def List.measurableEquivSigmaTuple : List α ≃ᵐ Σ n, Fin n → α where
 
 lemma measurableEmbedding_ofFn (n : ℕ) :
     MeasurableEmbedding (List.ofFn : (Fin n → α) → List α) :=
-  List.measurableEquivSigmaTuple.symm.measurableEmbedding.comp (measurableEmbedding_sigmaMk n)
+  List.measurableEquivSigmaTuple.symm.measurableEmbedding.comp (measurableEmbedding_sigma_mk n)
 
 @[fun_prop]
 lemma measurable_ofFn (n : ℕ) : Measurable (List.ofFn : (Fin n → α) → List α) :=

@@ -1,6 +1,22 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
-public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
+public import RandomDo.ForMathlib.MeasureTheory.Integral.Lebesgue.Markov
+public import RandomDo.ForMathlib.MeasureTheory.Measure.Basic
+public import RandomDo.ForMathlib.MeasureTheory.Measure.Decomposition.Exhaustion
+public import RandomDo.ForMathlib.MeasureTheory.Measure.Prod
+public import RandomDo.ForMathlib.MeasureTheory.Measure.SeparableMeasure
+public import RandomDo.ForMathlib.MeasureTheory.Measure.TotalVariation.DataProcessing
+public import RandomDo.ForMathlib.MeasureTheory.Measure.TotalVariation.Defs
+public import RandomDo.ForMathlib.NumberTheory.FrobeniusNumber
+public import RandomDo.ForMathlib.Probability.Kernel.Aperiodic
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
+public import RandomDo.ForMathlib.Probability.Kernel.ErgodicTheorem
+public import RandomDo.ForMathlib.Probability.Kernel.HarrisRecurrent
+public import RandomDo.ForMathlib.Probability.Kernel.Invariance
+public import RandomDo.ForMathlib.Probability.Kernel.Irreducible
+public import RandomDo.ForMathlib.Probability.Kernel.Pow
+public import RandomDo.ForMathlib.Probability.Kernel.SmallSet.Basic
+public import RandomDo.ForMathlib.Probability.Kernel.SmallSet.Exists
 public import RandomDo.Measurable
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
