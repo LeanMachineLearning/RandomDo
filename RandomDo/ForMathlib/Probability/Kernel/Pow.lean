@@ -15,6 +15,10 @@ composition.
 
 ## Main statements
 
+* `Kernel.one_eq_id`, `Kernel.mul_eq_comp`: the unit of the monoid is `Kernel.id` and its
+  multiplication is the composition `∘ₖ`.
+* Instances: `κ ^ n` is a Markov kernel (resp. a zero or Markov kernel, a finite kernel,
+  an s-finite kernel) if `κ` is.
 * `Kernel.pow_add_apply`: `(κ ^ (m + n)) a = (κ ^ m) ∘ₘ (κ ^ n) a`.
 * `Kernel.pow_add_comp`: `(κ ^ (m + n)) ∘ₘ μ = (κ ^ m) ∘ₘ ((κ ^ n) ∘ₘ μ)`.
 * `Kernel.pow_succ_apply_pos_iff`: a point reaches a set with positive probability in `n + 1`
@@ -32,23 +36,32 @@ namespace ProbabilityTheory.Kernel
 
 variable {α : Type*} {mα : MeasurableSpace α} {κ : Kernel α α} {μ : Measure α}
 
+@[simp] lemma one_eq_id : (1 : Kernel α α) = Kernel.id := rfl
+
+@[simp] lemma mul_eq_comp (η κ : Kernel α α) : η * κ = η ∘ₖ κ := rfl
+
 instance [IsMarkovKernel κ] (n : ℕ) : IsMarkovKernel (κ ^ n) := by
   induction n with
-  | zero => rw [pow_zero]; exact inferInstanceAs (IsMarkovKernel Kernel.id)
-  | succ n ih => rw [pow_succ]; exact inferInstanceAs (IsMarkovKernel ((κ ^ n) ∘ₖ κ))
+  | zero => rw [pow_zero, one_eq_id]; infer_instance
+  | succ n ih => rw [pow_succ, mul_eq_comp]; infer_instance
+
+instance [IsZeroOrMarkovKernel κ] (n : ℕ) : IsZeroOrMarkovKernel (κ ^ n) := by
+  induction n with
+  | zero => rw [pow_zero, one_eq_id]; infer_instance
+  | succ n ih => rw [pow_succ, mul_eq_comp]; infer_instance
 
 instance [IsFiniteKernel κ] (n : ℕ) : IsFiniteKernel (κ ^ n) := by
   induction n with
-  | zero => rw [pow_zero]; exact inferInstanceAs (IsFiniteKernel Kernel.id)
-  | succ n ih => rw [pow_succ]; exact inferInstanceAs (IsFiniteKernel ((κ ^ n) ∘ₖ κ))
+  | zero => rw [pow_zero, one_eq_id]; infer_instance
+  | succ n ih => rw [pow_succ, mul_eq_comp]; infer_instance
 
 instance [IsSFiniteKernel κ] (n : ℕ) : IsSFiniteKernel (κ ^ n) := by
   induction n with
-  | zero => rw [pow_zero]; exact inferInstanceAs (IsSFiniteKernel Kernel.id)
-  | succ n ih => rw [pow_succ]; exact inferInstanceAs (IsSFiniteKernel ((κ ^ n) ∘ₖ κ))
+  | zero => rw [pow_zero, one_eq_id]; infer_instance
+  | succ n ih => rw [pow_succ, mul_eq_comp]; infer_instance
 
 lemma pow_zero_apply (κ : Kernel α α) (a : α) : (κ ^ 0) a = Measure.dirac a := by
-  rw [pow_zero]; exact Kernel.id_apply a
+  rw [pow_zero, one_eq_id, id_apply]
 
 lemma pow_add_apply (κ : Kernel α α) (m n : ℕ) (a : α) :
     (κ ^ (m + n)) a = (κ ^ m) ∘ₘ (κ ^ n) a := by
@@ -73,7 +86,7 @@ lemma pow_succ_comp' (κ : Kernel α α) (n : ℕ) (μ : Measure α) :
   rw [add_comm, pow_add_comp, pow_one]
 
 lemma pow_zero_comp (κ : Kernel α α) (μ : Measure α) : (κ ^ 0 : Kernel α α) ∘ₘ μ = μ := by
-  rw [pow_zero]; exact Measure.id_comp
+  simp
 
 /-- A point `y` reaches the measurable set `C` with positive probability in `n + 1` steps iff
 its first step goes with positive probability to the set of points which reach `C` with positive

@@ -14,6 +14,7 @@ public import RandomDo.ForMathlib.Probability.Kernel.Pow
 ## Main statements
 
 * `Kernel.Invariant.pow`: a measure invariant for `κ` is invariant for `κ ^ n`.
+* `Kernel.Invariant.smul`: a multiple of an invariant measure is invariant.
 * `Kernel.Invariant.ae_ae_pow`: if a property holds `μ`-almost everywhere for a measure `μ`
   invariant for `κ`, then for `μ`-almost every `a` it holds `(κ ^ n) a`-almost everywhere for
   all `n`.
@@ -35,13 +36,10 @@ variable {α : Type*} {mα : MeasurableSpace α} {κ : Kernel α α} {μ π : Me
 lemma Invariant.pow (h : κ.Invariant μ) (n : ℕ) : (κ ^ n).Invariant μ := by
   induction n with
   | zero => exact pow_zero_comp κ μ
-  | succ n ih => rw [Invariant, pow_succ_comp, h.def, ih.def]
+  | succ n ih => rw [pow_succ, mul_eq_comp]; exact ih.comp h
 
-lemma Invariant.pow_comp_eq (h : κ.Invariant μ) (n : ℕ) : (κ ^ n) ∘ₘ μ = μ := h.pow n
-
-lemma Invariant.pow_comp_smul (h : κ.Invariant μ) (n : ℕ) (c : ℝ≥0∞) :
-    (κ ^ n) ∘ₘ (c • μ) = c • μ := by
-  rw [Measure.comp_smul, h.pow_comp_eq]
+lemma Invariant.smul (h : κ.Invariant μ) (c : ℝ≥0∞) : κ.Invariant (c • μ) := by
+  rw [Invariant, Measure.comp_smul, h.def]
 
 /-- If `μ` is invariant for `κ` and a property holds `μ`-almost everywhere, then for `μ`-almost
 every `a` it holds `(κ ^ n) a`-almost everywhere for all `n`. -/
@@ -49,7 +47,7 @@ lemma Invariant.ae_ae_pow (h : κ.Invariant μ) {p : α → Prop} (hp : ∀ᵐ a
     ∀ᵐ a ∂μ, ∀ n, ∀ᵐ b ∂(κ ^ n) a, p b := by
   rw [ae_all_iff]
   intro n
-  rw [← h.pow_comp_eq n] at hp
+  rw [← (h.pow n).def] at hp
   exact Measure.ae_ae_of_ae_comp hp
 
 /-! ### Absorbing sets -/

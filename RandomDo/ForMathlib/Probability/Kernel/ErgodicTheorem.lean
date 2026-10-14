@@ -191,14 +191,14 @@ private lemma exists_split_pow_comp [IsMarkovKernel κ] [IsProbabilityMeasure π
       ?_, ?_, ?_, ?_, ?_, ?_⟩
     · rw [Nat.mul_succ, add_comm, pow_add_comp, hag, Measure.comp_add, add_assoc,
         add_comm (c • ν), Measure.sub_add_cancel_of_le hca]
-    · calc a Set.univ • π = (κ ^ j) ∘ₘ (a Set.univ • π) := (hπ.pow_comp_smul j _).symm
+    · calc a Set.univ • π = (κ ^ j) ∘ₘ (a Set.univ • π) := ((hπ.smul _).pow j).def.symm
       _ = (κ ^ j) ∘ₘ g + c • ν + ((κ ^ j) ∘ₘ b' - c • ν) := by
         rw [hbg, Measure.comp_add, add_assoc, add_comm (c • ν),
           Measure.sub_add_cancel_of_le hcb]
     · exact Measure.sub_le.trans
-        ((Measure.comp_le_comp_right ha' _).trans_eq (hπ.pow_comp_smul j K))
+        ((Measure.comp_le_comp_right ha' _).trans_eq ((hπ.smul K).pow j).def)
     · exact Measure.sub_le.trans
-        ((Measure.comp_le_comp_right hb' _).trans_eq (hπ.pow_comp_smul j K))
+        ((Measure.comp_le_comp_right hb' _).trans_eq ((hπ.smul K).pow j).def)
     · rw [Measure.sub_apply .univ hca, Measure.sub_apply .univ hcb, Measure.comp_apply_univ,
         Measure.comp_apply_univ, hab]
     · rw [Measure.sub_apply .univ hca, Measure.comp_apply_univ, Measure.smul_apply, smul_eq_mul,
@@ -374,7 +374,7 @@ private lemma excess_add_apply_univ_le (hπ : κ.Invariant π) (m i : ℕ) (x : 
   rw [← Measure.bind_apply .univ (excess κ π m).aemeasurable]
   refine excess_apply_univ_le_of_le ?_
   set η : Kernel α α := κ ^ m
-  have h_inv : η ∘ₘ ((i : ℝ≥0) • π) = (i : ℝ≥0) • π := hπ.pow_comp_smul m (i : ℝ≥0)
+  have h_inv : η ∘ₘ ((i : ℝ≥0) • π) = (i : ℝ≥0) • π := ((hπ.smul (i : ℝ≥0)).pow m).def
   have h_le_one : excess κ π i x Set.univ • ((m : ℝ≥0) • π) ≤ (m : ℝ≥0) • π := by
     refine Measure.le_iff.mpr fun s _ ↦ ?_
     rw [Measure.smul_apply, smul_eq_mul]
@@ -440,7 +440,7 @@ private lemma excessMass_lt_one (hπ : κ.Invariant π) {c : ℝ≥0} (hνc : ν
     rw [Measure.coe_nnreal_smul_apply, Measure.coe_nnreal_smul_apply]
     gcongr
     exact (Nat.le_ceil c).trans (by exact_mod_cast Nat.le_add_right ⌈c⌉₊ n)
-  have h_inv : η ∘ₘ (c • π) = c • π := hπ.pow_comp_smul p c
+  have h_inv : η ∘ₘ (c • π) = c • π := ((hπ.smul c).pow p).def
   have h_le : (κ ^ (p + n)) x ≤ η ∘ₘ ((κ ^ n) x - w • ν) + ((p + n : ℕ) : ℝ≥0) • π := by
     calc (κ ^ (p + n)) x = η ∘ₘ (κ ^ n) x := pow_add_apply κ p n x
     _ = η ∘ₘ ((κ ^ n) x - w • ν) + η ∘ₘ (w • ν) := by
