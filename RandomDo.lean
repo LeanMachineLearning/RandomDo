@@ -7,6 +7,7 @@ public import RandomDo.ForMathlib.MeasureTheory.Measure.Prod
 public import RandomDo.ForMathlib.MeasureTheory.Measure.SeparableMeasure
 public import RandomDo.ForMathlib.MeasureTheory.Measure.TotalVariation.DataProcessing
 public import RandomDo.ForMathlib.MeasureTheory.Measure.TotalVariation.Defs
+public import RandomDo.ForMathlib.MeasureTheory.VectorMeasure.TotalVariation
 public import RandomDo.ForMathlib.NumberTheory.FrobeniusNumber
 public import RandomDo.ForMathlib.Probability.Kernel.Aperiodic
 public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp

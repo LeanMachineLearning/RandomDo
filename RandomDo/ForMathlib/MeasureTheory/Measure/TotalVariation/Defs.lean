@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 module
 
 public import Mathlib.MeasureTheory.Measure.TotalVariation.Defs
+public import RandomDo.ForMathlib.MeasureTheory.VectorMeasure.TotalVariation
 
 /-!
 # Translation invariance of the total variation distance
@@ -31,8 +32,7 @@ lemma etvDist_add_left (ξ μ ν : Measure 𝓧) [IsFiniteMeasure ξ] :
   by_cases h : IsFiniteMeasure μ ∧ IsFiniteMeasure ν
   · obtain ⟨_, _⟩ := h
     rw [etvDist_eq_etvDist_toSignedMeasure, etvDist_eq_etvDist_toSignedMeasure,
-      Measure.toSignedMeasure_add, Measure.toSignedMeasure_add, VectorMeasure.etvDist,
-      VectorMeasure.etvDist, add_sub_add_left_eq_sub]
+      Measure.toSignedMeasure_add, Measure.toSignedMeasure_add, VectorMeasure.etvDist_add_left]
   · have h' : ¬ (IsFiniteMeasure (ξ + μ) ∧ IsFiniteMeasure (ξ + ν)) := by
       rintro ⟨hμ, hν⟩
       exact h ⟨isFiniteMeasure_of_le (ξ + μ) (Measure.le_add_left le_rfl),
