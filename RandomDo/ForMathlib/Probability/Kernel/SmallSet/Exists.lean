@@ -65,7 +65,7 @@ lemma isSmallSet_of_le_lintegral_mul [SFinite φ] {p q : α → α → ℝ≥0�
     (hD : MeasurableSet D) (h : ∀ x ∈ C, ∀ z ∈ D, (c : ℝ≥0∞) ≤ ∫⁻ y, p x y * q y z ∂φ) :
     IsSmallSet κ C (n + m) (c • φ.restrict D) := by
   intro x hx
-  rw [pow_add_apply]
+  rw [pow_add, comp_apply]
   refine le_trans (Measure.le_iff.mpr fun B hB ↦ ?_)
     (Measure.withDensity_lintegral_mul_le_comp hp.of_uncurry_left hq (hpκ x) hqκ)
   rw [withDensity_apply _ hB, Measure.smul_apply, Measure.restrict_apply hB,

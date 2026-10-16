@@ -161,7 +161,7 @@ private lemma exists_split_pow_comp [IsMarkovKernel κ] [IsProbabilityMeasure π
   induction i with
   | zero =>
     refine ⟨0, a, a Set.univ • π, inferInstance, ?_, ?_, ha, ?_, ?_, ?_⟩
-    · rw [Nat.mul_zero, pow_zero_comp, zero_add]
+    · rw [Nat.mul_zero, pow_zero, one_eq_id, Measure.id_comp, zero_add]
     · simp
     · refine Measure.le_iff.mpr fun s _ ↦ ?_
       simp only [Measure.smul_apply, smul_eq_mul]
@@ -189,7 +189,7 @@ private lemma exists_split_pow_comp [IsMarkovKernel κ] [IsProbabilityMeasure π
     have hcν : IsFiniteMeasure (c • ν) := isFiniteMeasure_of_le _ hca
     refine ⟨(κ ^ j) ∘ₘ g + c • ν, (κ ^ j) ∘ₘ a' - c • ν, (κ ^ j) ∘ₘ b' - c • ν, inferInstance,
       ?_, ?_, ?_, ?_, ?_, ?_⟩
-    · rw [Nat.mul_succ, add_comm, pow_add_comp, hag, Measure.comp_add, add_assoc,
+    · rw [Nat.mul_succ, add_comm, pow_add, ← Measure.comp_assoc, hag, Measure.comp_add, add_assoc,
         add_comm (c • ν), Measure.sub_add_cancel_of_le hca]
     · calc a Set.univ • π = (κ ^ j) ∘ₘ (a Set.univ • π) := ((hπ.smul _).pow j).def.symm
       _ = (κ ^ j) ∘ₘ g + c • ν + ((κ ^ j) ∘ₘ b' - c • ν) := by
@@ -241,7 +241,7 @@ lemma antitone_etvDist_pow_comp [IsMarkovKernel κ] (hπ : κ.Invariant π) (a :
   refine antitone_nat_of_succ_le fun n ↦ ?_
   calc etvDist ((κ ^ (n + 1)) ∘ₘ a) (c • π)
   _ = etvDist (κ ∘ₘ ((κ ^ n) ∘ₘ a)) (κ ∘ₘ (c • π)) := by
-    rw [pow_succ_comp', Measure.comp_smul, hπ.def]
+    rw [pow_add_one', ← Measure.comp_assoc, Measure.comp_smul, hπ.def]
   _ ≤ etvDist ((κ ^ n) ∘ₘ a) (c • π) := etvDist_comp_le κ _ _
 
 /-- If a measure `a` is dominated by a multiple of the invariant probability measure `π` of a
@@ -379,7 +379,7 @@ private lemma excess_add_apply_univ_le (hπ : κ.Invariant π) (m i : ℕ) (x : 
     refine Measure.le_iff.mpr fun s _ ↦ ?_
     rw [Measure.smul_apply, smul_eq_mul]
     exact mul_le_of_le_one_left' (excess_apply_univ_le_one i x)
-  calc (κ ^ (m + i)) x = η ∘ₘ (κ ^ i) x := pow_add_apply κ m i x
+  calc (κ ^ (m + i)) x = η ∘ₘ (κ ^ i) x := by rw [pow_add]; rfl
   _ ≤ η ∘ₘ (excess κ π i x + (i : ℝ≥0) • π) :=
     Measure.comp_le_comp_right (pow_apply_le_excess_add i x) _
   _ = η ∘ₘ (excess κ π i x) + (i : ℝ≥0) • π := by rw [Measure.comp_add, h_inv]
@@ -442,7 +442,7 @@ private lemma excessMass_lt_one (hπ : κ.Invariant π) {c : ℝ≥0} (hνc : ν
     exact (Nat.le_ceil c).trans (by exact_mod_cast Nat.le_add_right ⌈c⌉₊ n)
   have h_inv : η ∘ₘ (c • π) = c • π := ((hπ.smul c).pow p).def
   have h_le : (κ ^ (p + n)) x ≤ η ∘ₘ ((κ ^ n) x - w • ν) + ((p + n : ℕ) : ℝ≥0) • π := by
-    calc (κ ^ (p + n)) x = η ∘ₘ (κ ^ n) x := pow_add_apply κ p n x
+    calc (κ ^ (p + n)) x = η ∘ₘ (κ ^ n) x := by rw [pow_add]; rfl
     _ = η ∘ₘ ((κ ^ n) x - w • ν) + η ∘ₘ (w • ν) := by
       rw [← Measure.comp_add, Measure.sub_add_cancel_of_le h]
     _ ≤ η ∘ₘ ((κ ^ n) x - w • ν) + η ∘ₘ (c • π) := by
@@ -537,7 +537,7 @@ private lemma tendsto_etvDist_pow_comp_of_lintegral_excessMass_eq_zero [IsProbab
   refine eventually_atTop.mpr ⟨N + i, fun n hn ↦ ?_⟩
   obtain ⟨n', rfl⟩ : ∃ n', n = n' + i := ⟨n - i, (Nat.sub_add_cancel (by omega)).symm⟩
   have hN' := hN n' (by omega)
-  rw [hθ, ← pow_add_comp] at hN'
+  rw [hθ, Measure.comp_assoc, ← pow_add] at hN'
   calc etvDist ((κ ^ (n' + i)) ∘ₘ μ) π ≤ 2 * ξ Set.univ + ε / 2 := hN'
   _ ≤ 2 * (ε / 2 / 2) + ε / 2 := by
     rw [hξ_univ]
@@ -574,14 +574,14 @@ private lemma excessMass_eq_zero_of_isHarrisRecurrent {φ : Measure α} (hφ : �
     induction n with
     | zero =>
       intro y
-      rw [pow_zero_apply, lintegral_dirac' _ measurable_excessMass]
+      rw [pow_zero, one_eq_id, Kernel.id_apply, lintegral_dirac' _ measurable_excessMass]
     | succ n ih =>
       intro y
       calc excessMass κ π y ≤ ∫⁻ z, excessMass κ π z ∂((κ.restrict hG.compl) ^ n) y := ih y
       _ ≤ ∫⁻ z, ∫⁻ z', excessMass κ π z' ∂(κ.restrict hG.compl z)
           ∂((κ.restrict hG.compl) ^ n) y := lintegral_mono h_step
       _ = ∫⁻ z, excessMass κ π z ∂((κ.restrict hG.compl) ^ (n + 1)) y := by
-        rw [pow_succ_apply', Measure.lintegral_bind (Kernel.aemeasurable _)
+        rw [pow_add_one', comp_apply, Measure.lintegral_bind (Kernel.aemeasurable _)
           measurable_excessMass.aemeasurable]
   refine le_antisymm (ge_of_tendsto' (hH hG hφG x) fun n ↦ ?_) bot_le
   calc excessMass κ π x ≤ ∫⁻ z, excessMass κ π z ∂((κ.restrict hG.compl) ^ n) x := h_pow n x

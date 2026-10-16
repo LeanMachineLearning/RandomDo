@@ -6,6 +6,7 @@ Authors: Rémy Degenne
 module
 
 public import Mathlib.Probability.Kernel.Composition.MeasureComp
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.Comp
 
 /-!
 # Lemmas about the composition of a measure and a kernel
@@ -17,6 +18,8 @@ public import Mathlib.Probability.Kernel.Composition.MeasureComp
 * `Measure.restrict_comp`: `(κ.restrict hs) ∘ₘ μ = (κ ∘ₘ μ).restrict s`.
 * `Measure.comp_apply_pos_iff`: `0 < (η ∘ₘ μ) s ↔ 0 < μ {a | 0 < η a s}`.
 * `Measure.withDensity_lintegral_mul_le_comp`: Chapman-Kolmogorov inequality for densities.
+* `Kernel.pow_add_one_apply_pos_iff`, `Kernel.pow_add_comp_apply_pos_iff`: positivity of the
+  measure of a set after `n + 1` (resp. `n + m`) steps of a kernel.
 -/
 
 @[expose] public section
@@ -61,7 +64,7 @@ lemma restrict_comp (hs : MeasurableSet s) : (κ.restrict hs) ∘ₘ μ = (κ �
 
 /-- The measure `η ∘ₘ μ` gives positive mass to a measurable set `s` iff the set of points `a`
 such that `η a s` is positive has positive `μ`-measure. -/
-lemma comp_apply_pos_iff (hs : MeasurableSet s) :
+lemma comp_apply_pos_iff {s : Set β} (hs : MeasurableSet s) :
     0 < (η ∘ₘ μ) s ↔ 0 < μ {a | 0 < η a s} := by
   rw [Measure.bind_apply hs η.aemeasurable, lintegral_pos_iff_support (η.measurable_coe hs)]
   congr! 2
@@ -70,7 +73,7 @@ lemma comp_apply_pos_iff (hs : MeasurableSet s) :
 
 /-- The measure `η ∘ₘ μ` gives zero mass to a measurable set `s` iff the set of points `a`
 such that `η a s` is positive has `μ`-measure zero. -/
-lemma comp_apply_eq_zero_iff (hs : MeasurableSet s) :
+lemma comp_apply_eq_zero_iff {s : Set β} (hs : MeasurableSet s) :
     (η ∘ₘ μ) s = 0 ↔ μ {a | 0 < η a s} = 0 := by
   rw [← not_iff_not, ← Ne, ← Ne, ← pos_iff_ne_zero, ← pos_iff_ne_zero, comp_apply_pos_iff hs]
 
@@ -100,3 +103,27 @@ lemma withDensity_lintegral_mul_le_comp {μ φ : Measure α} {ψ : Measure β} [
     _ ≤ ∫⁻ y, η y B ∂μ := lintegral_mono' hpμ le_rfl
 
 end MeasureTheory.Measure
+
+namespace ProbabilityTheory.Kernel
+
+/-! ### Powers of a kernel -/
+
+open MeasureTheory
+
+variable {α : Type*} {mα : MeasurableSpace α} {κ : Kernel α α} {μ : Measure α}
+
+/-- A point `y` reaches the measurable set `C` with positive probability in `n + 1` steps iff
+its first step goes with positive probability to the set of points which reach `C` with positive
+probability in `n` steps. -/
+lemma pow_add_one_apply_pos_iff {C : Set α} (hC : MeasurableSet C) {n : ℕ} {y : α} :
+    0 < (κ ^ (n + 1)) y C ↔ 0 < κ y {z | 0 < (κ ^ n) z C} := by
+  rw [pow_add_one, comp_apply, Measure.comp_apply_pos_iff hC]
+
+/-- The measurable set `C` is reached from the measure `μ` with positive probability in `n + m`
+steps iff after `m` steps, the set of points which reach `C` with positive probability in `n`
+steps has positive measure. -/
+lemma pow_add_comp_apply_pos_iff {C : Set α} (hC : MeasurableSet C) {m n : ℕ} :
+    0 < ((κ ^ (n + m)) ∘ₘ μ) C ↔ 0 < ((κ ^ m) ∘ₘ μ) {y | 0 < (κ ^ n) y C} := by
+  rw [pow_add, ← Measure.comp_assoc, Measure.comp_apply_pos_iff hC]
+
+end ProbabilityTheory.Kernel

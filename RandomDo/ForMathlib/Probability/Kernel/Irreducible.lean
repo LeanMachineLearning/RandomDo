@@ -61,7 +61,7 @@ lemma IsIrreducible.exists_pow_succ_pos [IsIrreducible φ κ] {A : Set α} (hA :
     rw [IsIrreducible.iUnion_setOf_pow_apply_pos_eq_univ (φ := φ) hA hφA]
     exact Measure.measure_univ_ne_zero.mpr hx
   obtain ⟨n, hn⟩ := exists_measure_pos_of_not_measure_iUnion_null hpos
-  exact ⟨n, (pow_succ_apply_pos_iff hA).mpr hn⟩
+  exact ⟨n, (pow_add_one_apply_pos_iff hA).mpr hn⟩
 
 /-- For a `φ`-irreducible kernel, every set of positive `φ`-measure is reached with positive
 probability from any nonzero initial measure. -/
@@ -120,7 +120,7 @@ lemma Invariant.measure_eq_zero_or_measure_compl_eq_zero [IsMarkovKernel κ] [Is
   have h1 : φ Gᶜ = 0 := hπ.measure_compl_eq_zero_of_ae_absorbing hG h hcon.1
   have h2 : φ Gᶜᶜ = 0 := by
     refine hπ.measure_compl_eq_zero_of_ae_absorbing hG.compl ?_ hcon.2
-    simpa using hπ.ae_apply_eq_zero_of_ae_absorbing hG hπG h
+    simpa using hπ.ae_apply_eq_zero_of_compl hG hπG h
   rw [compl_compl] at h2
   refine hφ ?_
   rw [← Measure.measure_univ_eq_zero, ← Set.union_compl_self G]

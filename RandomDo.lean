@@ -10,12 +10,12 @@ public import RandomDo.ForMathlib.MeasureTheory.Measure.TotalVariation.Defs
 public import RandomDo.ForMathlib.MeasureTheory.VectorMeasure.TotalVariation
 public import RandomDo.ForMathlib.NumberTheory.FrobeniusNumber
 public import RandomDo.ForMathlib.Probability.Kernel.Aperiodic
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.Comp
 public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
 public import RandomDo.ForMathlib.Probability.Kernel.ErgodicTheorem
 public import RandomDo.ForMathlib.Probability.Kernel.HarrisRecurrent
 public import RandomDo.ForMathlib.Probability.Kernel.Invariance
 public import RandomDo.ForMathlib.Probability.Kernel.Irreducible
-public import RandomDo.ForMathlib.Probability.Kernel.Pow
 public import RandomDo.ForMathlib.Probability.Kernel.SmallSet.Basic
 public import RandomDo.ForMathlib.Probability.Kernel.SmallSet.Exists
 public import RandomDo.Measurable

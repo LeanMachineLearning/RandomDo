@@ -6,7 +6,7 @@ Authors: Rémy Degenne
 module
 
 public import Mathlib.Probability.Kernel.Irreducible
-public import RandomDo.ForMathlib.Probability.Kernel.Pow
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
 
 /-!
 # Harris recurrent kernels
@@ -73,12 +73,12 @@ lemma IsHarrisRecurrent.isIrreducible [IsMarkovKernel κ] (h : κ.IsHarrisRecurr
   have h_eq : ∀ n : ℕ, ((κ.restrict hA.compl) ^ n) a = (κ ^ n) a := by
     intro n
     induction n with
-    | zero => rw [pow_zero_apply, pow_zero_apply]
+    | zero => simp
     | succ n ih =>
       have h0 : (κ ∘ₘ (κ ^ n) a) A = 0 := by
-        rw [← pow_succ_apply']
+        rw [← comp_apply, ← pow_add_one']
         exact nonpos_iff_eq_zero.mp (hcon (n + 1))
-      rw [pow_succ_apply', ih, pow_succ_apply', Measure.restrict_comp]
+      rw [pow_add_one', comp_apply, ih, pow_add_one', comp_apply, Measure.restrict_comp]
       exact Measure.restrict_eq_self_of_ae_mem (measure_eq_zero_iff_ae_notMem.mp h0)
   have h_tendsto := h hA hφA a
   simp_rw [h_eq, measure_univ] at h_tendsto

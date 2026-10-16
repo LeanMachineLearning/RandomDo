@@ -5,7 +5,7 @@ Authors: Rémy Degenne
 -/
 module
 
-public import RandomDo.ForMathlib.Probability.Kernel.Pow
+public import RandomDo.ForMathlib.Probability.Kernel.Composition.MeasureComp
 
 /-!
 # Small sets of a kernel
@@ -66,7 +66,7 @@ lemma smul_le_comp (h : IsSmallSet κ C n ν) (μ : Measure α) : μ C • ν �
 /-- If `C` is `(n, ν)`-small, then `(κ ^ (n + m)) x` is at least `(κ ^ m) x C • ν`. -/
 lemma smul_le_pow_add_apply (h : IsSmallSet κ C n ν) (m : ℕ) (x : α) :
     (κ ^ m) x C • ν ≤ (κ ^ (n + m)) x := by
-  rw [pow_add_apply]
+  rw [pow_add, comp_apply]
   exact h.smul_le_comp _
 
 end IsSmallSet
@@ -78,7 +78,7 @@ lemma IsSmallSet.pow_apply_pos_of_pow_comp_apply_pos {C : Set α} {k m n : ℕ} 
     (h : IsSmallSet κ C k ν) (hy : 0 < (κ ^ n) y C) (hm : 0 < ((κ ^ m) ∘ₘ ν) C) :
     0 < (κ ^ (m + k + n)) y C := by
   have hle : (κ ^ n) y C • ((κ ^ m) ∘ₘ ν) ≤ (κ ^ (m + k + n)) y := by
-    rw [add_assoc, pow_add_apply, ← Measure.comp_smul]
+    rw [add_assoc, pow_add, comp_apply, ← Measure.comp_smul]
     exact Measure.comp_le_comp_right (h.smul_le_pow_add_apply n y) _
   refine lt_of_lt_of_le ?_ (hle C)
   rw [Measure.smul_apply, smul_eq_mul]

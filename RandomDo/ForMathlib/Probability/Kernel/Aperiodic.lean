@@ -74,13 +74,13 @@ lemma exists_measurableSet_superset_forall_notMem_apply_eq_zero {S : Set α}
     ∃ B, MeasurableSet B ∧ S ⊆ B ∧ ν B = 0 ∧ ∀ y ∉ B, κ y B = 0 := by
   refine ⟨⋃ m : ℕ, {y | 0 < (κ ^ m) y S}, .iUnion fun m ↦ measurableSet_apply_pos _ hS,
     fun y hy ↦ Set.mem_iUnion.mpr ⟨0, ?_⟩, ?_, fun y hy ↦ ?_⟩
-  · rw [Set.mem_ofPred_eq, pow_zero_apply, Measure.dirac_apply_of_mem hy]
+  · rw [Set.mem_ofPred_eq, pow_zero, one_eq_id, Kernel.id_apply, Measure.dirac_apply_of_mem hy]
     exact zero_lt_one
   · rw [measure_iUnion_null_iff]
     exact fun m ↦ (Measure.comp_apply_eq_zero_iff hS).mp (h m)
   · rw [measure_iUnion_null_iff]
     intro m
-    rw [← Measure.comp_apply_eq_zero_iff hS, ← pow_succ_apply]
+    rw [← Measure.comp_apply_eq_zero_iff hS, ← comp_apply, ← pow_add_one]
     simp only [Set.mem_iUnion, Set.mem_ofPred_eq, not_exists, not_lt, nonpos_iff_eq_zero] at hy
     exact hy (m + 1)
 
@@ -190,7 +190,7 @@ lemma IsAperiodic.exists_forall_pow_comp_apply_pos [IsMarkovKernel κ] [IsIrredu
   -- otherwise, we get two times with different phases reachable from the same points
   obtain ⟨m, n₁, n₂, hne, hpos⟩ := hκ.exists_pow_comp_inter_pos hν hνπ
     (E := fun n ↦ {y | 0 < (κ ^ n) y C}) (fun n ↦ measurableSet_apply_pos _ hC)
-    (IsIrreducible.irreducible (φ := φ) hC hφC) (fun y n h ↦ (pow_succ_apply_pos_iff hC).mpr h) d
+    (IsIrreducible.irreducible (φ := φ) hC hφC) (fun y n h ↦ (pow_add_one_apply_pos_iff hC).mpr h) d
   have h₁ : d + 2 ∣ n₁ + m + k := hdvd _ ((pow_add_comp_apply_pos_iff hC).mpr
     (hpos.trans_le (measure_mono Set.inter_subset_left)))
   have h₂ : d + 2 ∣ n₂ + m + k := hdvd _ ((pow_add_comp_apply_pos_iff hC).mpr
