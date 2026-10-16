@@ -50,6 +50,8 @@ inductive Shape
   along, one for a fixed collection and one for a collection read off the parameter, so that the
   three collections `rdo` supports share a single branch below. -/
   | forIn (fixed varying : Name)
+  /-- `while c rdo body`: a loop over `Lean.Loop`, which need not terminate. -/
+  | forInLoop
   /-- `Break.runK r (fun _ ↦ κ) η`: the case analysis an `rdo` block performs after a loop that
   returns early. -/
   | breakRunK
@@ -68,6 +70,7 @@ instance : ToString Shape where
     | .ite => "ite"
     | .dite .. => "dite"
     | .forIn .. => "forIn"
+    | .forInLoop => "forInLoop"
     | .breakRunK => "breakRunK"
     | .const => "const"
     | .leaf => "leaf"
@@ -104,6 +107,7 @@ def shapeOf (κ : Expr) : MetaM Shape := do
       | .const ``List _ => return .forIn ``IsMarkov.forInList ``IsMarkov.forInList_comp
       | .const ``Array _ => return .forIn ``IsMarkov.forInArray ``IsMarkov.forInArray_comp
       | .const ``Vector _ => return .forIn ``IsMarkov.forInVector ``IsMarkov.forInVector_comp
+      | .const ``Lean.Loop _ => return .forInLoop
       | _ => return .leaf
     else if head.isConstOf ``Break.runK then
       return .breakRunK
@@ -265,6 +269,16 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
       else
         trace[is_markov] "neither `forIn` lemma applies, handed back"
         return [g]
+    | .forInLoop =>
+      /- `while c rdo body`: a measurability goal for the initial state, an `IsMarkov` goal for the
+      step of the loop, jointly in the parameter and in the state, and the termination of the loop.
+      We recurse into the second, and leave the other two to the user. -/
+      let gs ← g.applyConst ``IsMarkov.forInLoop
+      match gs with
+      | [g_measurable, g_step, g_term] =>
+        return (← isMarkovCore g_step fuel) ++ [g_measurable, g_term]
+      | _ =>
+        throwError "is_markov: expected three goals after the `forInLoop` step, got {gs.length}"
     | .breakRunK =>
       let gs ← g.applyConst ``IsMarkov.breakRunK
       match gs with

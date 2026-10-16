@@ -1,11 +1,14 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
+public import RandomDo.ForMathlib.MeasureTheory.Measure.GiryMonad
+public import RandomDo.ForMathlib.Probability.Distributions.Bernoulli
 public import RandomDo.Measurable
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.MeasurableSpace
 public import RandomDo.Monad.Notation
+public import RandomDo.Monad.While
 public import RandomDo.NumLean.Binomial
 public import RandomDo.NumLean.Distributions
 public import RandomDo.NumLean.PCG64
@@ -23,3 +26,6 @@ public import RandomDo.Tactic.IsMarkov.Deriving
 public import RandomDo.Tactic.IsMarkov.Elab
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import RandomDo.Tactic.IsMarkov.Lemmas
+public import RandomDo.Tactic.IsMarkov.While.LoopInvariant
+public import RandomDo.Tactic.IsMarkov.While.Tactic
+public import RandomDo.Tactic.IsMarkov.While.Termination
