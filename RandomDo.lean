@@ -1,5 +1,12 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
+public import RandomDo.DifferentialPrivacy
+public import RandomDo.DifferentialPrivacy.Basic
+public import RandomDo.DifferentialPrivacy.Calibration
+public import RandomDo.DifferentialPrivacy.Dataset
+public import RandomDo.DifferentialPrivacy.Gaussian
+public import RandomDo.DifferentialPrivacy.Mean
+public import RandomDo.DifferentialPrivacy.Programs
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.Measurable
 public import RandomDo.Monad.ForInInstances
