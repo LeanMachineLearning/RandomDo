@@ -44,16 +44,13 @@ the definition of intermediate classes `MeasurableSpaceFunctor`, `MeasurableSpac
 `MeasurableSpaceBind` except with the key exception that there is no `MeasurableSpaceApplicative`
 and instead `MeasurableSpaceMonad` extends all three of the preceding classes directly. This is
 because defining a `MeasurableSpaceApplicative` would require defining a measurable analogue of
-`Seq.seq : m (α → β) → m α → m β` but
-there is no general function space with jointly measurable evaluation `(f, x) ↦ f x`.
-Even the space of all Borel functions `[0, 1] → [0, 1]` admits no σ-algebra with this property;
-see [Aumann's counterexample](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8), §3, the
-unnumbered example before Lemma 3.1. Consequently, measurable spaces are not cartesian closed.
-
-For `mBind`, the laws fix a measurable continuation `k : α → m β` and require
-`μ ↦ mBind μ k` to be measurable. They impose no measurability as `k` varies over a function
-space, so no measurable space of continuations is needed. The obstruction concerns jointly
-measurable function application; product-based applicative formulations remain possible.
+`Seq.seq : m (α → β) → m α → m β`, and we would like such an operation to be measurable, but
+requiring this operation to be jointly measurable would already fail for the identity monad:
+there, `seq f x = f x`, so `seq` is precisely function evaluation. No σ-algebra on the space of
+all measurable functions makes evaluation jointly measurable in general; see
+[Aumann's counterexample](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8), §3, the unnumbered
+example before Lemma 3.1. Our bind laws avoid this requirement by fixing a measurable
+continuation `k` and requiring measurability only of `μ ↦ mBind μ k`.
 
 -/
 
