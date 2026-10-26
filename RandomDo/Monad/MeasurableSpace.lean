@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Control.Random
 public import Mathlib.MeasureTheory.Measure.GiryMonad
+public meta import RandomDo.Util.Analogue
 
 /-!
 # Measurable Space Monad
@@ -37,6 +38,7 @@ section MeasurableSpaceMonad
 /-- A functor on types with a `MeasurableSpace` instance. The `mMap` operator `<$>ₘ` is overloaded
 via instances of this class. This class does not require proofs of the `MeasurableSpaceFunctor`
 axioms. Proofs may be provided or required via the `LawfulMeasurableSpaceFunctor` class. -/
+@[analogue Functor]
 class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Type v) :
     Type (max (u+1) v) where
   /--
@@ -64,6 +66,7 @@ The `mPure` function is overloaded via `MeasurableSpacePure` instances.
 
 `MeasurableSpacePure` is typically accessed via `MeasurableSpaceMonad` instances, which extend it.
 -/
+@[analogue Pure]
 class MeasurableSpacePure (f : (α : Type u) → [MeasurableSpace α] → Type v) where
   /-- Given `a : α` where `α` has a `MeasurableSpace` instance, `mPure a : f α` represents an
   action that does nothing and returns a -/
@@ -74,6 +77,7 @@ The `>>=ₘ` operator is overloaded via instances of `MeasurableSpaceBind`.
 
 `MeasurableSpaceBind` is typically used via `MeasurableSpaceMonad`, which extends it.
 -/
+@[analogue Bind]
 class MeasurableSpaceBind (m : (α : Type u) → [MeasurableSpace α] → Type v) where
   /--
   Sequences two computations, allowing the second to depend on the value computed by the first.
@@ -87,6 +91,7 @@ class MeasurableSpaceBind (m : (α : Type u) → [MeasurableSpace α] → Type v
 
 /-- A monad on types with a `MeasurableSpace` instance. This abstraction allows the user to write
 code that depends on "random" side-effects -/
+@[analogue Monad]
 class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type v) :
     Type (max (u+1) v)
     extends MeasurableSpaceFunctor m, MeasurableSpacePure m, MeasurableSpaceBind m where
@@ -95,10 +100,12 @@ class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type 
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} {α β : Type u}
   [MeasurableSpace α] [MeasurableSpace β]
 
+@[analogue _root_.bind_congr]
 theorem MeasurableSpaceBind.bind_congr [MeasurableSpaceBind m] {x : m α} {f g : α → m β}
     (h : ∀ a, f a = g a) : x >>=ₘ f = x >>=ₘ g := by
   simp [funext h]
 
+@[analogue _root_.map_congr]
 theorem MeasurableSpaceFunctor.map_congr [MeasurableSpaceFunctor m] {x : m α} {f g : α → β}
     (h : ∀ a, f a = g a) : (f <$>ₘ x : m β) = g <$>ₘ x := by
   simp [funext h]
@@ -110,6 +117,7 @@ section Lawful
 open MeasurableSpaceFunctor
 
 /-- A `MeasurableSpaceFunctor` satisfies the measurable space functor laws. -/
+@[analogue LawfulFunctor]
 class LawfulMeasurableSpaceFunctor
     (f : (α : Type u) → [MeasurableSpace α] → Type v) [MeasurableSpaceFunctor f]
     [∀ α, [MeasurableSpace α] → MeasurableSpace (f α)] : Prop where
@@ -135,9 +143,11 @@ variable {f : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
   [∀ α, [MeasurableSpace α] → MeasurableSpace (f α)] [LawfulMeasurableSpaceFunctor f]
   {α β γ : Type u} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
 
-@[simp] theorem id_mMap' (x : f α) : (fun a => a) <$>ₘ x = x := id_mMap x
+@[analogue id_map', simp]
+theorem id_mMap' (x : f α) : (fun a => a) <$>ₘ x = x := id_mMap x
 
-@[simp] theorem mMap_mMap {g₀ : α → β} {g₁ : β → γ} (x : f α)
+@[analogue Functor.map_map, simp]
+theorem mMap_mMap {g₀ : α → β} {g₁ : β → γ} (x : f α)
     (hg₀ : Measurable g₀) (hg₁ : Measurable g₁) :
     g₁ <$>ₘ g₀ <$>ₘ x = (fun a => g₁ (g₀ a)) <$>ₘ x :=
   (comp_mMap x hg₀ hg₁).symm
@@ -145,6 +155,7 @@ variable {f : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
 open MeasurableSpaceBind MeasurableSpacePure MeasurableSpaceFunctor
 
 /-- A `MeasurableSpaceMonad` satisfies the measurable space monad laws. -/
+@[analogue LawfulMonad]
 class LawfulMeasurableSpaceMonad
     (m : (α : Type u) → [MeasurableSpace α] → Type v) [MeasurableSpaceMonad m]
     [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)] : Prop
@@ -187,27 +198,33 @@ variable {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
   [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)] [LawfulMeasurableSpaceMonad m]
   {α β γ : Type u} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
 
-@[simp] theorem mMap_mPure {f : α → β} (hf : Measurable f) (x : α) :
+@[analogue LawfulApplicative.map_pure, simp]
+theorem mMap_mPure {f : α → β} (hf : Measurable f) (x : α) :
     f <$>ₘ (mPure x : m α) = mPure (f x) := by
   rw [← mBind_mPure_comp hf, mPure_mBind _ (by fun_prop)]
 
-@[simp] theorem mBind_mPure (x : m α) : x >>=ₘ mPure = x := by
+@[analogue bind_pure, simp]
+theorem mBind_mPure (x : m α) : x >>=ₘ mPure = x := by
   change x >>=ₘ (fun a => (mPure (id a))) = x
   rw [mBind_mPure_comp (by fun_prop), id_mMap]
 
+@[analogue map_eq_pure_bind]
 theorem mMap_eq_mPure_mBind {f : α → β} (hf : Measurable f) (x : m α) :
     f <$>ₘ x = x >>=ₘ fun a => mPure (f a) := by
   rw [← mBind_mPure_comp hf x]
 
+@[analogue bind_pure_unit]
 theorem mBind_mPure_unit {x : m PUnit} : (x >>=ₘ fun _ => mPure ⟨⟩) = x := by rw [mBind_mPure]
 
-@[simp] theorem mMap_mBind {f : β → γ} (hf : Measurable f) (x : m α)
+@[analogue map_bind, simp]
+theorem mMap_mBind {f : β → γ} (hf : Measurable f) (x : m α)
       {g : α → m β} (hg : Measurable g) :
     f <$>ₘ (x >>=ₘ g) = x >>=ₘ fun a => f <$>ₘ g a := by
   rw [← mBind_mPure_comp hf, mBind_assoc _ hg (by fun_prop)]
   simp (disch := fun_prop) [mBind_mPure_comp]
 
-@[simp] theorem mBind_mMap_left {f : α → β} (hf : Measurable f) (x : m α)
+@[analogue bind_map_left, simp]
+theorem mBind_mMap_left {f : α → β} (hf : Measurable f) (x : m α)
     {g : β → m γ} (hg : Measurable g) :
     ((f <$>ₘ x) >>=ₘ fun b => g b) = (x >>=ₘ fun a => g (f a)) := by
   rw [← mBind_mPure_comp hf]
@@ -230,6 +247,7 @@ instance instMeasurableSpace {β : Type u} [mβ : MeasurableSpace β] :
 /--
 Monadic iteration in `rdo`-blocks, using the `for x in xs` notation.
 -/
+@[analogue ForIn]
 class MeasurableSpaceForIn (ρ : Type uρ) (α : outParam (Type uα)) where
   /--
   Monadically iterates over the contents of a collection `xs`, with a local state `b` and the
@@ -241,6 +259,7 @@ class MeasurableSpaceForIn (ρ : Type uρ) (α : outParam (Type uα)) where
 /--
 Monadic iteration in `rdo`-blocks with a membership proof, using the `for h : x in xs` notation.
 -/
+@[analogue ForIn']
 class MeasurableSpaceForIn' (ρ : Type uρ) (α : outParam (Type uα))
     (d : outParam (Membership α ρ)) where
   /--
@@ -251,7 +270,7 @@ class MeasurableSpaceForIn' (ρ : Type uρ) (α : outParam (Type uα))
   forIn' {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
     (f : (a : α) → a ∈ xs → β → m (ForInStep β)) : m β
 
-@[simps]
+@[analogue instForInOfForIn', simps]
 instance (priority := 500) instMeasurableSpaceForInOfForIn'
     {ρ : Type uρ} {α : Type uα} {d : Membership α ρ} [MeasurableSpaceForIn' m ρ α d] :
     MeasurableSpaceForIn m ρ α where

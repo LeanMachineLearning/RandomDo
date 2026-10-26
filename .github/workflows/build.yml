@@ -54,3 +54,22 @@ jobs:
           build-args: "--wfail"
           lint: true
           mk_all-check: true
+
+      - name: Test upstream tracking
+        run: |
+          python3 -m unittest discover -s .github/upstream/tests -p 'test_check.py'
+          node --test .github/upstream/tests/test_notify.cjs
+          lake env lean .github/upstream/tests/Analogue.lean
+
+      - name: Check adapted definitions against the pinned Lean toolchain
+        run: |
+          lake env lean .github/upstream/Export.lean > .lake/upstream-current.json
+          python3 .github/upstream/check.py check --metadata .lake/upstream-current.json \
+            --report .lake/upstream-report.md
+
+      - name: Show upstream changes
+        if: always()
+        run: |
+          if [ -f .lake/upstream-report.md ]; then
+            cat .lake/upstream-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi

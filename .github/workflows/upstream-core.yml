@@ -1,0 +1,41 @@
+name: Watch Lean core adaptations
+
+on:
+  schedule:
+    - cron: '23 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-core-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Even a manual run reports only the reviewed default-branch configuration.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Compare tracked definitions with Lean's development branch
+        run: |
+          python3 .github/upstream/check.py check --target HEAD --advisory \
+            --report .lake/upstream-report.md --json-report .lake/upstream-report.json
+          cat .lake/upstream-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Maintain one issue for changes needing review
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('.lake/upstream-report.json', 'utf8'));
+            await require('./.github/upstream/notify.cjs')({ github, context }, report);

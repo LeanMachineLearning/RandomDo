@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/leanprover/lean4",
+  "entries": [
+    {
+      "end": 41,
+      "local": "LawfulMeasurableSpaceFunctor",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 20,
+      "upstream": "LawfulFunctor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 159,
+      "local": "LawfulMeasurableSpaceMonad",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 125,
+      "upstream": "LawfulMonad",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 3881,
+      "local": "MeasurableSpaceBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3869,
+      "upstream": "Bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 180,
+      "local": "MeasurableSpaceBind.bind_congr",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 179,
+      "upstream": "bind_congr",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 388,
+      "local": "MeasurableSpaceForIn",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Core.lean",
+      "start": 366,
+      "upstream": "ForIn",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 416,
+      "local": "MeasurableSpaceForIn'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Core.lean",
+      "start": 392,
+      "upstream": "ForIn'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 3937,
+      "local": "MeasurableSpaceFunctor",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3903,
+      "upstream": "Functor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 186,
+      "local": "MeasurableSpaceFunctor.map_congr",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 185,
+      "upstream": "map_congr",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 4038,
+      "local": "MeasurableSpaceMonad",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 4020,
+      "upstream": "Monad",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 3899,
+      "local": "MeasurableSpacePure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3885,
+      "upstream": "Pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 409,
+      "local": "RDo.elabRDoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/BuiltinDo/For.lean",
+      "start": 274,
+      "upstream": "Lean.Elab.Do.elabDoFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 1104,
+      "local": "RDo.elabRand",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/Do/Basic.lean",
+      "start": 1102,
+      "upstream": "Lean.Elab.Do.elabDo",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 87,
+      "local": "RDo.expandRDoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/BuiltinDo/For.lean",
+      "start": 24,
+      "upstream": "Lean.Elab.Do.expandDoFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 339,
+      "local": "RDo.randOps",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/Do/Basic.lean",
+      "start": 309,
+      "upstream": "Lean.Elab.Do.DoOps.default",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 217,
+      "local": "RDo.rdoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Parser/Do.lean",
+      "start": 208,
+      "upstream": "Lean.Parser.Term.doFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 186,
+      "local": "RDo.rdoForDecl",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Parser/Do.lean",
+      "start": 184,
+      "upstream": "Lean.Parser.Term.doForDecl",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 48,
+      "local": "id_mMap'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 47,
+      "upstream": "id_map'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 30,
+      "local": "instMeasurableSpaceForInOfForIn'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Basic.lean",
+      "start": 16,
+      "upstream": "instForInOfForIn'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 208,
+      "local": "mBind_mMap_left",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 205,
+      "upstream": "bind_map_left",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 167,
+      "local": "mBind_mPure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 165,
+      "upstream": "bind_pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 183,
+      "local": "mBind_mPure_unit",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 182,
+      "upstream": "bind_pure_unit",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 174,
+      "local": "mMap_eq_mPure_mBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 169,
+      "upstream": "map_eq_pure_bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 203,
+      "local": "mMap_mBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 200,
+      "upstream": "map_bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 52,
+      "local": "mMap_mMap",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 50,
+      "upstream": "Functor.map_map",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    },
+    {
+      "end": 85,
+      "local": "mMap_mPure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 85,
+      "upstream": "LawfulApplicative.map_pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc"
+    }
+  ]
+}
