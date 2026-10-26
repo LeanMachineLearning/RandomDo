@@ -5,12 +5,12 @@ Authors: David Ledvinka
 -/
 module
 
-import RandomDoNext
+import RandomDo.MeasurableSpaceMonad.Notation
 
 /-!
 # Isolation of the polymorphic foundation
 
-The complete rebuilt library must not pull in the original monad classes, concrete measure
+The new notation import must not pull in the original monad classes, concrete measure
 semantics, or random-number implementations. These checks also catch transitive imports.
 -/
 

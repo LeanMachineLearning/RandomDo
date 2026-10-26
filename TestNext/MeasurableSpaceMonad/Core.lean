@@ -5,7 +5,7 @@ Authors: David Ledvinka
 -/
 module
 
-import RandomDoNext.MeasurableSpaceMonad.Core
+import RandomDo.MeasurableSpaceMonad.Core
 
 /-!
 # Polymorphic reasoning checks

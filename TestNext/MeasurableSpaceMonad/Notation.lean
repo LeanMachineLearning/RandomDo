@@ -5,13 +5,13 @@ Authors: David Ledvinka
 -/
 module
 
-public import RandomDoNext.MeasurableSpaceMonad.Notation
+public import RandomDo.MeasurableSpaceMonad.Notation
 
 /-!
 # Elaboration without a concrete interpretation
 
-The programs below use only abstract operation and iteration instances. They check the split
-notation imports, mutable state, membership proofs, nested loops, and early control flow.
+The programs below use only abstract operation and iteration instances. They check the
+notation import, mutable state, membership proofs, nested loops, and early control flow.
 -/
 
 open RandomDo MeasurableSpacePure MeasurableSpaceBind
@@ -86,5 +86,16 @@ def control [MeasurableSpaceForIn m (List α) α]
     if skip x then continue
     acc ← step x acc
   return acc
+
+/-- Branching carries both abstract mutable values. -/
+def branchPair {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpaceMonad m]
+    {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
+    (a : α) (b : β) (choose : Bool) (left : α → m α) (right : β → m β) : m (α × β) := rdo
+  let mut x := a
+  let mut y := b
+  if choose then
+    x ← left x
+    y ← right y
+  return (x, y)
 
 end TestNext.MeasurableSpaceMonad
