@@ -11,11 +11,10 @@ public import Mathlib.Tactic.FunProp
 /-!
 # Measurable space monads
 
-This file defines `MeasurableSpaceFunctor` and `MeasurableSpaceMonad` as classes on type
-constructors of the form `m : (α : Type u) → [MeasurableSpace α] → Type v`. They play the roles
-of Lean's core `Functor` and `Monad` for types equipped with a `MeasurableSpace` instance.
-The lawful classes express the corresponding functor and monad laws for measurable maps and
-continuations between measurable spaces.
+This file defines `MeasurableSpaceFunctor` and `MeasurableSpaceMonad` as classes on functions of
+the form `m : (α : Type u) → [MeasurableSpace α] → Type v`. They play the role of core lean's
+`Functor` and `Monad` for types equipped with a `MeasurableSpace` instance. Assuming that instances
+are lawful, this corresponds to functors and monads on the category of measure spaces respectfully.
 
 ## Main definitions
 
