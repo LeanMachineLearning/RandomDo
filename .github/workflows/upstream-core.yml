@@ -1,0 +1,73 @@
+name: Watch Lean core adaptations
+
+on:
+  schedule:
+    - cron: '23 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-core-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Even a manual run reports only the reviewed default-branch configuration.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Compare tracked definitions with Lean's development branch
+        run: |
+          python3 scripts/upstream.py check --target HEAD --advisory \
+            --report upstream-report.md --json-report upstream-report.json
+          cat upstream-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Maintain one issue for changes needing review
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('upstream-report.json', 'utf8'));
+            const marker = '<!-- randomdo-upstream-core-watch -->';
+            const digest = `<!-- upstream-fingerprint:${report.fingerprint} -->`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: 'all', creator: 'github-actions[bot]', per_page: 100,
+            });
+            const issue = issues.find(i => !i.pull_request && i.body?.includes(marker));
+            if (report.changes.length === 0) {
+              if (issue?.state === 'open') {
+                await github.rest.issues.update({
+                  ...context.repo, issue_number: issue.number, state: 'closed',
+                });
+              }
+              return;
+            }
+            if (issue?.state === 'open' && issue.body?.includes(digest)) return;
+            const summary = fs.readFileSync('upstream-report.md', 'utf8');
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            // Leave room below GitHub's issue-body limit, also for non-ASCII source text.
+            let details = summary;
+            if (Buffer.byteLength(details, 'utf8') > 55000) {
+              details = Array.from(details).slice(0, 13000).join('')
+                + '\n\nReport truncated; see the workflow summary for the full diff.';
+            }
+            const body = `${marker}\n${digest}\n${details}\n\n[Workflow report](${run})`;
+            if (issue) {
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, body, state: 'open',
+              });
+            } else {
+              await github.rest.issues.create({
+                ...context.repo, title: 'Lean core changes affecting adapted definitions', body,
+              });
+            }

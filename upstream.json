@@ -1,0 +1,281 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/leanprover/lean4",
+  "entries": [
+    {
+      "end": 41,
+      "local": "LawfulMeasurableSpaceFunctor",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 20,
+      "upstream": "LawfulFunctor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "6cc2037bc873862c4b85679592862def80ffc25002449eb0f42b074911092b10",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 159,
+      "local": "LawfulMeasurableSpaceMonad",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 125,
+      "upstream": "LawfulMonad",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "e701a60ca37c38a4c6463db27120120bcddb9b7841e21c19fa9a05403e021896",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 3881,
+      "local": "MeasurableSpaceBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3869,
+      "upstream": "Bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "210b68a6ae65efbf339df0cc96e8bbe74f8018ef5f2f4e3e1293f065f51cf487",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 180,
+      "local": "MeasurableSpaceBind.bind_congr",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 179,
+      "upstream": "bind_congr",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "0ec2334c28a0e31bf8790a12ba2d2eae8a32c523280085089b5c2022a8e78026",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 388,
+      "local": "MeasurableSpaceForIn",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Core.lean",
+      "start": 366,
+      "upstream": "ForIn",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "45a34391c62bd3286fb6c60461f5a16d3147105004222240facdddc89d8801d0",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 416,
+      "local": "MeasurableSpaceForIn'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Core.lean",
+      "start": 392,
+      "upstream": "ForIn'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "63b45de3bbd497e26e4d9af17172e23eb8fa813cc493ca00a956003f6ae6b463",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 3937,
+      "local": "MeasurableSpaceFunctor",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3903,
+      "upstream": "Functor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "1be4516f598ce7e2dd50381f3f7fbb9d14bdc4f1f636bc94e83f5fa4a7eca667",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 186,
+      "local": "MeasurableSpaceFunctor.map_congr",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 185,
+      "upstream": "map_congr",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "2fa31b1b51ecb17cb8f11d39b5cedeb2ab6bd89af909564f0676e37ced75f405",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 4038,
+      "local": "MeasurableSpaceMonad",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 4020,
+      "upstream": "Monad",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "6234016213a903ac9910fc72b4de104bcd4c9cb1ab33fc63f0ae52aa4f872c19",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 3899,
+      "local": "MeasurableSpacePure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Prelude.lean",
+      "start": 3885,
+      "upstream": "Pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "997ff22ea7f4d2a759a49b9bfc8730eeeccf731ba5746ef87a63913243475799",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 409,
+      "local": "RDo.elabRDoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/BuiltinDo/For.lean",
+      "start": 274,
+      "upstream": "Lean.Elab.Do.elabDoFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "a76b98157e5aa89eaffa74a54eee1e0289b1f1a12011c2cc877bcfcc8cecf5ba",
+      "note": "Initial v4.35.0 baseline for the existing rdo loop adaptation. Core invariant/decreasing syntax and verification-condition hooks are not implemented; see docs/upstream-tracking.md."
+    },
+    {
+      "end": 1104,
+      "local": "RDo.elabRand",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/Do/Basic.lean",
+      "start": 1102,
+      "upstream": "Lean.Elab.Do.elabDo",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "529ac011ffa6752eb1b845f722393177dbbf1a75d0d87e1c9ee0b6facfb15d5f",
+      "note": "Uses rdo syntax and passes randOps to the shared core elaborator."
+    },
+    {
+      "end": 87,
+      "local": "RDo.expandRDoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/BuiltinDo/For.lean",
+      "start": 24,
+      "upstream": "Lean.Elab.Do.expandDoFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "334393bb33da3c0ac44a58817fefa5980341f962d201223c0ee2a13d53a72956",
+      "note": "Initial v4.35.0 baseline for the existing rdo loop adaptation. Core invariant/decreasing syntax and verification-condition hooks are not implemented; see docs/upstream-tracking.md."
+    },
+    {
+      "end": 339,
+      "local": "RDo.randOps",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Elab/Do/Basic.lean",
+      "start": 309,
+      "upstream": "Lean.Elab.Do.DoOps.default",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "912707da88c0d9bbbdb417857aa32923b6080d6f4eb92b08dd694302f6790afb",
+      "note": "Initial v4.35.0 baseline. Adds measurable-space arguments; the existing mkPureApp override omits the upstream dead-syntax guard, which remains a follow-up review item."
+    },
+    {
+      "end": 217,
+      "local": "RDo.rdoFor",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Parser/Do.lean",
+      "start": 208,
+      "upstream": "Lean.Parser.Term.doFor",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "38e65c348f80c6f644c1ac6a71a8e5647f1184e8d6e39447657463abe013ba1b",
+      "note": "Initial v4.35.0 baseline for the existing rdo loop adaptation. Core invariant/decreasing syntax and verification-condition hooks are not implemented; see docs/upstream-tracking.md."
+    },
+    {
+      "end": 186,
+      "local": "RDo.rdoForDecl",
+      "local_file": "RandomDo/Monad/Notation.lean",
+      "path": "src/Lean/Parser/Do.lean",
+      "start": 184,
+      "upstream": "Lean.Parser.Term.doForDecl",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "ee21206fa7575137d2438b36a9950a6838aeb63b2d187996e77385448ba2867d",
+      "note": "Initial v4.35.0 baseline for the existing rdo loop adaptation. Core invariant/decreasing syntax and verification-condition hooks are not implemented; see docs/upstream-tracking.md."
+    },
+    {
+      "end": 48,
+      "local": "id_mMap'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 47,
+      "upstream": "id_map'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "a95c9957a4b53496da246b239ac5e3cf0674e31399b26dcaf431e5a22560de55",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 30,
+      "local": "instMeasurableSpaceForInOfForIn'",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Basic.lean",
+      "start": 16,
+      "upstream": "instForInOfForIn'",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "f3633bf63b71bb5167b596950cb20bf22fbbce08496990269ac08d8a8b7b9385",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 208,
+      "local": "mBind_mMap_left",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 205,
+      "upstream": "bind_map_left",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "9a6f4815d41cec24233f2b78492e54fc364adc1052daad6195c72e2937e523aa",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 167,
+      "local": "mBind_mPure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 165,
+      "upstream": "bind_pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "e9cf0d00e632a518d1c62d3aca72d4f586a7db23909d901a10e50bafb00eeb2f",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 183,
+      "local": "mBind_mPure_unit",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 182,
+      "upstream": "bind_pure_unit",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "a3c9870f5e209316d44663a98e412b1ad6d6d325df90a5be1c00fa8f59969042",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 174,
+      "local": "mMap_eq_mPure_mBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 169,
+      "upstream": "map_eq_pure_bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "ad6d8f6c43be7df2ec4dbf7d96b19e877fd693bf6afcad9d1539eb5d2705af46",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 203,
+      "local": "mMap_mBind",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 200,
+      "upstream": "map_bind",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "dd22185502a5bff4dcc033c76e846218c6b27835b54e08233ac3f6e76d596ea4",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 52,
+      "local": "mMap_mMap",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 50,
+      "upstream": "Functor.map_map",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "50e2e660e52da2b9f147021b8f3bf3744f1244f861a649d689b5dec2e5353ff4",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    },
+    {
+      "end": 85,
+      "local": "mMap_mPure",
+      "local_file": "RandomDo/Monad/MeasurableSpace.lean",
+      "path": "src/Init/Control/Lawful/Basic.lean",
+      "start": 85,
+      "upstream": "LawfulApplicative.map_pure",
+      "commit": "eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+      "sha256": "0e46a1b086567226a38c7eb7d3deb3c387395caebb8a0838a164801743109a57",
+      "note": "Adapted to measurable-space parameters and measurable maps; the hierarchy intentionally omits the applicative layer."
+    }
+  ]
+}
