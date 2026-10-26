@@ -18,22 +18,22 @@ are lawful, this corresponds to functors and monads on the category of measure s
 
 ## Main definitions
 
-* `RandomDo.MeasurableSpaceFunctor`: mapping functions over computations on measurable types.
-* `RandomDo.MeasurableSpacePure`: embedding a value into a computation.
-* `RandomDo.MeasurableSpaceBind`: sequencing computations with a continuation.
-* `RandomDo.MeasurableSpaceMonad`: combines mapping, pure, and bind, with mapping defined by
+* `MeasurableSpaceFunctor`: mapping functions over computations on measurable types.
+* `MeasurableSpacePure`: embedding a value into a computation.
+* `MeasurableSpaceBind`: sequencing computations with a continuation.
+* `MeasurableSpaceMonad`: combines mapping, pure, and bind, with mapping defined by
   pure and bind by default.
-* `RandomDo.LawfulMeasurableSpaceFunctor`: functor laws for measurable maps, together with
+* `LawfulMeasurableSpaceFunctor`: functor laws for measurable maps, together with
   measurability of mapping.
-* `RandomDo.LawfulMeasurableSpaceMonad`: monad laws for measurable continuations, together with
+* `LawfulMeasurableSpaceMonad`: monad laws for measurable continuations, together with
   measurability of pure and bind.
 
 ## Notation
 
 The following notation is available in the `RandomDo` scope:
 
-* `f <$>ₘ x`: `RandomDo.MeasurableSpaceFunctor.mMap f x`.
-* `x >>=ₘ f`: `RandomDo.MeasurableSpaceBind.mBind x f`.
+* `f <$>ₘ x`: `MeasurableSpaceFunctor.mMap f x`.
+* `x >>=ₘ f`: `MeasurableSpaceBind.mBind x f`.
 
 Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
 
