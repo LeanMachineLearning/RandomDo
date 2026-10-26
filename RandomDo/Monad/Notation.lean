@@ -6,6 +6,7 @@ Authors: David Ledvinka
 module
 
 public import RandomDo.Monad.MeasurableSpace
+public meta import Lean.Elab.BuiltinDo.For
 public meta import Lean.Meta.ProdN
 
 /-!
@@ -24,6 +25,7 @@ public meta section
 namespace RDo
 
 /-- Define `DoOp`s for `rdo` notation. -/
+@[upstream Lean.Elab.Do.DoOps.default]
 def randOps : DoOps := { DoOps.default with
   mkPureApp α e := do
     let ⟨m, u, v, _, _⟩ := (← read).monadInfo
@@ -67,24 +69,28 @@ def randOps : DoOps := { DoOps.default with
 syntax (name := randKind) "rdo" doSeq : term
 
 /-- Define `rdo` notation elaborator. -/
-@[term_elab randKind] def elabRand : Term.TermElab := fun stx et? => do
+@[upstream Lean.Elab.Do.elabDo, term_elab randKind]
+def elabRand : Term.TermElab := fun stx et? => do
   let `(rdo $doSeq) := stx | throwUnsupportedSyntax
   elabDoWith randOps doSeq et?
 
 section LoopElab
 
 /-- parses `_ : _ in` for `rdo` for loops -/
+@[upstream Lean.Parser.Term.doForDecl]
 def rdoForDecl := leading_parser
   Lean.Parser.optional (atomic (Term.ident >> " : ")) >> termParser >> " in " >>
     withForbidden "rdo" termParser
 
 /-- parser for `rdo` for loops -/
-@[doElem_parser] def rdoFor := leading_parser
+@[upstream Lean.Parser.Term.doFor, doElem_parser]
+def rdoFor := leading_parser
   "for " >> sepBy1 rdoForDecl ", " >> "rdo " >> doSeq
 
 /-- Define expander for loops in `rdo` notation. Note this code mirrors core's implementation for
 `do` notation as much as possible. -/
-@[macro rdoFor] def expandRDoFor : Macro := fun stx => do
+@[upstream Lean.Elab.Do.expandDoFor, macro rdoFor]
+def expandRDoFor : Macro := fun stx => do
   match stx with
   | `(rdoFor| for $[$_ : ]? $_:ident in $_ rdo $_) =>
     -- This is the target form of the expander, handled by `elabRDoFor` below.
@@ -146,7 +152,8 @@ def rdoForDecl := leading_parser
 
 /-- Define loop elaborator for `rdo` notation. Note this code mirrors core's implementation for
 `do` notation as much as possible. -/
-@[doElem_elab rdoFor] def elabRDoFor : DoElab := fun stx dec => do
+@[upstream Lean.Elab.Do.elabDoFor, doElem_elab rdoFor]
+def elabRDoFor : DoElab := fun stx dec => do
   let `(rdoFor| for%$tk $[$h? : ]? $x:ident in $xs rdo $body) := stx | throwUnsupportedSyntax
   let dec ← dec.ensureUnitAt tk
   checkMutVarsForShadowing #[x]
