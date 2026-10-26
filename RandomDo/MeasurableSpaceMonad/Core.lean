@@ -50,17 +50,19 @@ with evaluation `(f, x) ↦ f x`. The category of measurable spaces is not carte
 such function spaces do not exist in general. In contrast, `mBind` receives its continuation
 as an ordinary function; it does not require a measurable space on the type of continuations.
 
-For a concrete obstruction, let `F` be the set of Borel-measurable functions `ℝ → ℝ`.
-Aumann's theorem states that no σ-algebra on `F` makes `ev : F × ℝ → ℝ`, `ev (f, x) = f x`,
-measurable for the product σ-algebra, where `ℝ` carries its Borel σ-algebra. See Proposition 6
-of the reference below. Product-based formulations of applicative operations remain possible;
+For a concrete obstruction, let `I = [0, 1]` carry its Borel σ-algebra and let `F` be the set
+of Borel-measurable functions `I → I`. Aumann shows that no σ-algebra on `F` makes
+`ev : F × I → I`, `ev (f, x) = f x`, measurable for the product σ-algebra. See §3 of the
+reference below, where this is stated as the inadmissibility of `I^I`.
+Product-based formulations of applicative operations remain possible;
 the obstruction concerns a general function-space interface with compatible measurable evaluation.
 
 ## References
 
-* C. Heunen, O. Kammar, S. Staton, H. Yang,
-  [A Convenient Category for Higher-Order Probability Theory](https://arxiv.org/abs/1701.02547),
-  §II.B, Proposition 6 (Aumann's theorem).
+* R. J. Aumann,
+  [Borel structures for function spaces](https://doi.org/10.1215/ijm/1255631584),
+  Illinois Journal of Mathematics 5(4) (1961), 614–630, §3
+  ([author's reprint](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8)).
 -/
 
 @[expose] public section
