@@ -1,5 +1,5 @@
 name = "RandomDo"
-defaultTargets = ["RandomDo"]
+defaultTargets = ["RandomDo", "RandomDoNext"]
 lintDriver = "batteries/runLinter"
 testDriver = "Test"
 
@@ -20,6 +20,12 @@ precompileModules = true
 
 [[lean_lib]]
 name = "RandomDo"
+
+[[lean_lib]]
+name = "RandomDoNext"
+
+[[lean_lib]]
+name = "TestNext"
 
 [[lean_lib]]
 name = "Test"
