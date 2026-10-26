@@ -39,12 +39,13 @@ Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
 
 ## Implementation details
 
-The development of `MeasurableSpaceMonad` mirrors Lean core's `Monad`, with intermediate classes
-`MeasurableSpaceFunctor`, `MeasurableSpacePure`, and `MeasurableSpaceBind`. It extends these
-three classes directly, omitting the `Applicative` layer.
-
-Ignoring laziness, core's `Seq.seq` has type `m (α → β) → m α → m β`. A function-space analogue
-with measurable application would require evaluation `(f, x) ↦ f x` to be jointly measurable.
+The development of `MeasurableSpaceMonad` mirrors the development of `Monad` in core lean, including
+the definition of intermediate classes `MeasurableSpaceFunctor`, `MeasurableSpacePure`, and
+`MeasurableSpaceBind` except with the key exception that there is no `MeasurableSpaceApplicative`
+and instead `MeasurableSpaceMonad` extends all three of the preceding classes directly. This is
+because defining a `MeasurableSpaceApplicative` would require defining a measurable analogue of
+`Seq.seq : m (α → β) → m α → m β` but
+there is no general function space with jointly measurable evaluation `(f, x) ↦ f x`.
 Even the space of all Borel functions `[0, 1] → [0, 1]` admits no σ-algebra with this property;
 see [Aumann's counterexample](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8), §3, the
 unnumbered example before Lemma 3.1. Consequently, measurable spaces are not cartesian closed.
