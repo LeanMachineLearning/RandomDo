@@ -11,10 +11,11 @@ public import Mathlib.Tactic.FunProp
 /-!
 # Measurable space monads
 
-This file defines functor and monad interfaces for type constructors of the form
-`m : (α : Type u) → [MeasurableSpace α] → Type v`. The operations accept arbitrary functions.
-The corresponding laws require measurability of maps and continuations, and a measurable space
-on each computation type `m α`.
+This file defines `MeasurableSpaceFunctor` and `MeasurableSpaceMonad` as classes on type
+constructors of the form `m : (α : Type u) → [MeasurableSpace α] → Type v`. They play the roles
+of Lean's core `Functor` and `Monad` for types equipped with a `MeasurableSpace` instance.
+The lawful classes express the corresponding functor and monad laws for measurable maps and
+continuations between measurable spaces.
 
 ## Main definitions
 
@@ -36,6 +37,31 @@ The following notation is available in the `RandomDo` scope:
 * `x >>=ₘ f`: `RandomDo.MeasurableSpaceBind.mBind x f`.
 
 Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
+
+## Implementation details
+
+The development mirrors Lean core's intermediate operation classes (`Functor`, `Pure`, and
+`Bind`) and separate `Lawful*` classes in `Init/Prelude.lean` and
+`Init/Control/Lawful/Basic.lean`. As in core, the default mapping operation is defined using pure
+and bind. Operations accept ordinary functions; measurability hypotheses belong to the laws.
+
+We omit core's `Applicative` layer. Ignoring its lazy argument, `Seq.seq` has type
+`m (α → β) → m α → m β`. A general measurable analogue would require function spaces compatible
+with evaluation `(f, x) ↦ f x`. The category of measurable spaces is not cartesian closed, so
+such function spaces do not exist in general. In contrast, `mBind` receives its continuation
+as an ordinary function; it does not require a measurable space on the type of continuations.
+
+For a concrete obstruction, let `F` be the set of Borel-measurable functions `ℝ → ℝ`.
+Aumann's theorem states that no σ-algebra on `F` makes `ev : F × ℝ → ℝ`, `ev (f, x) = f x`,
+measurable for the product σ-algebra, where `ℝ` carries its Borel σ-algebra. See Proposition 6
+of the reference below. Product-based formulations of applicative operations remain possible;
+the obstruction concerns a general function-space interface with compatible measurable evaluation.
+
+## References
+
+* C. Heunen, O. Kammar, S. Staton, H. Yang,
+  [A Convenient Category for Higher-Order Probability Theory](https://arxiv.org/abs/1701.02547),
+  §II.B, Proposition 6 (Aumann's theorem).
 -/
 
 @[expose] public section
