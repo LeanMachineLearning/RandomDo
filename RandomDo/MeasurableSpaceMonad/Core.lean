@@ -5,25 +5,37 @@ Authors: David Ledvinka
 -/
 module
 
-public import Mathlib.MeasureTheory.MeasurableSpace.Basic
 public import Mathlib.MeasureTheory.MeasurableSpace.Constructions
 public import Mathlib.Tactic.FunProp
 
 /-!
-# Measurable-space monads
+# Measurable space monads
 
-A measurable-space monad takes a result type together with its measurable-space instance:
-`m : (α : Type u) → [MeasurableSpace α] → Type v`. This file contains the operations, conditional
-functor and monad laws, and generic iteration interfaces from
-`RandomDo/Monad/MeasurableSpace.lean` at main commit `150ecab`.
+This file defines functor and monad interfaces for type constructors of the form
+`m : (α : Type u) → [MeasurableSpace α] → Type v`. The operations accept arbitrary functions.
+The corresponding laws require measurability of maps and continuations, and a measurable space
+on each computation type `m α`.
 
-The operations accept ordinary functions. The lawfulness classes require a measurable space on
-each computation type and state laws for measurable maps and continuations. Concrete monad and
-collection implementations belong in separate modules.
+## Main definitions
 
-Declarations live in `RandomDo`. Opening this namespace also enables the scoped mapping
-notation `<$>ₘ` and sequencing notation `>>=ₘ`. Import
-`RandomDo.MeasurableSpaceMonad.Notation` to write programs using `rdo`.
+* `RandomDo.MeasurableSpaceFunctor`: mapping functions over computations on measurable types.
+* `RandomDo.MeasurableSpacePure`: embedding a value into a computation.
+* `RandomDo.MeasurableSpaceBind`: sequencing computations with a continuation.
+* `RandomDo.MeasurableSpaceMonad`: combines mapping, pure, and bind, with mapping defined by
+  pure and bind by default.
+* `RandomDo.LawfulMeasurableSpaceFunctor`: functor laws for measurable maps, together with
+  measurability of mapping.
+* `RandomDo.LawfulMeasurableSpaceMonad`: monad laws for measurable continuations, together with
+  measurability of pure and bind.
+
+## Notation
+
+The following notation is available in the `RandomDo` scope:
+
+* `f <$>ₘ x`: `RandomDo.MeasurableSpaceFunctor.mMap f x`.
+* `x >>=ₘ f`: `RandomDo.MeasurableSpaceBind.mBind x f`.
+
+Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
 -/
 
 @[expose] public section
@@ -31,8 +43,6 @@ notation `<$>ₘ` and sequencing notation `>>=ₘ`. Import
 namespace RandomDo
 
 open Function
-
-section
 
 universe u v
 
@@ -219,49 +229,5 @@ theorem mBind_mPure_unit {x : m PUnit} : (x >>=ₘ fun _ => mPure ⟨⟩) = x :=
   simp (disch := fun_prop) only [mBind_assoc, mPure_mBind]
 
 end Lawful
-
-end
-
-section MeasurableSpaceFor
-
-universe uρ uα u v
-
-variable {α : Type u} [mα : MeasurableSpace α] (m : (α : Type u) → [MeasurableSpace α] → Type v)
-
-/-- The disjoint-union measurable space on the two possible loop-step outcomes. -/
-instance instMeasurableSpaceForInStep {β : Type u} [mβ : MeasurableSpace β] :
-    MeasurableSpace (ForInStep β) := mβ.map ForInStep.yield ⊓ mβ.map ForInStep.done
-
-/--
-Monadic iteration in `rdo`-blocks, using the `for x in xs` notation.
--/
-class MeasurableSpaceForIn (ρ : Type uρ) (α : outParam (Type uα)) where
-  /--
-  Monadically iterates over the contents of a collection `xs`, with a local state `b` and the
-  possibility of early termination.
-  -/
-  forIn {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
-    (f : α → β → m (ForInStep β)) : m β
-
-/--
-Monadic iteration in `rdo`-blocks with a membership proof, using the `for h : x in xs` notation.
--/
-class MeasurableSpaceForIn' (ρ : Type uρ) (α : outParam (Type uα))
-    (d : outParam (Membership α ρ)) where
-  /--
-  Monadically iterates over the contents of a collection `xs`, with a local state `b` and the
-  possibility of early termination. At each iteration, the body of the loop is provided with a proof
-  that the current element is in the collection.
-  -/
-  forIn' {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
-    (f : (a : α) → a ∈ xs → β → m (ForInStep β)) : m β
-
-@[simps]
-instance (priority := 500) instMeasurableSpaceForInOfForIn'
-    {ρ : Type uρ} {α : Type uα} {d : Membership α ρ} [MeasurableSpaceForIn' m ρ α d] :
-    MeasurableSpaceForIn m ρ α where
-  forIn x b f := MeasurableSpaceForIn'.forIn' x b fun a _ s => f a s
-
-end MeasurableSpaceFor
 
 end RandomDo
