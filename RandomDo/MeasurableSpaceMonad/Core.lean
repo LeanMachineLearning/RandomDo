@@ -39,30 +39,21 @@ Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
 
 ## Implementation details
 
-The development mirrors Lean core's intermediate operation classes (`Functor`, `Pure`, and
-`Bind`) and separate `Lawful*` classes in `Init/Prelude.lean` and
-`Init/Control/Lawful/Basic.lean`. As in core, the default mapping operation is defined using pure
-and bind. Operations accept ordinary functions; measurability hypotheses belong to the laws.
+The development of `MeasurableSpaceMonad` mirrors Lean core's `Monad`, with intermediate classes
+`MeasurableSpaceFunctor`, `MeasurableSpacePure`, and `MeasurableSpaceBind`. It extends these
+three classes directly, omitting the `Applicative` layer.
 
-We omit core's `Applicative` layer. Ignoring its lazy argument, `Seq.seq` has type
-`m (α → β) → m α → m β`. A general measurable analogue would require function spaces compatible
-with evaluation `(f, x) ↦ f x`. The category of measurable spaces is not cartesian closed, so
-such function spaces do not exist in general. In contrast, `mBind` receives its continuation
-as an ordinary function; it does not require a measurable space on the type of continuations.
+Ignoring laziness, core's `Seq.seq` has type `m (α → β) → m α → m β`. A function-space analogue
+with measurable application would require evaluation `(f, x) ↦ f x` to be jointly measurable.
+Even the space of all Borel functions `[0, 1] → [0, 1]` admits no σ-algebra with this property;
+see [Aumann's counterexample](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8), §3, the
+unnumbered example before Lemma 3.1. Consequently, measurable spaces are not cartesian closed.
 
-For a concrete obstruction, let `I = [0, 1]` carry its Borel σ-algebra and let `F` be the set
-of Borel-measurable functions `I → I`. Aumann shows that no σ-algebra on `F` makes
-`ev : F × I → I`, `ev (f, x) = f x`, measurable for the product σ-algebra. See §3 of the
-reference below, where this is stated as the inadmissibility of `I^I`.
-Product-based formulations of applicative operations remain possible;
-the obstruction concerns a general function-space interface with compatible measurable evaluation.
+For `mBind`, the laws fix a measurable continuation `k : α → m β` and require
+`μ ↦ mBind μ k` to be measurable. They impose no measurability as `k` varies over a function
+space, so no measurable space of continuations is needed. The obstruction concerns jointly
+measurable function application; product-based applicative formulations remain possible.
 
-## References
-
-* R. J. Aumann,
-  [Borel structures for function spaces](https://doi.org/10.1215/ijm/1255631584),
-  Illinois Journal of Mathematics 5(4) (1961), 614–630, §3
-  ([author's reprint](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8)).
 -/
 
 @[expose] public section
