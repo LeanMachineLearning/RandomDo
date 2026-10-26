@@ -58,7 +58,8 @@ jobs:
       - name: Test upstream tracking
         run: |
           python3 -m unittest discover -s scripts/tests -p 'test_upstream.py'
-          lake env lean scripts/tests/Upstream.lean
+          node --test scripts/tests/test_upstream_issue.cjs
+          lake env lean scripts/tests/Analogue.lean
 
       - name: Check adapted definitions against the pinned Lean toolchain
         run: |

@@ -9,12 +9,12 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from functools import cache
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "https://github.com/leanprover/lean4"
-LOCK = ROOT / "upstream.json"
+BASELINE = ROOT / "upstream.json"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
@@ -26,17 +26,16 @@ class CheckError(Exception):
 def git(repo: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", "--no-pager", "-C", str(repo), *args],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+        encoding="utf-8", stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
     )
     if result.returncode:
         raise CheckError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result.stdout
 
 
-def valid_ref(ref: str) -> str:
+def validate_ref(ref: str) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_./-]*", ref) or ".." in ref:
         raise CheckError(f"Invalid upstream revision: {ref!r}")
-    return ref
 
 
 class Source:
@@ -47,11 +46,9 @@ class Source:
             self.repo.mkdir(parents=True)
             git(self.repo, "init", "--bare")
         self.revisions: dict[str, str] = {}
-        self.files: dict[tuple[str, str], str] = {}
-        self.diffs: dict[tuple[str, str, str], str] = {}
 
     def resolve(self, ref: str) -> str:
-        valid_ref(ref)
+        validate_ref(ref)
         if ref not in self.revisions:
             if self.fetch:
                 # Fetch only data from the fixed upstream repository; never check out or execute it.
@@ -66,24 +63,21 @@ class Source:
             self.revisions[commit] = commit
         return self.revisions[ref]
 
+    @cache
     def read(self, commit: str, path: str) -> str:
-        key = (commit, path)
-        if key not in self.files:
-            self.files[key] = git(self.repo, "show", f"{commit}:{path}")
-        return self.files[key]
+        return git(self.repo, "show", f"{commit}:{path}")
 
+    @cache
     def diff(self, before: str, after: str, path: str) -> str:
-        key = (before, after, path)
-        if key not in self.diffs:
-            self.diffs[key] = git(
-                self.repo, "diff", "--no-ext-diff", "--no-textconv", "--no-renames",
-                "--unified=3", before, after, "--", path,
-            )
-        return self.diffs[key]
+        # Zero context makes each hunk one contiguous edit. Ignore local display settings and
+        # attributes that could otherwise color the patch, merge hunks, or hide text as binary.
+        return git(self.repo, "diff", "--no-color", "--text", "--no-ext-diff", "--no-textconv",
+                   "--no-renames", "--unified=0", "--inter-hunk-context=0",
+                   "--diff-algorithm=myers", "--no-indent-heuristic", before, after, "--", path)
 
 
 def read_json(path: Path) -> dict:
-    value = json.loads(path.read_text())
+    value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or value.get("schema") != 1:
         raise CheckError(f"Unsupported metadata schema in {path}")
     return value
@@ -113,13 +107,8 @@ def entries(document: dict, *, baseline: bool) -> dict[tuple[str, str], dict]:
         start, end = entry.get("start"), entry.get("end")
         if type(start) is not int or type(end) is not int or not 1 <= start <= end:
             raise CheckError(f"Invalid source range for {entry['upstream']}")
-        if baseline:
-            if not isinstance(entry.get("commit"), str) or not SHA.fullmatch(entry["commit"]):
-                raise CheckError(f"Invalid baseline commit for {entry['upstream']}")
-            if not isinstance(entry.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
-                raise CheckError(f"Missing source hash for {entry['upstream']}")
-            if not isinstance(entry.get("note"), str) or not entry["note"].strip():
-                raise CheckError(f"Missing review note for {entry['local']}")
+        if baseline and (not isinstance(entry.get("commit"), str) or not SHA.fullmatch(entry["commit"])):
+            raise CheckError(f"Invalid baseline commit for {entry['upstream']}")
         key = identity(entry)
         if key in result:
             raise CheckError(f"Duplicate upstream mapping: {key}")
@@ -148,50 +137,31 @@ def validate_mappings(baseline: dict, metadata: dict) -> None:
                 raise CheckError(f"Baseline range disagrees with Lean's metadata for {key[1]}")
 
 
-def source_hash(source: Source, commit: str, entry: dict) -> str:
-    lines = source.read(commit, entry["path"]).splitlines(keepends=True)
-    if entry["end"] > len(lines):
+def validate_range(source: Source, commit: str, entry: dict) -> None:
+    if entry["end"] > len(source.read(commit, entry["path"]).splitlines()):
         raise CheckError(f"Source range exceeds {entry['path']} at {commit}")
-    text = "".join(lines[entry["start"] - 1:entry["end"]])
-    return hashlib.sha256(text.encode()).hexdigest()
 
 
-@dataclass
-class Hunk:
-    old_start: int
-    lines: list[str]
-
-    def edits(self, start: int, end: int) -> list[list[str]]:
-        """Return relevant edit blocks, excluding context and unrelated edits in the same hunk."""
-        line = self.old_start
-        result, block, affected = [], [], False
-        for text in self.lines[1:]:
-            if text.startswith("+"):
-                # Include insertions at either boundary: these can extend a declaration.
-                affected |= start - 1 <= line - 1 <= end
-                block.append(text)
-            elif text.startswith("-"):
-                affected |= start <= line <= end
-                block.append(text)
-                line += 1
-            elif text.startswith(" "):
-                if affected:
-                    result.append(block)
-                block, affected = [], False
-                line += 1
-        if affected:
-            result.append(block)
-        return result
-
-
-def hunks(diff: str) -> list[Hunk]:
-    result: list[Hunk] = []
-    for line in diff.splitlines():
-        match = HUNK.match(line)
-        if match:
-            result.append(Hunk(int(match[1]), [line]))
-        elif result:
-            result[-1].lines.append(line)
+def changed_hunks(diff: str, start: int, end: int) -> list[str]:
+    """Select zero-context hunks touching the inclusive baseline range."""
+    result = []
+    for hunk in re.split(r"(?m)^(?=@@ -)", diff)[1:]:
+        match = HUNK.match(hunk)
+        if match is None:
+            raise CheckError("Invalid Git diff hunk")
+        first = int(match[1])
+        count = int(match[2]) if match[2] is not None else 1
+        # A pure insertion is anchored after `first`. Include both boundaries because a new
+        # attribute or trailing clause can extend the declaration beyond its old source range.
+        if count == 0:
+            touches = start - 1 <= first <= end
+        else:
+            # Replacing a neighboring line can also add an attribute or trailing clause.
+            added = int(match[4]) if match[4] is not None else 1
+            margin = 1 if added else 0
+            touches = first <= end + margin and first + count > start - margin
+        if touches:
+            result.append(hunk.rstrip("\n"))
     return result
 
 
@@ -202,43 +172,33 @@ def check(baseline: dict, source: Source, target: str) -> dict:
     for key in sorted(tracked):
         entry = tracked[key]
         before = source.resolve(entry["commit"])
-        if source_hash(source, before, entry) != entry["sha256"]:
-            raise CheckError(f"Baseline source hash mismatch for {entry['upstream']}")
-        relevant = [(h, h.edits(entry["start"], entry["end"]))
-                    for h in hunks(source.diff(before, target, entry["path"]))]
-        relevant = [(h, edits) for h, edits in relevant if edits]
-        if relevant:
-            changes.append({**entry, "diff": "\n".join(
-                line for h, _ in relevant for line in h.lines),
-                "edits": [block for _, edits in relevant for block in edits]})
-    # Unrelated upstream commits must not cause repeated issue updates. Hunk offsets may change
-    # when unrelated lines are inserted earlier in the file, so exclude them from the digest.
-    fingerprint = hashlib.sha256(json.dumps([
-        [c["local"], c["local_file"], c["upstream"], c["path"], c["commit"],
-         c["start"], c["end"], c["note"], c["edits"]]
-        for c in changes
-    ], ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        validate_range(source, before, entry)
+        hunks = changed_hunks(source.diff(before, target, entry["path"]), entry["start"], entry["end"])
+        if hunks:
+            changes.append({**entry, "diff": "\n".join(hunks)})
+    # Exclude hunk headings: unrelated insertions can shift the target's line numbers.
+    edits = [{**c, "diff": "\n".join(line for line in c["diff"].splitlines()
+                                  if not line.startswith("@@ "))} for c in changes]
+    fingerprint = hashlib.sha256(json.dumps(edits, sort_keys=True).encode()).hexdigest()
     return {"target": target, "checked": len(tracked), "changes": changes,
             "fingerprint": fingerprint}
 
 
 def record(baseline: dict | None, metadata: dict, source: Source,
-           selected: list[str] | None, note: str) -> dict:
+           selected: list[str] | None) -> dict:
     current = entries(metadata, baseline=False)
     old = entries(baseline, baseline=True) if baseline is not None else {}
-    if not note.strip():
-        raise CheckError("A review note is required")
-    names = {key[0] for key in current}
+    names = {key[0] for key in old.keys() | current.keys()}
     chosen = set(selected) if selected else names
     if not chosen <= names:
         raise CheckError(f"Unknown tracked declarations: {sorted(chosen - names)}")
-    # --all also removes annotations that were deleted; --only preserves all other baselines.
+    # Include old names so --only can remove or rename an annotation without advancing others.
     result = {key: value for key, value in old.items() if selected and key[0] not in chosen}
     commit = source.resolve(metadata["commit"])
     for key, entry in current.items():
         if key[0] in chosen:
-            result[key] = {**entry, "commit": commit,
-                           "sha256": source_hash(source, commit, entry), "note": note}
+            validate_range(source, commit, entry)
+            result[key] = {**entry, "commit": commit}
     return {"schema": 1, "repository": REPOSITORY,
             "entries": [result[key] for key in sorted(result)]}
 
@@ -250,25 +210,21 @@ def markdown(report: dict) -> str:
     if not report["changes"]:
         lines.append("No changes intersect the tracked declarations since their recorded baselines.")
     else:
-        lines += ["Review these upstream changes, then port them or explain why they do not apply. "
-                  "Advance a declaration's baseline only after that review. "
-                  "A moved or deleted source file is reported as a deletion.", ""]
+        lines += ["Review these changes before advancing the affected baselines.", ""]
         for change in report["changes"]:
             link = (f"{REPOSITORY}/blob/{change['commit']}/{change['path']}"
                     f"#L{change['start']}-L{change['end']}")
             lines += [f"## `{change['local']}`", "",
                       f"Local file: `{change['local_file']}`. "
                       f"Upstream: [`{change['upstream']}`]({link}).", "",
-                      f"Baseline note: {change['note']}", "",
-                      f"[Full upstream comparison]({REPOSITORY}/compare/"
-                      f"{change['commit']}...{report['target']})", "", "````diff",
+                      "````diff",
                       change["diff"], "````", ""]
     return "\n".join(lines) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--baseline", type=Path, default=LOCK)
+    parser.add_argument("--baseline", type=Path, default=BASELINE)
     parser.add_argument("--repo", type=Path, help="Use an existing Lean Git repository without fetching")
     commands = parser.add_subparsers(dest="command", required=True)
     check_parser = commands.add_parser("check", help="Report upstream changes; never update the baseline")
@@ -276,21 +232,22 @@ def main(argv: list[str] | None = None) -> int:
     check_parser.add_argument("--target", help="Upstream revision (defaults to the exported Lean commit)")
     check_parser.add_argument("--report", type=Path)
     check_parser.add_argument("--json-report", type=Path)
-    check_parser.add_argument("--advisory", action="store_true", help="Exit successfully on drift, but not on errors")
+    check_parser.add_argument("--advisory", action="store_true",
+                              help="Exit successfully on drift, but not on errors")
     record_parser = commands.add_parser("record", help="Record explicitly reviewed upstream baselines")
     record_parser.add_argument("--metadata", type=Path, required=True)
     choice = record_parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--only", nargs="+", metavar="DECL")
     choice.add_argument("--all", action="store_true")
-    record_parser.add_argument("--note", required=True)
     args = parser.parse_args(argv)
     try:
         baseline = read_json(args.baseline) if args.baseline.exists() else None
         metadata = read_json(args.metadata) if args.metadata else None
         source = Source(args.repo)
         if args.command == "record":
-            result = record(baseline, metadata, source, args.only, args.note)
-            args.baseline.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+            result = record(baseline, metadata, source, args.only)
+            args.baseline.write_text(
+                json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(f"Recorded {len(result['entries'])} mappings in {args.baseline}")
             return 0
         if baseline is None:
@@ -303,11 +260,12 @@ def main(argv: list[str] | None = None) -> int:
         report = check(baseline, source, target)
         text = markdown(report)
         if args.report:
-            args.report.write_text(text)
+            args.report.write_text(text, encoding="utf-8")
         else:
             print(text, end="")
         if args.json_report:
-            args.json_report.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+            args.json_report.write_text(
+                json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return 1 if report["changes"] and not args.advisory else 0
     except (CheckError, OSError, ValueError) as exc:
         print(f"Upstream check failed: {exc}", file=sys.stderr)

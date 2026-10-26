@@ -13,13 +13,13 @@ tracked modules. Source ranges come from the running toolchain's declaration met
 class fields and definition bodies. They are meaningful only at the accompanying Lean commit.
 -/
 
-open Lean RandomDo.Upstream
+open Lean RandomDo.Analogue
 
 run_cmd do
   let env ← getEnv
   let mut entries : Array Json := #[]
   for (decl, _) in env.constants do
-    if let some sources := upstreamAttr.getParam? env decl then
+    if let some sources := analogueAttr.getParam? env decl then
       let some localIdx := env.getModuleIdxFor? decl
         | throwError "No module for tracked declaration `{decl}`"
       let localModule := env.header.moduleNames[localIdx.toNat]!

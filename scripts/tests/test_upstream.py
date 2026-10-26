@@ -36,7 +36,7 @@ class UpstreamTest(unittest.TestCase):
             "local": "Adapted.foo", "local_file": "RandomDo/Example.lean",
             "upstream": "Example.foo", "path": "src/Example.lean", "start": 3, "end": 4,
         }]}
-        self.baseline = upstream.record(None, self.metadata, self.source(), None, "Adapted to m")
+        self.baseline = upstream.record(None, self.metadata, self.source(), None)
 
     def source(self):
         return upstream.Source(self.repo)
@@ -76,6 +76,12 @@ class UpstreamTest(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(len(self.report(self.change(text))["changes"]), 1)
 
+    def test_replacing_neighboring_lines_can_extend_a_declaration(self):
+        for text in [self.original.replace("\n\ndef foo", "\n@[inline]\ndef foo"),
+                     self.original.replace("x + 1\n\n", "x + 1\n  + 2\n")]:
+            with self.subTest(text=text):
+                self.assertTrue(self.report(self.change(text))["changes"])
+
     def test_deleted_declaration_and_renamed_declaration(self):
         target = self.change(self.original.replace("def foo (x : Nat) : Nat :=\n  x + 1\n", ""))
         self.assertTrue(self.report(target)["changes"])
@@ -86,9 +92,9 @@ class UpstreamTest(unittest.TestCase):
         self.path.rename(self.path.with_name("Moved.lean"))
         self.assertTrue(self.report(self.commit())["changes"])
 
-    def test_corrupted_baseline_is_an_error(self):
-        self.baseline["entries"][0]["sha256"] = "0" * 64
-        with self.assertRaisesRegex(upstream.CheckError, "hash mismatch"):
+    def test_nonexistent_source_is_an_error(self):
+        self.baseline["entries"][0]["path"] = "src/Missing.lean"
+        with self.assertRaises(upstream.CheckError):
             self.report(self.before)
 
     def test_missing_revision_is_an_error(self):
@@ -96,7 +102,7 @@ class UpstreamTest(unittest.TestCase):
             self.report("no-such-revision")
 
     def test_source_range_and_identity_are_validated(self):
-        for key, value in [("start", 0), ("end", -1), ("path", "../outside.lean")]:
+        for key, value in [("start", 0), ("end", 1000), ("path", "../outside.lean")]:
             baseline = copy.deepcopy(self.baseline)
             baseline["entries"][0][key] = value
             with self.subTest(key=key), self.assertRaises(upstream.CheckError):
@@ -121,24 +127,49 @@ class UpstreamTest(unittest.TestCase):
         with self.assertRaisesRegex(upstream.CheckError, "range disagrees"):
             upstream.validate_mappings(baseline, self.metadata)
 
-    def test_invalid_commit_types_are_check_errors(self):
-        for field in ("commit", "sha256"):
-            baseline = copy.deepcopy(self.baseline)
-            baseline["entries"][0][field] = None
-            with self.subTest(field=field), self.assertRaises(upstream.CheckError):
-                upstream.entries(baseline, baseline=True)
+    def test_invalid_commit_is_a_check_error(self):
+        self.baseline["entries"][0]["commit"] = None
+        with self.assertRaises(upstream.CheckError):
+            upstream.entries(self.baseline, baseline=True)
 
     def test_partial_review_preserves_other_baselines(self):
         metadata = copy.deepcopy(self.metadata)
         metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.second"})
-        baseline = upstream.record(None, metadata, self.source(), None, "Initial review")
+        baseline = upstream.record(None, metadata, self.source(), None)
         metadata["commit"] = self.change(self.original.replace("x + 1", "x + 2"))
-        reviewed = upstream.record(baseline, metadata, self.source(), ["Adapted.foo"], "Ported fix")
+        reviewed = upstream.record(baseline, metadata, self.source(), ["Adapted.foo"])
         by_name = {e["local"]: e for e in reviewed["entries"]}
         self.assertEqual(by_name["Adapted.foo"]["commit"], metadata["commit"])
         self.assertEqual(by_name["Adapted.second"]["commit"], self.before)
         report = upstream.check(reviewed, self.source(), metadata["commit"])
         self.assertEqual([c["local"] for c in report["changes"]], ["Adapted.second"])
+
+    def test_removing_or_renaming_one_annotation_preserves_other_baselines(self):
+        for renamed in (False, True):
+            with self.subTest(renamed=renamed):
+                metadata = copy.deepcopy(self.metadata)
+                metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.second"})
+                baseline = upstream.record(None, metadata, self.source(), None)
+                metadata["commit"] = self.change(self.path.read_text() + "-- unrelated\n")
+                metadata["entries"].pop(0)
+                selected = ["Adapted.foo"]
+                if renamed:
+                    metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.new"})
+                    selected.append("Adapted.new")
+                recorded = upstream.record(baseline, metadata, self.source(), selected)
+                upstream.validate_mappings(recorded, metadata)
+                by_name = {e["local"]: e for e in recorded["entries"]}
+                self.assertNotIn("Adapted.foo", by_name)
+                self.assertEqual(by_name["Adapted.second"]["commit"], self.before)
+                if renamed:
+                    self.assertEqual(by_name["Adapted.new"]["commit"], metadata["commit"])
+
+    def test_git_display_settings_cannot_hide_or_expand_changes(self):
+        upstream.git(self.repo, "config", "color.ui", "always")
+        upstream.git(self.repo, "config", "diff.interHunkContext", "100")
+        (self.repo / ".gitattributes").write_text("*.lean binary\n")
+        self.assertFalse(self.report(self.change(self.original.replace("10", "20")))["changes"])
+        self.assertTrue(self.report(self.change(self.original.replace("x + 1", "x + 2")))["changes"])
 
     def test_no_automatic_baseline_update_and_exit_codes(self):
         lock = self.repo / "baseline.json"
@@ -160,10 +191,10 @@ class UpstreamTest(unittest.TestCase):
         self.assertNotEqual(first["target"], second["target"])
         self.assertEqual(first["fingerprint"], second["fingerprint"])
 
-    def test_report_includes_mapping_review_note_and_upstream_diff(self):
+    def test_report_includes_mapping_and_upstream_diff(self):
         report = self.report(self.change(self.original.replace("x + 1", "x + 2")))
         text = upstream.markdown(report)
-        for expected in ["Adapted.foo", "Example.foo", "Adapted to m", "-  x + 1", "+  x + 2"]:
+        for expected in ["Adapted.foo", "Example.foo", "-  x + 1", "+  x + 2"]:
             self.assertIn(expected, text)
 
 

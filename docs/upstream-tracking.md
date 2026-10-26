@@ -1,26 +1,24 @@
-# Tracking adaptations of Lean core
+# Tracking Lean core analogues
 
-The initial scope is `RandomDo/Monad/MeasurableSpace.lean` and
-`RandomDo/Monad/Notation.lean`. The annotations identify adaptations, not literal copies or
-claims of semantic equivalence. They do not change the definitions or their docstrings.
+Use `@[analogue Core.declaration]` to link an adaptation to its Lean core counterpart:
 
 ```lean
-@[upstream Bind]
+@[analogue Bind]
 class MeasurableSpaceBind ...
 
-@[upstream Lean.Elab.Do.DoOps.default]
+@[analogue Lean.Elab.Do.DoOps.default]
 def randOps ...
 ```
 
-Multiple origins use spaces: `@[upstream Pure Bind]`. Use fully qualified names when needed;
-for example, `_root_.bind_congr` avoids resolving to the declaration being annotated.
-The attribute rejects unknown names, duplicate origins, and declarations outside Lean core.
-It is implemented in `RandomDo/Util/Upstream.lean`. To extend tracking to another module,
-import that module in `scripts/ExportUpstream.lean` and record its annotated declarations.
+Multiple names use spaces: `@[analogue Pure Bind]`. Qualify names when necessary;
+`_root_.bind_congr`, for example, avoids resolving to the declaration being annotated.
+The attribute checks that each name exists in Lean core and records metadata without changing
+any definition. It is defined in `RandomDo/Util/Analogue.lean`.
 
-## Checking an upgrade
+## Checking for changes
 
-Build the tracked modules, export their annotations, and compare against the running toolchain:
+The initial scope is `RandomDo/Monad/MeasurableSpace.lean` and `RandomDo/Monad/Notation.lean`.
+To check the current toolchain against the recorded baselines:
 
 ```sh
 lake build --wfail RandomDo.Monad.MeasurableSpace RandomDo.Monad.Notation
@@ -28,82 +26,59 @@ lake env lean scripts/ExportUpstream.lean > .lake/upstream-current.json
 python3 scripts/upstream.py check --metadata .lake/upstream-current.json
 ```
 
-The build workflow runs this check on PRs, along with the attribute and checker tests.
-New or removed annotations require an explicit baseline update. An upstream name that disappears
-will also fail to resolve when building against the new toolchain.
+The build workflow runs this check on PRs. The exporter gets declaration locations from Lean;
+`upstream.json` stores the source path, line range, and exact Lean commit for each mapping.
+The Python script uses Git to compare those upstream regions with the target revision. It
+requires Python 3.10+ and Git, with no Python packages. Later line insertions do not shift the
+baseline because its range always refers to its recorded commit.
 
-`upstream.json` records, for each local/upstream pair, an immutable Lean commit, the upstream source
-path and range, a hash of that source, and a review note. The exporter obtains ranges from Lean's
-declaration metadata, including class fields, documentation, and definition bodies. A range is
-used only with the exact commit at which it was recorded: later line insertions do not invalidate
-it. The checker compares old upstream source with new upstream source, not with the intentionally
-different RandomDo implementation. It needs Git and Python 3.10 or later, with no Python packages.
+The weekly workflow compares against Lean's default development branch every Monday at 08:23 UTC.
+It maintains one issue listing affected declarations and linking to the full diff report.
+Unchanged relevant edits do not cause repeated updates. It closes the issue when differences
+are resolved; a failed check fails the workflow and leaves the issue alone. The schedule starts
+after merge to the default branch and can also be run manually.
 
-## Reviewing and recording a change
-
-Read the report's upstream diff alongside the corresponding RandomDo declaration. Port relevant
-changes or explain why they do not apply. Then record only the declarations reviewed in this PR:
-
-```sh
-python3 scripts/upstream.py record --metadata .lake/upstream-current.json \
-  --only RDo.randOps --note 'Ported the core change; measurable-space arguments remain explicit.'
-```
-
-Each selected declaration's origins receive the current toolchain commit and source range.
-Other declarations keep their existing baselines. Commit the baseline update with the adaptation
-or explanation, so reviewers can see both. `--all` explicitly records every exported annotation
-and removes obsolete mappings; use it only when all affected entries have been reviewed.
-For a local rename, `--all` also reconciles the old and new identities; unchanged upstream entries
-still need accurate review notes. The checker never advances baselines automatically.
-
-The initial baseline is Lean v4.35.0. It records the existing adaptations as the starting point for
-monitoring, not a completed correctness audit. In particular:
-
-- `RDo.randOps` supplies measurable-space arguments and currently omits core's dead-syntax guard
-  in `mkPureApp`. This is a known difference to investigate separately.
-- The loop parsers, expander and elaborator retain the existing `rdo` adaptations; they do not
-  implement core's `invariant` / `decreasing` annotations or its verification-condition hooks.
-- The class hierarchy and laws have measurable-space parameters and measurability hypotheses,
-  and omit the applicative layer. These differences are intentional.
-
-## Watching future core changes
-
-The `Watch Lean core adaptations` workflow checks upstream's default development branch each
-Monday at 08:23 UTC and can also be run manually. Scheduled workflows become active once merged
-to the repository's default branch. It reads upstream source only; it does not build or execute
-future core code or change the project's toolchain.
-
-When a tracked region changes, the workflow opens or updates one GitHub issue with the affected
-local declarations, review notes, source links, and upstream diffs. Unchanged relevant edits do
-not cause repeated updates when unrelated commits land in core. The issue is closed when no
-tracked differences remain. Fetch, metadata, and other check failures fail the workflow and do
-not close an existing issue. The watcher has read-only contents access and permission to maintain its issue.
-The PR checks add no token permissions to the existing build workflow. No baseline updates or code changes are made by the watcher.
-
-Run the same comparison locally:
+To run the same comparison locally:
 
 ```sh
 python3 scripts/upstream.py check --target HEAD --report .lake/upstream-report.md
 ```
 
-Without `--repo`, the checker fetches from `leanprover/lean4` into `.lake/upstream-lean.git`.
-Use `--repo /path/to/lean4` before `check` or `record` to use an existing Git repository without
-fetching. Exit statuses are 0 for unchanged, 1 for changes needing review, and 2 for an incomplete
-or invalid check. `--advisory` changes status 1 to 0; errors still fail.
+Sources are fetched into `.lake/upstream-lean.git`; no future Lean code is built or executed.
+Use `--repo /path/to/lean4` before the subcommand to use a local Git repository without fetching.
+Exit codes are 0 for unchanged, 1 for changes, and 2 for errors. `--advisory` allows changes while
+still failing on errors; it is used by the weekly workflow.
 
-## Coverage and tests
+## Updating a baseline
 
-Moved or deleted files and renamed declarations are reported through changes at their recorded
-locations. Insertions immediately at either boundary are conservatively flagged because they
-can extend a declaration. Unrelated changes elsewhere in the same file are ignored.
-This is source-change detection: changes to untracked helpers or surrounding module/section
-context can also affect behavior. It does not prove that an adaptation remains correct. Keep the project's behavior and elaboration tests.
+Review the upstream diff, adapt the local code as needed, and explain intentional differences
+in the PR. Then record just the declarations you reviewed:
+
+```sh
+python3 scripts/upstream.py record --metadata .lake/upstream-current.json --only RDo.randOps
+```
+
+Commit the generated baseline change with the adaptation. Other declarations retain their
+baselines. For a rename, pass both old and new names to `--only`; for a removed annotation,
+pass its old name. `--all` explicitly records every mapping. Checks never advance baselines.
+To track another module, import it in `scripts/ExportUpstream.lean`, export, and record its mappings.
+
+## Scope
+
+The initial Lean v4.35.0 baseline starts monitoring the existing adaptations; it is not a
+correctness audit. Known differences include the omitted dead-syntax guard in the
+`mkPureApp` override in `RDo.randOps`, the loop adapters' missing `invariant` / `decreasing` syntax and
+verification hooks, and the measurable hierarchy's intentional omission of applicative classes.
+
+The checker reports edits within a declaration, including its body, and conservatively includes
+insertions and replacements at either boundary. Renames and file moves are reported at the old location. Changes
+to untracked helpers or surrounding sections can also affect behavior, so normal elaboration
+and behavior tests remain necessary.
+
+The checker, attribute, and issue tests run offline:
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p 'test_upstream.py'
-lake env lean scripts/tests/Upstream.lean
+lake env lean scripts/tests/Analogue.lean
+node --test scripts/tests/test_upstream_issue.cjs
 ```
-
-The Python tests construct local Git histories and require no network. They cover source/body
-changes, boundary insertions, unrelated edits, moves/deletions, malformed or missing data,
-partial review, exit statuses, baseline preservation, and notification deduplication.
