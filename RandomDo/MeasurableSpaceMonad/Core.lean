@@ -30,7 +30,7 @@ are lawful, this corresponds to functors and monads on the category of measure s
 
 ## Notation
 
-The following notation is available in the `RandomDo` scope:
+The following notation is available in the `MeasureTheory` scope:
 
 * `f <$>ₘ x`: `MeasurableSpaceFunctor.mMap f x`.
 * `x >>=ₘ f`: `MeasurableSpaceBind.mBind x f`.
@@ -65,7 +65,7 @@ the obstruction concerns a general function-space interface with compatible meas
 
 @[expose] public section
 
-namespace RandomDo
+namespace MeasureTheory
 
 open Function
 
@@ -255,4 +255,4 @@ theorem mBind_mPure_unit {x : m PUnit} : (x >>=ₘ fun _ => mPure ⟨⟩) = x :=
 
 end Lawful
 
-end RandomDo
+end MeasureTheory

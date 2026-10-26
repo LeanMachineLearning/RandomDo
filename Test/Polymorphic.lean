@@ -1,7 +1,10 @@
 module
 
 public import Test.IsMarkov
-public meta import RandomDo
+public import RandomDo.Tactic.Computable.Polymorphic.Polymorphic
+public import RandomDo.Tactic.Computable.Polymorphic.Scalar
+public meta import RandomDo.Tactic.Computable.Polymorphic.Polymorphic
+public meta import RandomDo.Tactic.Computable.Polymorphic.Scalar
 import Batteries.Data.Float.Basic
 
 set_option linter.style.header false

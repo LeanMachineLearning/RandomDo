@@ -14,7 +14,7 @@ The programs below use only abstract monad operations. They check return, bindin
 and mutable state through the notation import.
 -/
 
-open RandomDo MeasurableSpacePure MeasurableSpaceBind
+open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
 
 @[expose] public section
 

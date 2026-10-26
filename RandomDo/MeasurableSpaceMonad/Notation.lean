@@ -18,26 +18,26 @@ measurable-space argument when constructing a computation type or operation.
 
 ## Main definitions
 
-* `RandomDo.RDo.randOps`: adapts Lean's `DoOps` to measurable space monad operations.
-* `RandomDo.RDo.elabRand`: elaborates an `rdo` block using `randOps`.
+* `RDo.randOps`: adapts Lean's `DoOps` to measurable space monad operations.
+* `RDo.elabRand`: elaborates an `rdo` block using `randOps`.
 
 ## Notation
 
-* `rdo ...`: a monadic program using `RandomDo.MeasurableSpacePure.mPure` and
-  `RandomDo.MeasurableSpaceBind.mBind`.
+* `rdo ...`: a monadic program using `MeasurableSpacePure.mPure` and
+  `MeasurableSpaceBind.mBind`.
 
-Use `open RandomDo` (or `open scoped RandomDo`) to enable the notation.
+Use `open MeasureTheory` (or `open scoped MeasureTheory`) to enable the notation.
 -/
 
 open Lean Lean.Parser Lean.Parser.Term Lean.Meta Lean.Elab Lean.Elab.Do Lean.Elab.Term Std Meta
-open RandomDo MeasurableSpacePure MeasurableSpaceBind
+open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
 
 public meta section
 
-namespace RandomDo
+namespace MeasureTheory
 
 /-- The `do` notation for writing monadic programs depending on a `MeasurableSpace` instance. -/
-scoped syntax (name := randKind) (priority := high) "rdo" doSeq : term
+scoped syntax (name := randKind) "rdo" doSeq : term
 
 namespace RDo
 
@@ -88,4 +88,4 @@ def randOps : DoOps := { DoOps.default with
 
 end RDo
 
-end RandomDo
+end MeasureTheory

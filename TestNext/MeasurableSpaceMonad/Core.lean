@@ -14,7 +14,7 @@ Exercise the public simplifier and measurability interfaces with an abstract mon
 independent result/computation universes. No concrete interpretation is installed.
 -/
 
-open RandomDo MeasurableSpacePure MeasurableSpaceBind MeasurableSpaceFunctor
+open MeasureTheory MeasurableSpacePure MeasurableSpaceBind MeasurableSpaceFunctor
 
 universe u v
 
