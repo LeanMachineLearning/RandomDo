@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import upstream
+import check as checker
 
 
 class UpstreamTest(unittest.TestCase):
@@ -18,9 +18,9 @@ class UpstreamTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
-        upstream.git(self.repo, "init", "--quiet")
-        upstream.git(self.repo, "config", "user.email", "test@example.invalid")
-        upstream.git(self.repo, "config", "user.name", "Upstream tests")
+        checker.git(self.repo, "init", "--quiet")
+        checker.git(self.repo, "config", "user.email", "test@example.invalid")
+        checker.git(self.repo, "config", "user.name", "Upstream tests")
         self.path = self.repo / "src" / "Example.lean"
         self.path.parent.mkdir()
         self.original = (
@@ -36,22 +36,22 @@ class UpstreamTest(unittest.TestCase):
             "local": "Adapted.foo", "local_file": "RandomDo/Example.lean",
             "upstream": "Example.foo", "path": "src/Example.lean", "start": 3, "end": 4,
         }]}
-        self.baseline = upstream.record(None, self.metadata, self.source(), None)
+        self.baseline = checker.record(None, self.metadata, self.source(), None)
 
     def source(self):
-        return upstream.Source(self.repo)
+        return checker.Source(self.repo)
 
     def commit(self):
-        upstream.git(self.repo, "add", ".")
-        upstream.git(self.repo, "commit", "--quiet", "--no-gpg-sign", "-m", "fixture")
-        return upstream.git(self.repo, "rev-parse", "HEAD").strip()
+        checker.git(self.repo, "add", ".")
+        checker.git(self.repo, "commit", "--quiet", "--no-gpg-sign", "-m", "fixture")
+        return checker.git(self.repo, "rev-parse", "HEAD").strip()
 
     def change(self, text):
         self.path.write_text(text)
         return self.commit()
 
     def report(self, target):
-        return upstream.check(self.baseline, self.source(), target)
+        return checker.check(self.baseline, self.source(), target)
 
     def test_unchanged_and_unrelated_edits(self):
         self.assertEqual(self.report(self.before)["changes"], [])
@@ -94,54 +94,54 @@ class UpstreamTest(unittest.TestCase):
 
     def test_nonexistent_source_is_an_error(self):
         self.baseline["entries"][0]["path"] = "src/Missing.lean"
-        with self.assertRaises(upstream.CheckError):
+        with self.assertRaises(checker.CheckError):
             self.report(self.before)
 
     def test_missing_revision_is_an_error(self):
-        with self.assertRaises(upstream.CheckError):
+        with self.assertRaises(checker.CheckError):
             self.report("no-such-revision")
 
     def test_source_range_and_identity_are_validated(self):
         for key, value in [("start", 0), ("end", 1000), ("path", "../outside.lean")]:
             baseline = copy.deepcopy(self.baseline)
             baseline["entries"][0][key] = value
-            with self.subTest(key=key), self.assertRaises(upstream.CheckError):
-                upstream.check(baseline, self.source(), self.before)
+            with self.subTest(key=key), self.assertRaises(checker.CheckError):
+                checker.check(baseline, self.source(), self.before)
         baseline = copy.deepcopy(self.baseline)
         baseline["entries"].append(baseline["entries"][0])
-        with self.assertRaisesRegex(upstream.CheckError, "Duplicate"):
-            upstream.entries(baseline, baseline=True)
+        with self.assertRaisesRegex(checker.CheckError, "Duplicate"):
+            checker.entries(baseline, baseline=True)
 
     def test_new_removed_and_moved_annotations_require_review(self):
-        upstream.validate_mappings(self.baseline, self.metadata)
+        checker.validate_mappings(self.baseline, self.metadata)
         for key, value in [("local", "Adapted.new"), ("upstream", "Example.new"),
                            ("local_file", "RandomDo/New.lean")]:
             metadata = copy.deepcopy(self.metadata)
             metadata["entries"][0][key] = value
-            with self.subTest(key=key), self.assertRaises(upstream.CheckError):
-                upstream.validate_mappings(self.baseline, metadata)
+            with self.subTest(key=key), self.assertRaises(checker.CheckError):
+                checker.validate_mappings(self.baseline, metadata)
 
     def test_range_must_match_exported_metadata_at_the_same_commit(self):
         baseline = copy.deepcopy(self.baseline)
         baseline["entries"][0]["start"] = 4
-        with self.assertRaisesRegex(upstream.CheckError, "range disagrees"):
-            upstream.validate_mappings(baseline, self.metadata)
+        with self.assertRaisesRegex(checker.CheckError, "range disagrees"):
+            checker.validate_mappings(baseline, self.metadata)
 
     def test_invalid_commit_is_a_check_error(self):
         self.baseline["entries"][0]["commit"] = None
-        with self.assertRaises(upstream.CheckError):
-            upstream.entries(self.baseline, baseline=True)
+        with self.assertRaises(checker.CheckError):
+            checker.entries(self.baseline, baseline=True)
 
     def test_partial_review_preserves_other_baselines(self):
         metadata = copy.deepcopy(self.metadata)
         metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.second"})
-        baseline = upstream.record(None, metadata, self.source(), None)
+        baseline = checker.record(None, metadata, self.source(), None)
         metadata["commit"] = self.change(self.original.replace("x + 1", "x + 2"))
-        reviewed = upstream.record(baseline, metadata, self.source(), ["Adapted.foo"])
+        reviewed = checker.record(baseline, metadata, self.source(), ["Adapted.foo"])
         by_name = {e["local"]: e for e in reviewed["entries"]}
         self.assertEqual(by_name["Adapted.foo"]["commit"], metadata["commit"])
         self.assertEqual(by_name["Adapted.second"]["commit"], self.before)
-        report = upstream.check(reviewed, self.source(), metadata["commit"])
+        report = checker.check(reviewed, self.source(), metadata["commit"])
         self.assertEqual([c["local"] for c in report["changes"]], ["Adapted.second"])
 
     def test_removing_or_renaming_one_annotation_preserves_other_baselines(self):
@@ -149,15 +149,15 @@ class UpstreamTest(unittest.TestCase):
             with self.subTest(renamed=renamed):
                 metadata = copy.deepcopy(self.metadata)
                 metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.second"})
-                baseline = upstream.record(None, metadata, self.source(), None)
+                baseline = checker.record(None, metadata, self.source(), None)
                 metadata["commit"] = self.change(self.path.read_text() + "-- unrelated\n")
                 metadata["entries"].pop(0)
                 selected = ["Adapted.foo"]
                 if renamed:
                     metadata["entries"].append({**metadata["entries"][0], "local": "Adapted.new"})
                     selected.append("Adapted.new")
-                recorded = upstream.record(baseline, metadata, self.source(), selected)
-                upstream.validate_mappings(recorded, metadata)
+                recorded = checker.record(baseline, metadata, self.source(), selected)
+                checker.validate_mappings(recorded, metadata)
                 by_name = {e["local"]: e for e in recorded["entries"]}
                 self.assertNotIn("Adapted.foo", by_name)
                 self.assertEqual(by_name["Adapted.second"]["commit"], self.before)
@@ -165,8 +165,8 @@ class UpstreamTest(unittest.TestCase):
                     self.assertEqual(by_name["Adapted.new"]["commit"], metadata["commit"])
 
     def test_git_display_settings_cannot_hide_or_expand_changes(self):
-        upstream.git(self.repo, "config", "color.ui", "always")
-        upstream.git(self.repo, "config", "diff.interHunkContext", "100")
+        checker.git(self.repo, "config", "color.ui", "always")
+        checker.git(self.repo, "config", "diff.interHunkContext", "100")
         (self.repo / ".gitattributes").write_text("*.lean binary\n")
         self.assertFalse(self.report(self.change(self.original.replace("10", "20")))["changes"])
         self.assertTrue(self.report(self.change(self.original.replace("x + 1", "x + 2")))["changes"])
@@ -178,10 +178,10 @@ class UpstreamTest(unittest.TestCase):
         target = self.change(self.original.replace("x + 1", "x + 2"))
         args = ["--baseline", str(lock), "--repo", str(self.repo), "check", "--target", target]
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(upstream.main(args), 1)
-            self.assertEqual(upstream.main(args + ["--advisory"]), 0)
+            self.assertEqual(checker.main(args), 1)
+            self.assertEqual(checker.main(args + ["--advisory"]), 0)
         with contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(upstream.main(args[:-1] + ["missing"] + ["--advisory"]), 2)
+            self.assertEqual(checker.main(args[:-1] + ["missing"] + ["--advisory"]), 2)
         self.assertEqual(lock.read_bytes(), original)
 
     def test_notification_fingerprint_ignores_unrelated_commits(self):
@@ -193,7 +193,7 @@ class UpstreamTest(unittest.TestCase):
 
     def test_report_includes_mapping_and_upstream_diff(self):
         report = self.report(self.change(self.original.replace("x + 1", "x + 2")))
-        text = upstream.markdown(report)
+        text = checker.markdown(report)
         for expected in ["Adapted.foo", "Example.foo", "-  x + 1", "+  x + 2"]:
             self.assertIn(expected, text)
 

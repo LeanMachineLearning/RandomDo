@@ -57,14 +57,14 @@ jobs:
 
       - name: Test upstream tracking
         run: |
-          python3 -m unittest discover -s scripts/tests -p 'test_upstream.py'
-          node --test scripts/tests/test_upstream_issue.cjs
-          lake env lean scripts/tests/Analogue.lean
+          python3 -m unittest discover -s .github/upstream/tests -p 'test_check.py'
+          node --test .github/upstream/tests/test_notify.cjs
+          lake env lean .github/upstream/tests/Analogue.lean
 
       - name: Check adapted definitions against the pinned Lean toolchain
         run: |
-          lake env lean scripts/ExportUpstream.lean > .lake/upstream-current.json
-          python3 scripts/upstream.py check --metadata .lake/upstream-current.json \
+          lake env lean .github/upstream/Export.lean > .lake/upstream-current.json
+          python3 .github/upstream/check.py check --metadata .lake/upstream-current.json \
             --report .lake/upstream-report.md
 
       - name: Show upstream changes

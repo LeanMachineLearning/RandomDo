@@ -28,14 +28,14 @@ jobs:
 
       - name: Compare tracked definitions with Lean's development branch
         run: |
-          python3 scripts/upstream.py check --target HEAD --advisory \
-            --report upstream-report.md --json-report upstream-report.json
-          cat upstream-report.md >> "$GITHUB_STEP_SUMMARY"
+          python3 .github/upstream/check.py check --target HEAD --advisory \
+            --report .lake/upstream-report.md --json-report .lake/upstream-report.json
+          cat .lake/upstream-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Maintain one issue for changes needing review
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('upstream-report.json', 'utf8'));
-            await require('./scripts/upstream-issue.cjs')({ github, context }, report);
+            const report = JSON.parse(fs.readFileSync('.lake/upstream-report.json', 'utf8'));
+            await require('./.github/upstream/notify.cjs')({ github, context }, report);

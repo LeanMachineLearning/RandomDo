@@ -19,16 +19,13 @@ run_cmd do
 @[analogue NoSuchCoreDeclaration]
 def unknownOrigin : Nat := 0
 
-/-- error: Duplicate analogue declarations -/
-#guard_msgs in
-@[analogue Pure Pure]
-def duplicateOrigin : Nat := 0
-
-/--
-error: Analogue declaration `MeasurableSpaceMonad` belongs to `RandomDo.Monad.MeasurableSpace`, not Lean core
--/
-#guard_msgs in
+-- The attribute records relationships; the CI exporter enforces its Lean core scope.
 @[analogue MeasurableSpaceMonad]
-def nonCoreOrigin : Nat := 0
+def localOrigin : Nat := 0
+
+run_cmd do
+  let env ← getEnv
+  unless analogueAttr.getParam? env `AnalogueTests.localOrigin == some #[`MeasurableSpaceMonad] do
+    throwError "Analogue metadata should allow declarations outside Lean core"
 
 end AnalogueTests

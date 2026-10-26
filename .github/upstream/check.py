@@ -12,9 +12,9 @@ import sys
 from functools import cache
 from pathlib import Path, PurePosixPath
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = "https://github.com/leanprover/lean4"
-BASELINE = ROOT / "upstream.json"
+BASELINE = Path(__file__).with_name("baseline.json")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 

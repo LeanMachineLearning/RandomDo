@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const updateIssue = require('../upstream-issue.cjs');
+const updateIssue = require('../notify.cjs');
 
 const context = {
   repo: { owner: 'example', repo: 'RandomDo' }, serverUrl: 'https://github.com', runId: 42,

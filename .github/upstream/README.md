@@ -1,4 +1,8 @@
-# Tracking Lean core analogues
+# Lean core tracking
+
+This directory contains maintainer tooling run by GitHub Actions. The library provides only the
+`analogue` attribute and its annotations; checking, baseline updates, and issue reporting live here.
+All commands below run from the repository root.
 
 Use `@[analogue Core.declaration]` to link an adaptation to its Lean core counterpart:
 
@@ -12,8 +16,8 @@ def randOps ...
 
 Multiple names use spaces: `@[analogue Pure Bind]`. Qualify names when necessary;
 `_root_.bind_congr`, for example, avoids resolving to the declaration being annotated.
-The attribute checks that each name exists in Lean core and records metadata without changing
-any definition. It is defined in `RandomDo/Util/Analogue.lean`.
+The attribute resolves and records names. It is defined in `RandomDo/Util/Analogue.lean` and has
+no dependency on this tooling. The exporter restricts this workflow's tracked origins to Lean core.
 
 ## Checking for changes
 
@@ -22,12 +26,13 @@ To check the current toolchain against the recorded baselines:
 
 ```sh
 lake build --wfail RandomDo.Monad.MeasurableSpace RandomDo.Monad.Notation
-lake env lean scripts/ExportUpstream.lean > .lake/upstream-current.json
-python3 scripts/upstream.py check --metadata .lake/upstream-current.json
+lake env lean .github/upstream/Export.lean > .lake/upstream-current.json
+python3 .github/upstream/check.py check --metadata .lake/upstream-current.json
 ```
 
 The build workflow runs this check on PRs. The exporter gets declaration locations from Lean;
-`upstream.json` stores the source path, line range, and exact Lean commit for each mapping.
+`.github/upstream/baseline.json` stores the source path, line range, and exact Lean commit for each
+mapping.
 The Python script uses Git to compare those upstream regions with the target revision. It
 requires Python 3.10+ and Git, with no Python packages. Later line insertions do not shift the
 baseline because its range always refers to its recorded commit.
@@ -41,7 +46,7 @@ after merge to the default branch and can also be run manually.
 To run the same comparison locally:
 
 ```sh
-python3 scripts/upstream.py check --target HEAD --report .lake/upstream-report.md
+python3 .github/upstream/check.py check --target HEAD --report .lake/upstream-report.md
 ```
 
 Sources are fetched into `.lake/upstream-lean.git`; no future Lean code is built or executed.
@@ -55,13 +60,13 @@ Review the upstream diff, adapt the local code as needed, and explain intentiona
 in the PR. Then record just the declarations you reviewed:
 
 ```sh
-python3 scripts/upstream.py record --metadata .lake/upstream-current.json --only RDo.randOps
+python3 .github/upstream/check.py record --metadata .lake/upstream-current.json --only RDo.randOps
 ```
 
 Commit the generated baseline change with the adaptation. Other declarations retain their
 baselines. For a rename, pass both old and new names to `--only`; for a removed annotation,
 pass its old name. `--all` explicitly records every mapping. Checks never advance baselines.
-To track another module, import it in `scripts/ExportUpstream.lean`, export, and record its mappings.
+To track another module, import it in `.github/upstream/Export.lean`, export, and record its mappings.
 
 ## Scope
 
@@ -71,14 +76,14 @@ correctness audit. Known differences include the omitted dead-syntax guard in th
 verification hooks, and the measurable hierarchy's intentional omission of applicative classes.
 
 The checker reports edits within a declaration, including its body, and conservatively includes
-insertions and replacements at either boundary. Renames and file moves are reported at the old location. Changes
-to untracked helpers or surrounding sections can also affect behavior, so normal elaboration
-and behavior tests remain necessary.
+insertions and replacements at either boundary. Renames and file moves are reported at the old
+location. Changes to untracked helpers or surrounding sections can also affect behavior, so normal
+elaboration and behavior tests remain necessary.
 
 The checker, attribute, and issue tests run offline:
 
 ```sh
-python3 -m unittest discover -s scripts/tests -p 'test_upstream.py'
-lake env lean scripts/tests/Analogue.lean
-node --test scripts/tests/test_upstream_issue.cjs
+python3 -m unittest discover -s .github/upstream/tests -p 'test_check.py'
+lake env lean .github/upstream/tests/Analogue.lean
+node --test .github/upstream/tests/test_notify.cjs
 ```

@@ -5,15 +5,13 @@ Authors: David Ledvinka
 -/
 module
 
-public meta import Lean.Elab.Command
+public meta import Lean.Attributes
 
 /-!
-# Tracking adaptations of Lean core
+# Analogous declarations
 
-`@[analogue decl₁ decl₂]` records the Lean core declarations from which a declaration was adapted.
-It checks that the names exist and stores them as metadata, without changing the declaration or
-its docstring. `scripts/ExportUpstream.lean` exports this metadata for the upstream change checker.
-See `docs/upstream-tracking.md` for the review and baseline update workflow.
+`@[analogue f g]` records declarations that a local declaration adapts.
+The names are resolved when the attribute is applied and stored as metadata.
 -/
 
 public meta section
@@ -22,25 +20,14 @@ namespace RandomDo.Analogue
 
 open Lean
 
-/-- Mark a declaration as an adaptation of one or more declarations in Lean core. -/
+/-- Record declarations that a local declaration adapts. -/
 syntax (name := analogue) "analogue " ident+ : attr
 
-/-- The upstream declarations associated with each adapted declaration. -/
+/-- The declarations associated with each analogue. -/
 initialize analogueAttr : ParametricAttribute (Array Name) ← registerParametricAttribute {
   name := `analogue
-  descr := "Record the Lean core declarations from which this declaration was adapted."
-  getParam := fun _ stx => do
-    let names ← stx[1].getArgs.mapM resolveGlobalConstNoOverload
-    let env ← getEnv
-    for name in names do
-      let some idx := env.getModuleIdxFor? name
-        | throwErrorAt stx "Analogue declaration `{name}` must be imported from Lean core"
-      let mod := env.header.moduleNames[idx.toNat]!
-      unless [`Init, `Lean, `Std].any (·.isPrefixOf mod) do
-        throwErrorAt stx "Analogue declaration `{name}` belongs to `{mod}`, not Lean core"
-    unless names.toList.eraseDups.length == names.size do
-      throwErrorAt stx "Duplicate analogue declarations"
-    return names
+  descr := "Record declarations that this declaration adapts."
+  getParam := fun _ stx => stx[1].getArgs.mapM resolveGlobalConstNoOverload
 }
 
 end RandomDo.Analogue
