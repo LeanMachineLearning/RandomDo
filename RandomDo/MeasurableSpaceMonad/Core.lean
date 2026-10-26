@@ -12,21 +12,20 @@ public import Mathlib.Tactic.FunProp
 # Measurable space monads
 
 This file defines `MeasurableSpaceFunctor` and `MeasurableSpaceMonad` as classes on functions of
-the form `m : (α : Type u) → [MeasurableSpace α] → Type v`. They play the role of core lean's
+the form `m : (α : Type u) → [MeasurableSpace α] → Type v`. They play the role of Lean core's
 `Functor` and `Monad` for types equipped with a `MeasurableSpace` instance. Assuming that instances
-are lawful, this corresponds to functors and monads on the category of measure spaces respectfully.
+are lawful, this corresponds to functors and monads on the category of measurable spaces.
 
 ## Main definitions
 
-* `MeasurableSpaceFunctor`: mapping functions over computations on measurable types.
-* `MeasurableSpacePure`: embedding a value into a computation.
-* `MeasurableSpaceBind`: sequencing computations with a continuation.
-* `MeasurableSpaceMonad`: combines mapping, pure, and bind, with mapping defined by
-  pure and bind by default.
-* `LawfulMeasurableSpaceFunctor`: functor laws for measurable maps, together with
-  measurability of mapping.
-* `LawfulMeasurableSpaceMonad`: monad laws for measurable continuations, together with
-  measurability of pure and bind.
+* `MeasurableSpaceFunctor`: A typeclass for functors on types equipped with a `MeasurableSpace`
+instance.
+* `MeasurableSpaceMonad`: A typeclass for monads on types equipped with a `MeasurableSpace`
+instance.
+* `LawfulMeasurableSpaceFunctor`: A `Prop`-valued typeclass which states that a given
+`MeasurableSpaceFunctor` satisfies the laws of a functor on measurable spaces.
+* `LawfulMeasurableSpaceMonad`: A `Prop`-valued typeclass which states that a given
+`MeasurableSpaceMonad` satisfies the laws of a monad on measurable spaces.
 
 ## Notation
 
@@ -35,22 +34,20 @@ The following notation is available in the `MeasureTheory` scope:
 * `f <$>ₘ x`: `MeasurableSpaceFunctor.mMap f x`.
 * `x >>=ₘ f`: `MeasurableSpaceBind.mBind x f`.
 
-Import `RandomDo.MeasurableSpaceMonad.Notation` for `rdo` notation.
-
 ## Implementation details
 
-The development of `MeasurableSpaceMonad` mirrors the development of `Monad` in core lean, including
+The development of `MeasurableSpaceMonad` mirrors the development of `Monad` in Lean core, including
 the definition of intermediate classes `MeasurableSpaceFunctor`, `MeasurableSpacePure`, and
-`MeasurableSpaceBind` except with the key exception that there is no `MeasurableSpaceApplicative`
-and instead `MeasurableSpaceMonad` extends all three of the preceding classes directly. This is
-because defining a `MeasurableSpaceApplicative` would require defining a measurable analogue of
-`Seq.seq : m (α → β) → m α → m β`, and we would like such an operation to be measurable, but
-requiring this operation to be jointly measurable would already fail for the identity monad:
-there, `seq f x = f x`, so `seq` is precisely function evaluation. No σ-algebra on the space of
-all measurable functions makes evaluation jointly measurable in general; see
-[Aumann's counterexample](https://math.huji.ac.il/~raumann/pdf/66.pdf#page=8), §3, the unnumbered
-example before Lemma 3.1. Our bind laws avoid this requirement by fixing a measurable
-continuation `k` and requiring measurability only of `μ ↦ mBind μ k`.
+`MeasurableSpaceBind` except that there is no `MeasurableSpaceApplicative` and instead
+`MeasurableSpaceMonad` extends all three of the preceding classes directly. This is because
+defining a `MeasurableSpaceApplicative` would require defining an analogue of
+`Seq.seq : m (α → β) → (Unit → m α) → m β`, and we would like such an operation to be jointly
+measurable in `m (α → β)` and `Unit → m α`, but requiring this operation to be jointly measurable
+would already fail for the identity monad: there, `seq f (fun _ => x) = f x`, so `seq` reduces to
+function evaluation. No σ-algebra on the space of all measurable functions makes evaluation
+jointly measurable in general;
+see R. J. Aumann, [*Borel structures for function spaces*](https://doi.org/10.1215/ijm/1255631584),
+*Illinois Journal of Mathematics* **5** (1961), no. 4, 614–630, §3.
 
 -/
 
@@ -64,16 +61,27 @@ universe u v
 
 section MeasurableSpaceMonad
 
-/-- A functor on types with a `MeasurableSpace` instance. The `mMap` operator `<$>ₘ` is overloaded
-via instances of this class. This class does not require proofs of the `MeasurableSpaceFunctor`
-axioms. Proofs may be provided or required via the `LawfulMeasurableSpaceFunctor` class. -/
+/--
+A functor on types with a `MeasurableSpace` instance. This means a function
+`f : (α : Type u) → [MeasurableSpace α] → Type v` equipped with an
+`mMap [MeasurableSpace α] [MeasurableSpace β] : (α → β) → f α → f β` operator,
+which can be written with the notation `<$>ₘ`.
+
+A lawful instance of this class requires a `MeasurableSpace` instance on each output type `f α`,
+and that `mMap` maps measurable functions `α → β` to measurable functions `f α → f β`, maps
+identity functions to identity functions, and respects composition of measurable functions.
+This class does not require its instances to be lawful. Proofs of lawful instances can be
+provided via the `Prop`-valued class `LawfulMeasurableSpaceFunctor`.
+
+Lawful instances of this class correspond to functors on the category of measurable spaces.
+-/
 class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Type v) :
     Type (max (u+1) v) where
   /--
   Applies a function inside a functor on measurable spaces. This is used to overload the
   `<$>ₘ` operator.
 
-  When mapping a constant function (if one cares about executing the code), use
+  When mapping a constant function in executable code, use
   `MeasurableSpaceFunctor.mMapConst` instead, because it may be more efficient.
   -/
   mMap {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : (α → β) → f α → f β
@@ -81,8 +89,8 @@ class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Typ
   Mapping a constant function.
 
   Given `a : α` and `v : f β`, `mMapConst a v` is equivalent to `(fun _ => a) <$>ₘ v`. For some
-  functors, this can be implemented more efficiently; for all other functors, the default
-  implementation may be used.
+  functors where executable code is relevant, this can be implemented more efficiently; for all
+  other functors, the default implementation may be used.
   -/
   mMapConst {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : α → f β → f α :=
     mMap ∘ (const _)
@@ -115,9 +123,21 @@ class MeasurableSpaceBind (m : (α : Type u) → [MeasurableSpace α] → Type v
 
 @[inherit_doc] scoped infixl:55  " >>=ₘ " => MeasurableSpaceBind.mBind
 
-/-- Return, sequencing, and mapping for computations indexed by measurable result types.
-By default, mapping sequences a computation with return. The operations accept ordinary functions;
-measurability assumptions and laws are supplied separately by `LawfulMeasurableSpaceMonad`. -/
+/--
+A monad on types with a `MeasurableSpace` instance.
+
+Monads are an abstraction of sequential control flow and side effects in functional programming,
+and `MeasurableSpaceMonad`s allow the use of this abstraction on programs taking values in
+`MeasurableSpace`s. The canonical example of such a monad is `Measure` where programs
+"written" in the `Measure` monad can represent programs with "random" outputs whose output
+distribution is given by the output measure. `MeasurableSpaceMonad`s support `rdo` notation,
+the measurable-space analogue of `do` notation, for specifying these programs.
+
+A lawful instance of this class should satisfy various properties so that the instance corresponds
+to a monad on the category of measurable spaces. These are specified precisely in the `Prop`-valued
+class `LawfulMeasurableSpaceMonad` and proofs of lawfulness can be given by defining an instance
+of that class.
+-/
 class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type v) :
     Type (max (u+1) v)
     extends MeasurableSpaceFunctor m, MeasurableSpacePure m, MeasurableSpaceBind m where
@@ -190,8 +210,7 @@ class LawfulMeasurableSpaceMonad
   mBind_mPure_comp {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
       {f : α → β} (hf : Measurable f) (x : m α) :
     x >>=ₘ (fun a => mPure (f a)) = f <$>ₘ x
-  /-- `mPure` followed by `mBind` of a function application is equivalent to function
-  application. -/
+  /-- Binding `mPure x` to a measurable function `f` is equivalent to applying `f` to `x`. -/
   mPure_mBind {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
       (x : α) {f : α → m β} (hf : Measurable f) :
     mPure x >>=ₘ f = f x
