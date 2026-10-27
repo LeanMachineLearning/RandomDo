@@ -49,4 +49,27 @@ def branchPair {m : (α : Type u) → [MeasurableSpace α] → Type v} [Measurab
     y ← right y
   return (x, y)
 
+/--
+warning: This `do` element and its control-flow region are dead code. Consider removing it.
+-/
+#guard_msgs in
+example (a : α) : (rdo
+    return a
+    return true : m α) = mPure a := rfl
+
+-- Warning-only traversal must not typecheck the discarded value or require `mPure`.
+open Lean Meta Elab Term Do in
+omit [MeasurableSpaceMonad m] in
+example (x : m α) : x = x := by_elab
+  let x ← getFVarFromUserName `x
+  let expectedType ← inferType x
+  let ctx ← mkContext expectedType RDo.randOps
+  let e ← RDo.randOps.mkPureApp ctx.doBlockResultType (mkConst ``Bool.true) |>.run
+    { ctx with deadCode := .deadSyntactically }
+  unless e.isMVar do
+    throwError "Expected a fresh metavariable for syntactically dead code"
+  unless ← isDefEq (← inferType e) expectedType do
+    throwError "Incorrect monad application for syntactically dead code"
+  mkEqRefl x
+
 end TestNext.MeasurableSpaceMonad
