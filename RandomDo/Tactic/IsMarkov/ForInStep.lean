@@ -6,7 +6,7 @@ Authors: Gaëtan Serré
 module
 
 public import RandomDo.Tactic.IsMarkov.Defs
-public import RandomDo.Monad.MeasurableSpace
+public import RandomDo.MeasurableSpaceMonad.ForIn
 
 /-!
 # Measurability of `ForInStep`

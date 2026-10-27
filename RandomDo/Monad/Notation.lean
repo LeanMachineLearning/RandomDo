@@ -5,7 +5,9 @@ Authors: David Ledvinka
 -/
 module
 
-public import RandomDo.Monad.MeasurableSpace
+public import RandomDo.MeasurableSpaceMonad.ForIn
+public import Mathlib.MeasureTheory.MeasurableSpace.Prod
+public meta import Lean.Elab.BuiltinDo
 public meta import Lean.Meta.ProdN
 
 /-!
@@ -17,7 +19,7 @@ public meta import Lean.Meta.ProdN
 
 open Lean Lean.Parser Lean.Parser.Term Lean.Meta Lean.Elab Lean.Elab.Do Lean.Elab.Term Std Meta
 
-open MeasureTheory Measure MeasurableSpacePure MeasurableSpaceBind
+open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
 
 public meta section
 
