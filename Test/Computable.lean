@@ -2,7 +2,8 @@ module
 
 public import Test.IsMarkov
 public import Test.Bind
-public meta import RandomDo
+public import RandomDo.Tactic.Computable.Counterparts
+public meta import RandomDo.Tactic.Computable.Deriving
 import Batteries.Data.Float.Basic
 
 set_option linter.style.header false

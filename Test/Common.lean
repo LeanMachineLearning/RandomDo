@@ -1,6 +1,7 @@
 module
 
-public import RandomDo
+public import RandomDo.NumLean.Distributions
+public import RandomDo.Tactic.IsMarkov.Deriving
 public import Mathlib.Probability.Distributions.Bernoulli
 
 set_option linter.style.header false

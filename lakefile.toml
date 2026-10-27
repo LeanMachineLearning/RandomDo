@@ -22,6 +22,9 @@ precompileModules = true
 name = "RandomDo"
 
 [[lean_lib]]
+name = "TestNext"
+
+[[lean_lib]]
 name = "Test"
 
 # Used to run the tests in `scripts`

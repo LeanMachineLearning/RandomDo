@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'codex/rebuild-*'
   workflow_dispatch:        # Allow manual triggering of the workflow from the GitHub Actions interface
 
 # Cancel previous runs if a new commit is pushed to the same PR or branch
@@ -54,3 +55,6 @@ jobs:
           build-args: "--wfail"
           lint: true
           mk_all-check: true
+
+      - name: Build rebuilt library tests
+        run: lake build --wfail TestNext
