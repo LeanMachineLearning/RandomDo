@@ -5,7 +5,9 @@ Authors: David Ledvinka
 -/
 module
 
-public import RandomDo.Monad.MeasurableSpace
+public import RandomDo.MeasurableSpaceMonad.Defs
+public import Mathlib.Control.Random
+public import Mathlib.MeasureTheory.Measure.GiryMonad
 public import Mathlib.Probability.ProductMeasure
 
 /-!
@@ -16,6 +18,8 @@ public import Mathlib.Probability.ProductMeasure
 -/
 
 @[expose] public section
+
+open MeasureTheory
 
 universe u v w
 
@@ -31,8 +35,6 @@ instance {m : Type u → Type v} [Monad m] :
 
 /-- A measurable space monad for pseudo random number generation. -/
 abbrev PseudoRandomM := Monad.toMeasurableSpaceMonad Rand
-
-open MeasureTheory
 
 open MeasurableSpacePure MeasurableSpaceBind MeasurableSpaceFunctor MeasurableSpaceMonad
 

@@ -6,7 +6,7 @@ Authors: Gaëtan Serré
 module
 
 public meta import RandomDo.Tactic.Computable.Counterparts
-public import RandomDo.Monad.MeasurableSpace
+public import RandomDo.MeasurableSpaceMonad.ForIn
 public meta import Lean.Elab.Tactic.Basic
 
 /-!
@@ -44,7 +44,7 @@ module that writes it: the interpreter then asks for the code of what it calls, 
 
 public meta section
 
-open Lean Meta NumLean
+open Lean Meta NumLean MeasureTheory
 
 namespace RDo.Tactic
 

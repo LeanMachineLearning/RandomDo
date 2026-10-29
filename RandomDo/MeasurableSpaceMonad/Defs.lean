@@ -5,8 +5,8 @@ Authors: David Ledvinka
 -/
 module
 
-public import Mathlib.Control.Random
-public import Mathlib.MeasureTheory.Measure.GiryMonad
+public import Mathlib.MeasureTheory.MeasurableSpace.Constructions
+public import Mathlib.Tactic.FunProp
 
 /-!
 # Measurable space monads
@@ -26,12 +26,10 @@ instance.
 `MeasurableSpaceFunctor` satisfies the laws of a functor on measurable spaces.
 * `LawfulMeasurableSpaceMonad`: A `Prop`-valued typeclass which states that a given
 `MeasurableSpaceMonad` satisfies the laws of a monad on measurable spaces.
-* `MeasurableSpaceForIn`: **TODO**
-* `MeasurableSpaceForIn'`: **TODO**
 
 ## Notation
 
-The following notation is available:
+The following notation is available in the `MeasureTheory` scope:
 
 * `f <$>ₘ x`: `MeasurableSpaceFunctor.mMap f x`.
 * `x >>=ₘ f`: `MeasurableSpaceBind.mBind x f`.
@@ -55,9 +53,9 @@ see R. J. Aumann, [*Borel structures for function spaces*](https://doi.org/10.12
 
 @[expose] public section
 
-open Function
+namespace MeasureTheory
 
-section
+open Function
 
 universe u v
 
@@ -97,7 +95,7 @@ class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Typ
   mMapConst {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : α → f β → f α :=
     mMap ∘ (const _)
 
-@[inherit_doc] infixr:100 " <$>ₘ " => MeasurableSpaceFunctor.mMap
+@[inherit_doc] scoped infixr:100 " <$>ₘ " => MeasurableSpaceFunctor.mMap
 
 /--
 The `mPure` function is overloaded via `MeasurableSpacePure` instances.
@@ -123,7 +121,7 @@ class MeasurableSpaceBind (m : (α : Type u) → [MeasurableSpace α] → Type v
   -/
   mBind {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : m α → (α → m β) → m β
 
-@[inherit_doc] infixl:55  " >>=ₘ " => MeasurableSpaceBind.mBind
+@[inherit_doc] scoped infixl:55  " >>=ₘ " => MeasurableSpaceBind.mBind
 
 /--
 A monad on types with a `MeasurableSpace` instance.
@@ -232,8 +230,8 @@ class LawfulMeasurableSpaceMonad
 open LawfulMeasurableSpaceMonad
 
 attribute [fun_prop] measurable_mPure measurable_mBind
-attribute [simp] pure_bind bind_assoc bind_pure_comp
-attribute [grind <=] pure_bind
+attribute [simp] mPure_mBind mBind_assoc mBind_mPure_comp
+attribute [grind <=] mPure_mBind
 
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpaceMonad m]
   [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)] [LawfulMeasurableSpaceMonad m]
@@ -263,50 +261,8 @@ theorem mBind_mPure_unit {x : m PUnit} : (x >>=ₘ fun _ => mPure ⟨⟩) = x :=
     {g : β → m γ} (hg : Measurable g) :
     ((f <$>ₘ x) >>=ₘ fun b => g b) = (x >>=ₘ fun a => g (f a)) := by
   rw [← mBind_mPure_comp hf]
-  simp (disch := fun_prop) [mBind_assoc, mPure_mBind]
+  simp (disch := fun_prop) only [mBind_assoc, mPure_mBind]
 
 end Lawful
 
-end
-
-section MeasurableSpaceFor
-
-universe uρ uα u v
-
-variable {α : Type u} [mα : MeasurableSpace α] (m : (α : Type u) → [MeasurableSpace α] → Type v)
-  {m' : (α : Type u) → Type v}
-
-instance instMeasurableSpace {β : Type u} [mβ : MeasurableSpace β] :
-    MeasurableSpace (ForInStep β) := mβ.map ForInStep.yield ⊓ mβ.map ForInStep.done
-
-/--
-Monadic iteration in `rdo`-blocks, using the `for x in xs` notation.
--/
-class MeasurableSpaceForIn (ρ : Type uρ) (α : outParam (Type uα)) where
-  /--
-  Monadically iterates over the contents of a collection `xs`, with a local state `b` and the
-  possibility of early termination.
-  -/
-  forIn {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
-    (f : α → β → m (ForInStep β)) : m β
-
-/--
-Monadic iteration in `rdo`-blocks with a membership proof, using the `for h : x in xs` notation.
--/
-class MeasurableSpaceForIn' (ρ : Type uρ) (α : outParam (Type uα))
-    (d : outParam (Membership α ρ)) where
-  /--
-  Monadically iterates over the contents of a collection `xs`, with a local state `b` and the
-  possibility of early termination. At each iteration, the body of the loop is provided with a proof
-  that the current element is in the collection.
-  -/
-  forIn' {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
-    (f : (a : α) → a ∈ xs → β → m (ForInStep β)) : m β
-
-@[simps]
-instance (priority := 500) instMeasurableSpaceForInOfForIn'
-    {ρ : Type uρ} {α : Type uα} {d : Membership α ρ} [MeasurableSpaceForIn' m ρ α d] :
-    MeasurableSpaceForIn m ρ α where
-  forIn x b f := MeasurableSpaceForIn'.forIn' x b fun a _ s => f a s
-
-end MeasurableSpaceFor
+end MeasureTheory
