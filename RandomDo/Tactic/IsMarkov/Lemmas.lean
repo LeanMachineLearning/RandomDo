@@ -6,7 +6,7 @@ Authors: Gaëtan Serré
 module
 
 public import RandomDo.Monad.Instances
-public import RandomDo.Monad.ForInInstances
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Basic
 public import RandomDo.Measurable
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import Mathlib.MeasureTheory.Measure.ProbabilityMeasure

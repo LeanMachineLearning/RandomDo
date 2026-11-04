@@ -6,6 +6,7 @@ Authors: David Ledvinka
 module
 
 public import RandomDo.MeasurableSpaceMonad.ForIn
+public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Option
 public import Mathlib.MeasureTheory.MeasurableSpace.Prod
 public meta import Lean.Elab.BuiltinDo
 public meta import Lean.Meta.ProdN
@@ -75,17 +76,16 @@ syntax (name := randKind) "rdo" doSeq : term
 
 section LoopElab
 
-/-- parses `_ : _ in` for `rdo` for loops -/
+/-- A declaration in an `rdo` loop. Analogue of `do` notation's `Lean.Parser.Term.doForDecl`. -/
 def rdoForDecl := leading_parser
   Lean.Parser.optional (atomic (Term.ident >> " : ")) >> termParser >> " in " >>
     withForbidden "rdo" termParser
 
-/-- parser for `rdo` for loops -/
+/-- A `for` loop in `rdo`. Analogue of `do` notation's `Lean.Parser.Term.doFor`. -/
 @[doElem_parser] def rdoFor := leading_parser
   "for " >> sepBy1 rdoForDecl ", " >> "rdo " >> doSeq
 
-/-- Define expander for loops in `rdo` notation. Note this code mirrors core's implementation for
-`do` notation as much as possible. -/
+/-- Expand loop binders. Analogue of `do` notation's `Lean.Elab.Do.expandDoFor`. -/
 @[macro rdoFor] def expandRDoFor : Macro := fun stx => do
   match stx with
   | `(rdoFor| for $[$_ : ]? $_:ident in $_ rdo $_) =>
@@ -142,12 +142,26 @@ def rdoForDecl := leading_parser
           | some ($y, s') =>
             $s:ident := s'
             do $body)
-    doElems := doElems.push (← `(doSeqItem| for%$tk $[$h? : ]? $x:ident in $xs rdo $body))
+    doElems := doElems.push
+      (← `(doSeqItem| for%$tk $[$h? : ]? $x:ident in $xs rdo $body))
     `(doElem| do $doElems*)
   | _ => Macro.throwUnsupported
 
-/-- Define loop elaborator for `rdo` notation. Note this code mirrors core's implementation for
-`do` notation as much as possible. -/
+/--
+Infer a loop's control effects. Analogue of `do` notation's `Lean.Elab.Do.InferControlInfo.ofElem`
+case for `for` loops.
+-/
+@[doElem_control_info rdoFor] def controlInfoRDoFor : ControlInfoHandler := fun stx => do
+  let `(rdoFor| for $[$_ : ]? $_:ident in $_ rdo $body) := stx | throwUnsupportedSyntax
+  let info ← inferControlInfoSeq body
+  return { info with  -- keep only reassigns and returnsEarly
+    numRegularExits := 1,
+    continues := false,
+    breaks := false,
+    noFallthrough := false,
+  }
+
+/-- Elaborate a loop. Analogue of `do` notation's `Lean.Elab.Do.elabDoFor`. -/
 @[doElem_elab rdoFor] def elabRDoFor : DoElab := fun stx dec => do
   let `(rdoFor| for%$tk $[$h? : ]? $x:ident in $xs rdo $body) := stx | throwUnsupportedSyntax
   let dec ← dec.ensureUnitAt tk
@@ -179,17 +193,17 @@ def rdoForDecl := leading_parser
         | some e => mkSome oldReturnCont.resultType e
       defs := defs.push returnVar
     for x in loopMutVars do
-      let defn ← getLocalDeclFromUserName x.getId
-      Term.addTermInfo' x.ident defn.toExpr
+      Term.addTermInfo' x.ident (← getFVarFromUserName x.getId)
+      let v ← x.stateValue
       -- ForIn forces the mut tuple into the universe mi.u: that of the do block result type.
       -- If we don't do this, then we are stuck on solving constraints such as
       --   `max ?u.46 ?u.47 =?= max (max ?u.22 ?u.46) ?u.47`
       -- It's important we do this as a separate isLevelDefEq check on the decremented level because
       -- otherwise (`ensureHasType (mkSort mi.u.succ)`) we are stuck on constraints like
       --   `max (?u+1) (?v+1) =?= ?u+1`
-      let u ← getDecLevel defn.type
+      let u ← getDecLevel (← inferType v)
       discard <| isLevelDefEq u mi.u
-      defs := defs.push defn.toExpr
+      defs := defs.push v
     if info.returnsEarly && loopMutVars.isEmpty then
       defs := defs.push (mkConst ``Unit.unit)
     return defs
@@ -198,16 +212,16 @@ def rdoForDecl := leading_parser
   let (app, p?) ← match h? with
     | none =>
       let instForIn ← Term.mkInstMVar <|
-          mkApp3 (mkConst ``MeasurableSpaceForIn [uρ, uα, mi.u, mi.v]) mi.m ρ α
+        mkApp3 (mkConst ``MeasurableSpaceForIn [uρ, uα, mi.u, mi.v]) mi.m ρ α
       let app := Lean.mkConst ``MeasurableSpaceForIn.forIn [uρ, uα, mi.u, mi.v]
-      let app := mkApp8 app mi.m ρ α instForIn σ mσ xs preS
+      let app := mkApp8 app mi.m ρ α instForIn σ mσ xs preS -- 1 arg remaining: loop body
       pure (app, none)
     | some _ =>
       let d ← mkFreshExprMVar (mkApp2 (mkConst ``Membership [uα, uρ]) α ρ) (userName := `d)
       let instForIn ← Term.mkInstMVar <|
-          mkApp4 (mkConst ``MeasurableSpaceForIn' [uρ, uα, mi.u, mi.v]) mi.m ρ α d
+        mkApp4 (mkConst ``MeasurableSpaceForIn' [uρ, uα, mi.u, mi.v]) mi.m ρ α d
       let app := Lean.mkConst ``MeasurableSpaceForIn'.forIn' [uρ, uα, mi.u, mi.v]
-      let app := mkApp9 app mi.m ρ α d instForIn σ mσ xs preS
+      let app := mkApp9 app mi.m ρ α d instForIn σ mσ xs preS -- 1 arg remaining: loop body
       pure (app, some d)
   let s ← mkFreshUserName `__s
   let xh : Array (Name × (Array Expr → DoElabM Expr)) := match h?, p? with
@@ -250,9 +264,8 @@ def rdoForDecl := leading_parser
         if info.returnsEarly then
           let ret ← getFVarFromUserName returnVarName
           let ret ← if loopMutVars.isEmpty then mkAppM ``Prod.fst #[ret] else pure ret
-          /- Both branches produce an `m γ`, so the motive is constant and the matcher generated
-          for `Break.runK` is not needed: `Break.runK` itself is that case analysis. Note that it
-          takes the `none` branch first, the other way round from the matcher. -/
+          -- Both branches produce `m γ`, so the motive is constant. Use the public
+          -- `Break.runK` operation, whose `none` branch precedes its `some` branch.
           let none := mkSimpleThunk (← dec.continueWithUnit)
           let some ← withLocalDeclD (← mkFreshUserName `r) oldReturnCont.resultType fun r => do
             mkLambdaFVars #[r] (← oldReturnCont.k r)

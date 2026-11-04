@@ -6,6 +6,7 @@ Authors: David Ledvinka
 module
 
 public import RandomDo.MeasurableSpaceMonad.Defs
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Iterators
 public import Mathlib.Control.Random
 public import Mathlib.MeasureTheory.Measure.GiryMonad
 public import Mathlib.Probability.ProductMeasure
@@ -32,6 +33,11 @@ instance {m : Type u → Type v} [Monad m] :
     MeasurableSpaceMonad (Monad.toMeasurableSpaceMonad m) where
   mPure := pure
   mBind := bind
+
+instance (priority := 900) Monad.toMeasurableSpaceMonad.instMeasurableSpaceLiftBind
+    {n : Type u → Type w} {p : Type u → Type v} [Monad p] [MonadLiftT n p] :
+    MeasureTheory.MeasurableSpaceLiftBind n (Monad.toMeasurableSpaceMonad p) where
+  liftBind f x := monadLift x >>= f
 
 /-- A measurable space monad for pseudo random number generation. -/
 abbrev PseudoRandomM := Monad.toMeasurableSpaceMonad Rand
