@@ -4,6 +4,8 @@ public import Test.Bind
 public import Test.Common
 public import Test.Computable
 public import Test.Control
+public import Test.ForInElab
+public import Test.ForInInstances
 public import Test.Gaps
 public import Test.Instances
 public import Test.IsMarkov

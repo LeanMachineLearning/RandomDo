@@ -1,10 +1,14 @@
 module  -- shake: keep-all --deprecated_module: ignore
 
+public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Collections
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
+public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Option
 public import RandomDo.Measurable
 public import RandomDo.MeasurableSpaceMonad.Defs
 public import RandomDo.MeasurableSpaceMonad.ForIn
-public import RandomDo.Monad.ForInInstances
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Basic
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Iterators
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Ranges
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.Notation
 public import RandomDo.NumLean.Binomial

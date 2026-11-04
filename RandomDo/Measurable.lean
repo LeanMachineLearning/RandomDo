@@ -5,7 +5,7 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import RandomDo.Monad.ForInInstances
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Basic
 public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import Mathlib.MeasureTheory.MeasurableSpace.Prod
 public import Mathlib.Data.List.OfFn
@@ -116,9 +116,6 @@ def Vector.measurableEquivTuple {n : ℕ} : Vector α n ≃ᵐ (Fin n → α) wh
     convert measurable_ofFn n hu
     ext
     simp
-
-instance instMeasurableSpaceOption : MeasurableSpace (Option α) :=
-  MeasurableSpace.map some inferInstance
 
 theorem measurableSet_option_iff {s : Set (Option α)} :
     MeasurableSet s ↔ MeasurableSet (some ⁻¹' s) := Iff.rfl
