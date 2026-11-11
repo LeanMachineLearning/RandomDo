@@ -59,4 +59,17 @@ def ex1 : Measure ℝ := rdo
 
 run_cmd logComputable (ex1Computable)
 
+@[computable]
+noncomputable
+def flipsUntilHeads : Measure ℕ := rdo
+  let mut n := 0
+  while true rdo
+    let heads ← fairCoin
+    n := n + 1
+    if heads then
+      break
+  return n
+
+run_cmd logComputable (flipsUntilHeadsComputable)
+
 end Test.Computable
