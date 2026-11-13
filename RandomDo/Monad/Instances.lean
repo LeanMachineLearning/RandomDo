@@ -42,8 +42,8 @@ noncomputable instance : MeasurableSpaceMonad Measure where
   mBind := Measure.bind
 
 instance : LawfulMeasurableSpaceMonad Measure where
-  mMap_const := by simp [MeasurableSpaceFunctor.mMapConst, MeasurableSpaceFunctor.mMap]
-  id_mMap μ := by simp [MeasurableSpaceFunctor.mMap]
+  mMap_const := by simp [mMapConst, mMap]
+  id_mMap μ := by simp [mMap]
   measurable_mPure := by unfold mPure; fun_prop
   measurable_mBind := by unfold mBind; fun_prop
   mBind_mPure_comp _ _ := by rfl

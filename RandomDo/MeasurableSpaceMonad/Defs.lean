@@ -95,6 +95,8 @@ class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Typ
   mMapConst {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : α → f β → f α :=
     mMap ∘ (const _)
 
+export MeasurableSpaceFunctor (mMap mMapConst)
+
 @[inherit_doc] scoped infixr:100 " <$>ₘ " => MeasurableSpaceFunctor.mMap
 
 /--
@@ -171,8 +173,7 @@ class LawfulMeasurableSpaceFunctor
     {g : α → β} (hg : Measurable g) : Measurable ((g <$>ₘ ·) : f α → f β)
   /-- The `mMapConst` implementation is equivalent to the default implementation. -/
   mMap_const {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] :
-    (MeasurableSpaceFunctor.mMapConst : α → f β → f α) =
-      MeasurableSpaceFunctor.mMap ∘ const β
+    (mMapConst : α → f β → f α) = mMap ∘ const β
   /-- `mMap` preserves identity. -/
   id_mMap {α : Type u} [MeasurableSpace α] (x : f α) : id <$>ₘ x = x
   /-- `mMap` preserves function composition of measurable functions. -/
