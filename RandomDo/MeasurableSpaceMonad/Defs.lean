@@ -26,6 +26,8 @@ instance.
 `MeasurableSpaceFunctor` satisfies the laws of a functor on measurable spaces.
 * `LawfulMeasurableSpaceMonad`: A `Prop`-valued typeclass which states that a given
 `MeasurableSpaceMonad` satisfies the laws of a monad on measurable spaces.
+* `Monad.toMeasurableSpaceMonad`: Adapts a core monad to accept a measurable space argument.
+The resulting instance need not be lawful as a measurable space monad.
 
 ## Notation
 
@@ -269,3 +271,15 @@ theorem mBind_mPure_unit {x : m PUnit} : (x >>=ₘ fun _ => mPure ⟨⟩) = x :=
 end Lawful
 
 end MeasureTheory
+
+universe u v
+
+/-- A (core) monad automatically defines a (not necessarily lawful) measurable space monad by
+forgetting the measurable space argument. -/
+def Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u) [_mα : MeasurableSpace α] :
+    Type v := m α
+
+instance {m : Type u → Type v} [Monad m] :
+    MeasureTheory.MeasurableSpaceMonad (Monad.toMeasurableSpaceMonad m) where
+  mPure := pure
+  mBind := bind
