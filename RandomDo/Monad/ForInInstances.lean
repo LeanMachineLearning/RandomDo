@@ -48,7 +48,7 @@ end MeasurableSpace
 
 universe u v
 
-open MeasureTheory MeasurableSpacePure
+open MeasureTheory
 
 variable {α : Type u} [mα : MeasurableSpace α] {m : (α : Type u) → [MeasurableSpace α] → Type v}
 

@@ -54,7 +54,6 @@ complex program to the Markov property/measurability of its underlying mathemati
 @[expose] public section
 
 open MeasureTheory ProbabilityTheory Function
-open MeasurableSpacePure
 open scoped ENNReal
 
 namespace IsMarkov
