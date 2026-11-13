@@ -153,7 +153,7 @@ class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type 
 
 /-- A (core) monad automatically defines a (not necessarily lawful) measurable space monad by
 forgetting the measurable space argument. -/
-def Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u)
+def _root_.Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u)
     [_mα : MeasurableSpace α] : Type v := m α
 
 instance {m : Type u → Type v} [Monad m] :
