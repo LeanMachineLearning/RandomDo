@@ -23,16 +23,6 @@ open MeasureTheory
 
 universe u v w
 
-/-- A (core) monad automatically defines a (not necessarily lawful) measurable space monad by
-forgetting the measurable space argument. -/
-def Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u) [_mα : MeasurableSpace α] :
-    Type v := m α
-
-instance {m : Type u → Type v} [Monad m] :
-    MeasurableSpaceMonad (Monad.toMeasurableSpaceMonad m) where
-  mPure := pure
-  mBind := bind
-
 /-- A measurable space monad for pseudo random number generation. -/
 abbrev PseudoRandomM := Monad.toMeasurableSpaceMonad Rand
 

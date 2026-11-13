@@ -4,6 +4,7 @@ public import RandomDo.ForMathlib.MeasureTheory.MeasurableSpace.Embedding
 public import RandomDo.Measurable
 public import RandomDo.MeasurableSpaceMonad.Defs
 public import RandomDo.MeasurableSpaceMonad.ForIn
+public import RandomDo.MeasurableSpaceMonad.Lift
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
 public import RandomDo.Monad.Notation
