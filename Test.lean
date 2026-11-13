@@ -10,4 +10,5 @@ public import Test.IsMarkov
 public import Test.Loops
 public import Test.MonadLaws
 public import Test.Polymorphic
+public import Test.RDo.Core
 public import Test.Sample
