@@ -32,6 +32,23 @@ instance instMeasurableSpaceForInStep {β : Type u} [mβ : MeasurableSpace β] :
     MeasurableSpace (ForInStep β) :=
   mβ.map ForInStep.yield ⊓ mβ.map ForInStep.done
 
+/-- Yielding a value is measurable. -/
+@[fun_prop]
+theorem measurable_forInStep_yield {β : Type*} [MeasurableSpace β] :
+    Measurable (@ForInStep.yield β) := fun _ hs => hs.1
+
+/-- Terminating with a value is measurable. -/
+@[fun_prop]
+theorem measurable_forInStep_done {β : Type*} [MeasurableSpace β] :
+    Measurable (@ForInStep.done β) := fun _ hs => hs.2
+
+/-- A function on loop steps is measurable when both branches are measurable. -/
+@[fun_prop]
+theorem measurable_forInStep_case {β γ : Type*} [MeasurableSpace β] [MeasurableSpace γ]
+    {done yield : β → γ} (hd : Measurable done) (hy : Measurable yield) :
+    Measurable (fun s : ForInStep β =>
+      match s with | .done b => done b | .yield b => yield b) := fun _ hs => ⟨hy hs, hd hs⟩
+
 /--
 Monadic iteration in `rdo` blocks, using the `for x in xs rdo ...` notation.
 
