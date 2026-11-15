@@ -44,10 +44,10 @@ theorem measurable_forInStep_done {β : Type*} [MeasurableSpace β] :
 
 /-- A function on loop steps is measurable when both branches are measurable. -/
 @[fun_prop]
-theorem measurable_forInStep_case {β γ : Type*} [MeasurableSpace β] [MeasurableSpace γ]
-    {done yield : β → γ} (hd : Measurable done) (hy : Measurable yield) :
-    Measurable (fun s : ForInStep β =>
-      match s with | .done b => done b | .yield b => yield b) := fun _ hs => ⟨hy hs, hd hs⟩
+theorem measurable_fun_forInStep {β γ : Type*} [MeasurableSpace β] [MeasurableSpace γ]
+    {f : ForInStep β → γ} (hd : Measurable (fun b => f (.done b)))
+    (hy : Measurable (fun b => f (.yield b))) : Measurable f :=
+  fun _ hs => ⟨hy hs, hd hs⟩
 
 /--
 Monadic iteration in `rdo` blocks, using the `for x in xs rdo ...` notation.
