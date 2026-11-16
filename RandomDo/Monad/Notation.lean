@@ -25,8 +25,8 @@ public meta section
 
 namespace RDo
 
-/-- Define `DoOp`s for `rdo` notation. -/
-def randOps : DoOps := { DoOps.default with
+/-- Define `DoOps` for `rdo` notation at the given metavariable-context depth. -/
+def randOps (mctxDepth : Nat) : DoOps := { DoOps.default with
   mkPureApp α e := do
     let ⟨m, u, v, _, _⟩ := (← read).monadInfo
     let α ← Term.ensureHasType (mkSort (mkLevelSucc u)) α
@@ -61,7 +61,13 @@ def randOps : DoOps := { DoOps.default with
     return some ({ m := m, u := u.normalize, v := v.normalize }, resultType)
   mkMonadApp α := do
     let ⟨m, u, _, _, _⟩ := (← read).monadInfo
-    let σ ← mkInstMVar (mkApp (mkConst ``MeasurableSpace [u]) α)
+    let σ ← mkFreshExprMVar (mkApp (mkConst ``MeasurableSpace [u]) α) .synthetic
+    unless ← Term.synthesizeInstMVarCore σ.mvarId! do
+      -- Core probes dependent-match result types at a temporary metavariable depth. Such a
+      -- probe discards its metavariables without restoring the pending-instance queue, so only
+      -- register pending instances at the depth where this `rdo` block started elaborating.
+      if (← getMCtx).depth == mctxDepth then
+        Term.registerSyntheticMVarWithCurrRef σ.mvarId! (.typeClass none)
     -- Core can retain this type across elaboration backtracking. Resolve the instance before
     -- returning it, or postpone if its type is not yet determined.
     let σ ← instantiateMVars σ
@@ -75,7 +81,7 @@ syntax (name := randKind) "rdo" doSeq : term
 /-- Define `rdo` notation elaborator. -/
 @[term_elab randKind] def elabRand : Term.TermElab := fun stx et? => do
   let `(rdo $doSeq) := stx | throwUnsupportedSyntax
-  elabDoWith randOps doSeq et?
+  elabDoWith (randOps (← getMCtx).depth) doSeq et?
 
 section LoopElab
 
