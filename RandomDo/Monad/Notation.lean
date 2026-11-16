@@ -8,6 +8,7 @@ module
 public import RandomDo.MeasurableSpaceMonad.ForIn
 public import Mathlib.MeasureTheory.MeasurableSpace.Prod
 public meta import Lean.Elab.BuiltinDo
+public meta import Lean.Elab.Do.PatternVar
 public meta import Lean.Meta.ProdN
 
 /-!
@@ -76,6 +77,119 @@ syntax (name := randKind) "rdo" doSeq : term
 @[term_elab randKind] def elabRand : Term.TermElab := fun stx et? => do
   let `(rdo $doSeq) := stx | throwUnsupportedSyntax
   elabDoWith randOps doSeq et?
+
+section MatchElab
+
+-- Adapted from Lean v4.35.0's `Lean/Elab/BuiltinDo/Match.lean`. The refinement probe additionally
+-- restores the term elaboration state so pending instance requests cannot outlive their
+-- metavariables.
+
+private def elabDoSeqWithRefinedType (type : Expr) (doSeq : DoSeq) (dec : DoElemCont) :
+    DoElabM Expr := do
+  -- The refinement probe may register pending instances through `mkMonadApp`. Restore the
+  -- term elaboration state as well as the metavariables when leaving this temporary scope.
+  let newDoBlockResultType ← mapTermElabM Term.withoutModifyingElabMetaStateWithInfo <|
+    withNewMCtxDepth do
+    let γ ← mkFreshExprMVar (mkSort (← read).monadInfo.u.succ)
+    unless ← isDefEqGuarded type (← mkMonadApp γ) do
+      throwError "Could not determine dependently-refined result type of `do` block.\n
+        Expected type {type} was not def eq to {← mkMonadApp γ}"
+    instantiateMVars γ
+  trace[Elab.do.match] "newDoBlockResultType: {newDoBlockResultType}"
+  -- The `doBlockResultType` *is* the continuation's return type, since it is duplicable.
+  let dec := { dec with resultType := newDoBlockResultType }
+  withRefinedResultType newDoBlockResultType (elabDoSeq doSeq dec)
+
+/-- Expand a dependent `match` into a term-level match.
+Analogue of `do` notation's `Lean.Elab.Do.expandToTermMatch`. -/
+private def expandToTermMatch : DoElab := fun stx dec => do
+  let `(doMatch| match $[(dependent := $dep?)]? $[(generalizing := $gen?)]?
+    $[(motive := $motive?)]? $discrs:matchDiscr,* with $alts:matchAlt*) := stx
+    | throwUnsupportedSyntax
+  let doBlockResultType := (← read).doBlockResultType
+  let mγ ← mkMonadApp doBlockResultType
+  let info ← inferControlInfoElem stx
+  let dependent := dep?.getD ⟨.missing⟩ matches `(trueVal| true)
+  trace[Elab.do.match] "expandToTermMatch. dependent: {dependent}, \
+    doBlockResultType: {doBlockResultType}, dec.resultType: {dec.resultType}"
+  let complexDec := withNewMCtxDepth <| not <$> isDefEqGuarded dec.resultType doBlockResultType
+  if ← pure dependent <&&> complexDec then
+    throwError "Dependent match is not supported when the result type of the `do` block \
+      {indentExpr doBlockResultType}\n is different to the result type of the `match` \
+      {indentExpr dec.resultType}"
+  dec.withDuplicableCont info fun dec => do
+  let rec loop i (alts : Array (TSyntax ``matchAlt)) := do
+    if h : i < alts.size then
+      match alts[i] with
+      | `(matchAltExpr| | $patterns,* => $seq) =>
+        let vars ← getPatternsVarsEx patterns
+        checkMutVarsForShadowing vars
+        let elabRhs (type? : Option Expr) : DoElabM Expr := do
+          let (true, some type) := (dependent, type?) | elabDoSeq ⟨seq⟩ dec
+          elabDoSeqWithRefinedType type ⟨seq⟩ dec
+        doElabToSyntaxWithExpectedType m!"match_syntax alternative {patterns.getElems}"
+          (ref := seq) elabRhs fun rhs => do
+            loop (i + 1) (alts.set i (← `(matchAltExpr| | $patterns,* => $rhs)))
+      | _ => throwUnsupportedSyntax
+    else
+      Term.elabTerm (← `(match $[(generalizing := $gen?)]? $[(motive := $motive?)]?
+        $[$discrs],* with $alts:matchAlt*)) mγ
+  loop 0 alts
+
+-- cf. Term.expandNonAtomicDiscrs?
+private def expandNonAtomicDiscrs? (discrs : TSyntaxArray ``matchDiscr) :
+    DoElabM (Option (TSyntaxArray ``matchDiscr)) := do
+  -- Recall that
+  -- matchDiscr := leading_parser optional (ident >> ":") >> termParser
+  if ← discrs.allM fun discr => Term.isAtomicDiscr discr.raw[1] then
+    return none
+  let mut newDiscrs := #[]
+  for discr in discrs do
+    let `(matchDiscr| $[$h? :]? $term) := discr | throwUnsupportedSyntax
+    if (← Term.isAtomicDiscr term) then
+      newDiscrs := newDiscrs.push discr
+    else
+      trace[Elab.do.match] "elabNonAtomicDiscrs: {term}"
+      let e ← Term.elabTerm term none
+      let discrNew ← `(matchDiscr| $[$h? :]? $(← Term.exprToSyntax e))
+      newDiscrs := newDiscrs.push discrNew
+  return some newDiscrs
+
+/-- Elaborate dependent matches in `rdo` with a temporary scope for both elaboration states.
+Analogue of `do` notation's `Lean.Elab.Do.elabDoMatch`. -/
+@[doElem_elab Lean.Parser.Term.doMatch] def elabRDoDependentMatch : DoElab := fun stx dec => do
+  let `(doMatch| match $[(dependent := $dep)]? $[(generalizing := $gen?)]?
+    $(motive?)? $discrs,* with $alts:matchAlt*) := stx | throwUnsupportedSyntax
+  unless dep.getD ⟨.missing⟩ matches `(trueVal| true) do throwUnsupportedSyntax
+  -- Ordinary `do` monads have just one type parameter. Leave their matches to core.
+  let ctx ← read
+  let .forallE _ _ body _ ← whnf (← inferType ctx.monadInfo.m)
+    | throwUnsupportedSyntax
+  let .forallE _ instType _ _ ← whnf (body.instantiate1 ctx.doBlockResultType)
+    | throwUnsupportedSyntax
+  unless (← whnf instType).isAppOf ``MeasurableSpace do throwUnsupportedSyntax
+  -- Expand alts
+  if let some stxNew ← liftMacroM <| Term.expandMatchAlts? stx then
+    return ← Term.withMacroExpansion stx stxNew <| elabDoElem ⟨stxNew⟩ dec
+  -- Expand non-atomic discriminants for independent elaboration problems
+  if let some discrs ← expandNonAtomicDiscrs? discrs then
+    let newStx ← `(doElem| match $[(generalizing := $gen?)]? $(motive?)?
+      $discrs,* with $alts:matchAlt*)
+    -- We use `mkSaveInfoAnnotation` to make sure the info trees for the discriminants are saved
+    -- even if the inner match elaboration is postponed (returning a metavariable).
+    -- Without this, `withTermInfoContext'` in `elabDoElemFns` would discard the subtrees
+    -- containing TermInfo for variable references in the discriminants.
+    return Term.mkSaveInfoAnnotation
+      (← Term.withMacroExpansion stx newStx <| elabDoElem ⟨newStx⟩ dec)
+  -- Expand simple matches to `let`
+  if let `(matchAltExpr| | $y:ident => $seq) := alts.getD 0 ⟨.missing⟩ then
+    if let `(matchDiscr| $discr:term) := discrs.getElems.getD 0 ⟨.missing⟩ then
+      if alts.size == 1 && (← Term.isPatternVar y) then
+        let newStx ← `(doSeq| let $y:ident := $discr; do $(⟨seq⟩))
+        return ← Term.withMacroExpansion stx newStx <| elabDoSeq ⟨newStx⟩ dec
+  expandToTermMatch stx dec
+
+end MatchElab
 
 section LoopElab
 
