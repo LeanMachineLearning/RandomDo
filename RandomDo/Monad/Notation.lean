@@ -62,6 +62,10 @@ def randOps : DoOps := { DoOps.default with
   mkMonadApp α := do
     let ⟨m, u, _, _, _⟩ := (← read).monadInfo
     let σ ← mkInstMVar (mkApp (mkConst ``MeasurableSpace [u]) α)
+    -- Core can retain this type across elaboration backtracking. Resolve the instance before
+    -- returning it, or postpone if its type is not yet determined.
+    let σ ← instantiateMVars σ
+    Term.tryPostponeIfMVar σ
     return mkApp2 m α σ
   }
 
