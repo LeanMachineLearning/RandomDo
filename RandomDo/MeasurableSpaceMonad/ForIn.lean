@@ -68,8 +68,8 @@ class MeasurableSpaceForIn' (m : (α : Type u) → [MeasurableSpace α] → Type
   proof that the current element is in the collection. This is the measurable space analogue of
   `ForIn'.forIn'`.
   -/
-  forIn' {β : Type u} [MeasurableSpace β] (x : ρ) (b : β)
-    (f : (a : α) → a ∈ x → β → m (ForInStep β)) : m β
+  forIn' {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
+    (f : (a : α) → a ∈ xs → β → m (ForInStep β)) : m β
 
 export MeasurableSpaceForIn' (forIn')
 
@@ -82,21 +82,21 @@ membership proof. We set the priority to 500 so it is below the default.
 @[default_instance]
 instance (priority := 500) instMeasurableSpaceForInOfForIn' {d : Membership α ρ}
     [MeasurableSpaceForIn' m ρ α d] : MeasurableSpaceForIn m ρ α where
-  forIn x b f := forIn' x b fun a _ => f a
+  forIn xs b f := forIn' xs b fun a _ => f a
 
 @[simp] theorem forIn'_eq_forIn [d : Membership α ρ] [MeasurableSpaceForIn' m ρ α d]
-    {β : Type u} [MeasurableSpace β] (x : ρ) (b : β)
-    (f : (a : α) → a ∈ x → β → m (ForInStep β)) (g : (a : α) → β → m (ForInStep β))
+    {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β)
+    (f : (a : α) → a ∈ xs → β → m (ForInStep β)) (g : (a : α) → β → m (ForInStep β))
     (h : ∀ a h b, f a h b = g a b) :
-    forIn' x b f = forIn x b g := by
+    forIn' xs b f = forIn xs b g := by
   simp only [forIn]
   congr
   funext a ha b
   exact h a ha b
 
 @[wf_preprocess] theorem forIn_eq_forIn' [d : Membership α ρ] [MeasurableSpaceForIn' m ρ α d]
-    {β : Type u} [MeasurableSpace β] (x : ρ) (b : β) (f : α → β → m (ForInStep β)) :
-    forIn x b f = forIn' x b (fun x h => binderNameHint x f <| binderNameHint h () <| f x) := by
+    {β : Type u} [MeasurableSpace β] (xs : ρ) (b : β) (f : α → β → m (ForInStep β)) :
+    forIn xs b f = forIn' xs b (fun x h => binderNameHint x f <| binderNameHint h () <| f x) := by
   rfl
 
 end MeasureTheory
