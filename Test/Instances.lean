@@ -1,6 +1,7 @@
 module
 
 public import Test.Common
+public import RandomDo.Sampling.StdGen
 
 set_option linter.style.header false
 
@@ -45,17 +46,17 @@ def twice (x : m ℕ) : m ℕ := rdo
   let b ← x
   return a + b
 
-/-- At `IdM` it computes. -/
-example : IdM.run (twice ((3 : ℕ) : IdM ℕ)) = 6 := rfl
+/-- At `MId` it computes. -/
+example : Id.run (twice (m := MId) (3 : ℕ)) = 6 := rfl
 
 /-- At `Measure` it denotes a distribution. -/
 noncomputable def twiceCoin : Measure ℕ := twice (m := Measure) (rdo
   let b ← fairCoin
   return (if b then 1 else 0))
 
-/-- At `PseudoRandomM` it is an executable sampler. -/
-def twiceRandom : PseudoRandomM ℕ := twice (m := PseudoRandomM) (rdo
-  let b ← Random.randBool
+/-- At `StdGenM` it is an executable sampler. -/
+def twiceRandom : StdGenM ℕ := twice (m := StdGenM) (rdo
+  let b ← HasBernoulli.bernoulli (0.5 : Float)
   return (if b then 1 else 0))
 
 /-- A polymorphic program containing a loop. -/
@@ -66,16 +67,16 @@ def sumOver (xs : List ℕ) (f : ℕ → m ℕ) : m ℕ := rdo
     s := s + y
   return s
 
-example : IdM.run (sumOver [1, 2, 3] (fun x ↦ ((x * 2 : ℕ) : IdM ℕ))) = 12 := rfl
+example : Id.run (sumOver (m := MId) [1, 2, 3] (fun x ↦ (x * 2 : ℕ))) = 12 := rfl
 
 noncomputable def sumOverMeasure : Measure ℕ :=
   sumOver (m := Measure) [1, 2, 3] (fun x ↦ rdo
     let b ← fairCoin
     return (if b then x else 0))
 
-def sumOverRandom : PseudoRandomM ℕ :=
-  sumOver (m := PseudoRandomM) [1, 2, 3] (fun x ↦ rdo
-    let b ← Random.randBool
+def sumOverRandom : StdGenM ℕ :=
+  sumOver (m := StdGenM) [1, 2, 3] (fun x ↦ rdo
+    let b ← HasBernoulli.bernoulli (0.5 : Float)
     return (if b then x else 0))
 
 end Test.Instances

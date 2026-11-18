@@ -18,26 +18,6 @@ open MeasureTheory ProbabilityTheory
 
 namespace Test.Gaps
 
-/-! ## Nested loops
-
-TODO: register a `ControlInfo` inference handler for `RDo.rdoFor`, mirroring the rule core states
-inline for `doFor` in `Lean/Elab/Do/InferControlInfo.lean`.
--/
-
-/--
-error: No `ControlInfo` inference handler found for `RDo.rdoFor` in syntax
-  for y in ys rdo
-    s := s + x * y
-Register a handler with `@[doElem_control_info RDo.rdoFor]`.
--/
-#guard_msgs (whitespace := lax) in
-def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
-  let mut s := 0
-  for x in xs rdo
-    for y in ys rdo
-      s := s + x * y
-  return s
-
 /-! ## Unbounded and conditional iteration
 
 TODO: `while`, `repeat` and `repeat … until` all expand to `for _ in Loop.mk do …`, which reaches
@@ -47,12 +27,12 @@ core's `doFor` and so asks for a `ForIn` instance. Supporting them needs the mac
 
 /--
 error: failed to synthesize instance of type class
-  ForIn IdM Lean.Loop ?α
+  ForIn MId Lean.Loop ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def whileLoop : IdM ℕ := rdo
+def whileLoop : MId ℕ := rdo
   let mut i := 0
   while i < 3 do
     i := i + 1
@@ -79,18 +59,18 @@ noncomputable def tryCatch : Measure Bool := rdo
 
 /-! ## Collections with no `MeasurableSpaceForIn` instance
 
-TODO: instances exist for `List`, `Array` and `Vector` only. A range is the one most missed, since
-`for i in [0:n]` has to be written `for i in List.range n` today.
+Modern range notation is covered in `TestNext`. These cases exercise the legacy range and
+direct `Finset` instances, which are not supplied.
 -/
 
 /--
 error: failed to synthesize instance of type class
-  MeasurableSpaceForIn IdM Std.Legacy.Range ?α
+  MeasurableSpaceForIn MId Std.Legacy.Range ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def overRange : IdM ℕ := rdo
+def overRange : MId ℕ := rdo
   let mut s := 0
   for _ in [0:3] rdo
     s := s + 1
@@ -98,12 +78,12 @@ def overRange : IdM ℕ := rdo
 
 /--
 error: failed to synthesize instance of type class
-  MeasurableSpaceForIn IdM (Finset ℕ) ?α
+  MeasurableSpaceForIn MId (Finset ℕ) ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def overFinset : IdM ℕ := rdo
+def overFinset : MId ℕ := rdo
   let mut s := 0
   for _ in Finset.range 3 rdo
     s := s + 1

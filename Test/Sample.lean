@@ -1,6 +1,7 @@
 module
 
 public import RandomDo
+public meta import RandomDo.NumLean.Distributions
 
 set_option linter.style.header false
 

@@ -202,22 +202,24 @@ instance : RandomGen PCG64 where
 `RandPCG m α` should be thought of a random value in `m α`. -/
 abbrev RandPCG := RandGT PCG64
 
+variable {m : Type → Type} [Monad m]
+
 /-- Sample a `UInt64` from a PCG-64 generator. -/
-@[inline] def randUInt64 : RandPCG IO UInt64 := do
+@[inline] def randUInt64 : RandPCG m UInt64 := do
   let (x, g) := (← get).down.nextUInt64
   set (ULift.up g)
   return x
 
 /-- Sample a `UInt32` from a PCG-64 generator, as numpy's `next_uint32` does for `PCG64`: the two
 halves of each 64-bit output are handed out in turn, see `PCG64.nextUInt32`. -/
-@[inline] def randUInt32 : RandPCG IO UInt32 := do
+@[inline] def randUInt32 : RandPCG m UInt32 := do
   let (x, g) := (← get).down.nextUInt32
   set (ULift.up g)
   return x
 
 /-- Sample a `Float` in `[0, 1)` from a PCG-64 generator, as numpy's `next_double`: the top 53 bits
 of a 64-bit output, scaled by `2 ^ (-53)`. -/
-@[inline] def random : RandPCG IO Float := do
+@[inline] def random : RandPCG m Float := do
   let x ← randUInt64
   return (x >>> 11).toFloat * (Float.ofBits <| 0x3CA <<< (52 : UInt64))
 

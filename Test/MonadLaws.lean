@@ -7,13 +7,12 @@ set_option linter.style.header false
 /-!
 # The `MeasurableSpaceMonad` laws at `Measure`
 
-`Measure` is the one `LawfulMeasurableSpaceMonad` instance the library provides. Each law is
+This file checks the `LawfulMeasurableSpaceMonad` laws for `Measure`. Each law is
 guarded by measurability hypotheses, which is what makes the Giry monad fit the class at all, so
 these tests also record the exact shape each law is stated in.
 -/
 
-open MeasureTheory ProbabilityTheory MeasurableSpacePure MeasurableSpaceBind
-  MeasurableSpaceFunctor
+open MeasureTheory ProbabilityTheory
 
 @[expose] public section
 

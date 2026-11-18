@@ -49,7 +49,7 @@ inductive Shape
   /-- `for a in as rdo body`: a `for` loop over a collection. The two lemmas to try are carried
   along, one for a fixed collection and one for a collection read off the parameter, so that the
   three collections `rdo` supports share a single branch below. -/
-  | forIn (fixed varying : Name)
+  | mForIn (fixed varying : Name)
   /-- `Break.runK r (fun _ ↦ κ) η`: the case analysis an `rdo` block performs after a loop that
   returns early. -/
   | breakRunK
@@ -67,7 +67,7 @@ instance : ToString Shape where
     | .comp => "comp"
     | .ite => "ite"
     | .dite .. => "dite"
-    | .forIn .. => "forIn"
+    | .mForIn .. => "mForIn"
     | .breakRunK => "breakRunK"
     | .const => "const"
     | .leaf => "leaf"
@@ -99,11 +99,11 @@ def shapeOf (κ : Expr) : MetaM Shape := do
       let args := body.getAppArgs
       return .dite (← mkLambdaFVars #[c] args[1]!) (← mkLambdaFVars #[c] args[3]!)
         (← mkLambdaFVars #[c] args[4]!)
-    else if head.isConstOf ``MeasurableSpaceForIn.forIn then
+    else if head.isConstOf ``MeasurableSpaceForIn.mForIn then
       match body.getAppArgs[1]!.getAppFn with
-      | .const ``List _ => return .forIn ``IsMarkov.forInList ``IsMarkov.forInList_comp
-      | .const ``Array _ => return .forIn ``IsMarkov.forInArray ``IsMarkov.forInArray_comp
-      | .const ``Vector _ => return .forIn ``IsMarkov.forInVector ``IsMarkov.forInVector_comp
+      | .const ``List _ => return .mForIn ``IsMarkov.mForInList ``IsMarkov.mForInList_comp
+      | .const ``Array _ => return .mForIn ``IsMarkov.mForInArray ``IsMarkov.mForInArray_comp
+      | .const ``Vector _ => return .mForIn ``IsMarkov.mForInVector ``IsMarkov.mForInVector_comp
       | _ => return .leaf
     else if head.isConstOf ``Break.runK then
       return .breakRunK
@@ -237,7 +237,7 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
         throwError "is_markov: the `dite` step does not match the goal {indentExpr (← g.getType)}"
       g.assign proof
       return (← isMarkovCore hκ.mvarId! fuel) ++ (← isMarkovCore hη.mvarId! fuel) ++ [hp.mvarId!]
-    | .forIn fixed varying =>
+    | .mForIn fixed varying =>
       if let some gs ← observing? (g.applyConst fixed) then
         /- Fixed collection: a measurability goal for the initial value, and
         `∀ a ∈ as, IsMarkov fun p ↦ body p.1 a p.2` for the body. Walking through the body needs
@@ -249,7 +249,7 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
           let (h, g_body) ← g_body.intro1P
           return (← (← isMarkovCore g_body fuel).mapM (abstractLoopVars #[i, h])) ++ [g_measurable]
         | _ =>
-          throwError "is_markov: expected two goals after the `forIn` step, got {gs.length}"
+          throwError "is_markov: expected two goals after the `mForIn` step, got {gs.length}"
       else if let some gs ← observing? (g.applyConst varying) then
         /- Collection read off the parameter: the body is Markovian jointly in the element, so
         there is no element to introduce. The measurability goals are left to the user. -/
@@ -263,7 +263,7 @@ partial def isMarkovCore (g : MVarId) (fuel : Nat) : MetaM (List MVarId) := g.wi
             side := side ++ [g']
         return goals ++ side
       else
-        trace[is_markov] "neither `forIn` lemma applies, handed back"
+        trace[is_markov] "neither `mForIn` lemma applies, handed back"
         return [g]
     | .breakRunK =>
       let gs ← g.applyConst ``IsMarkov.breakRunK

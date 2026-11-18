@@ -5,8 +5,9 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import RandomDo.Monad.Instances
-public import RandomDo.Monad.ForInInstances
+public import RandomDo.MeasurableSpaceMonad.Instances.Measure
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.Array.Basic
+public import RandomDo.MeasurableSpaceMonad.ForInInstances.List
 public import RandomDo.Measurable
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
@@ -40,13 +41,13 @@ complex program to the Markov property/measurability of its underlying mathemati
   measurable predicate `p` is Markovian in the parameter.
 * `dite`: A dependent conditional `rdo` program that chooses between two Markov kernels `κ` and `η`
   based on a measurable predicate `p` is Markovian in the parameter.
-* `forInList`: A `for` loop over a list, whose initial state depends measurably on the parameter and
-  whose body is Markovian in the parameter and in the state, is Markovian in the parameter.
-* `forInArray`, `forInVector`: The same statement for a `for` loop over an array or a vector.
-* `forInList_comp`, `forInArray_comp`, `forInVector_comp`: The same three, for a loop over a
+* `mForInList`: A `for` loop over a list, whose initial state depends measurably on the parameter
+  and whose body is Markovian in the parameter and in the state, is Markovian in the parameter.
+* `mForInArray`, `mForInVector`: The same statement for a `for` loop over an array or a vector.
+* `mForInList_comp`, `mForInArray_comp`, `mForInVector_comp`: The same three, for a loop over a
   collection the program takes as an argument. The body is then asked to be Markovian jointly in the
   parameter and in the element, which the fixed collections do not need.
-* `forIn_nil`, `forIn_cons`: A `for` loop over a list, unrolled one element at a time.
+* `mForIn_nil`, `mForIn_cons`: A `for` loop over a list, unrolled one element at a time.
 * `breakRunK`: The case analysis a program performs after a loop that returns early, on the `Option`
   slot holding the returned value, is Markovian as soon as both of its branches are.
 -/
@@ -54,7 +55,6 @@ complex program to the Markov property/measurability of its underlying mathemati
 @[expose] public section
 
 open MeasureTheory ProbabilityTheory Function
-open MeasurableSpacePure
 open scoped ENNReal
 
 namespace IsMarkov
@@ -151,29 +151,29 @@ private lemma list_loop {as : List ι}
     {f : γ → (a : ι) → a ∈ as → σ → Measure (ForInStep σ)}
     (hf : ∀ a h, IsMarkov fun p : γ × σ ↦ f p.1 a h p.2) :
     ∀ as' (h : ∃ bs, bs ++ as' = as),
-      IsMarkov fun p : γ × σ ↦ List.measurableSpaceForIn'.loop as (f p.1) as' p.2 h := by
+      IsMarkov fun p : γ × σ ↦ List.mForIn'.loop as (f p.1) as' p.2 h := by
   intro as'
   induction as' with
   | nil =>
     intro h
-    simpa only [List.measurableSpaceForIn'.loop.eq_1] using
+    simpa only [List.mForIn'.loop.eq_1] using
       IsMarkov.mPure_comp (g := fun p : γ × σ ↦ p.2) measurable_snd
   | cons a as' ih =>
     intro h
     obtain ⟨bs, rfl⟩ := h
     have h' : ∃ bs', bs' ++ as' = bs ++ a :: as' := ⟨bs ++ [a], by simp⟩
-    simp only [List.measurableSpaceForIn'.loop.eq_2]
+    simp only [List.mForIn'.loop.eq_2]
     refine IsMarkov.mBind ?_ ?_
     · infer_instance
     · refine loop_tail
-        (rest := fun c b ↦ List.measurableSpaceForIn'.loop (bs ++ a :: as') (f c) as' b h') ?_ ?_ ?_
+        (rest := fun c b ↦ List.mForIn'.loop (bs ++ a :: as') (f c) as' b h') ?_ ?_ ?_
       · infer_instance
       · simp
       · simp
 
-lemma forInList {as : List ι} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
+lemma mForInList {as : List ι} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
     (hb : Measurable b) (hf : ∀ a ∈ as, IsMarkov fun p : γ × σ ↦ f p.1 a p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) as (b c) (f c) :=
+    IsMarkov fun c ↦ mForIn (m := Measure) as (b c) (f c) :=
   (list_loop (f := fun c a _ s ↦ f c a s) hf as ⟨[], rfl⟩).comp
     (g := fun c ↦ (c, b c)) (measurable_id.prodMk hb)
 
@@ -181,35 +181,35 @@ private lemma array_loop {as : Array ι}
     {f : γ → (a : ι) → a ∈ as → σ → Measure (ForInStep σ)}
     (hf : ∀ a h, IsMarkov fun p : γ × σ ↦ f p.1 a h p.2) :
     ∀ i (h : i ≤ as.size),
-      IsMarkov fun p : γ × σ ↦ Array.measurableSpaceForIn'.loop as (f p.1) i h p.2 := by
+      IsMarkov fun p : γ × σ ↦ Array.mForIn'.loop as (f p.1) i h p.2 := by
   intro i
   induction i with
   | zero =>
     intro h
-    simpa only [Array.measurableSpaceForIn'.loop.eq_1] using
+    simpa only [Array.mForIn'.loop.eq_1] using
       IsMarkov.mPure_comp (g := fun p : γ × σ ↦ p.2) measurable_snd
   | succ i ih =>
     intro h
     have h' : i ≤ as.size := Nat.le_of_succ_le h
-    simp only [Array.measurableSpaceForIn'.loop.eq_2]
+    simp only [Array.mForIn'.loop.eq_2]
     refine IsMarkov.mBind ?_ ?_
     · infer_instance
     · refine loop_tail
-        (rest := fun c b ↦ Array.measurableSpaceForIn'.loop as (f c) i h' b) ?_ ?_ ?_
+        (rest := fun c b ↦ Array.mForIn'.loop as (f c) i h' b) ?_ ?_ ?_
       · infer_instance
       · simp
       · simp
 
-lemma forInArray {as : Array ι} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
+lemma mForInArray {as : Array ι} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
     (hb : Measurable b) (hf : ∀ a ∈ as, IsMarkov fun p : γ × σ ↦ f p.1 a p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) as (b c) (f c) :=
+    IsMarkov fun c ↦ mForIn (m := Measure) as (b c) (f c) :=
   (array_loop (f := fun c a _ s ↦ f c a s) hf as.size (Nat.le_refl _)).comp
     (g := fun c ↦ (c, b c)) (measurable_id.prodMk hb)
 
-lemma forInVector {n : ℕ} {as : Vector ι n} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
+lemma mForInVector {n : ℕ} {as : Vector ι n} {b : γ → σ} {f : γ → ι → σ → Measure (ForInStep σ)}
     (hb : Measurable b) (hf : ∀ a ∈ as, IsMarkov fun p : γ × σ ↦ f p.1 a p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) as (b c) (f c) :=
-  forInArray hb fun a h ↦ hf a (by simpa using h)
+    IsMarkov fun c ↦ mForIn (m := Measure) as (b c) (f c) :=
+  mForInArray hb fun a h ↦ hf a (by simpa using h)
 
 section Unroll
 
@@ -225,63 +225,63 @@ traversed, as long as the body ignores the membership proofs. -/
 private lemma loop_eq_listLoop (g : ι → σ → Measure (ForInStep σ)) :
     ∀ (l : List ι) (b : σ) (as : List ι) (f : (a : ι) → a ∈ as → σ → Measure (ForInStep σ))
       (_hf : ∀ a h b, f a h b = g a b) (h : ∃ bs, bs ++ l = as),
-      List.measurableSpaceForIn'.loop as f l b h = listLoop g l b := by
+      List.mForIn'.loop as f l b h = listLoop g l b := by
   intro l
   induction l with
   | nil =>
     intro b as f _hf h
-    rw [List.measurableSpaceForIn'.loop.eq_1]
+    rw [List.mForIn'.loop.eq_1]
     rfl
   | cons a l ih =>
     intro b as f hf h
-    rw [List.measurableSpaceForIn'.loop.eq_2, hf]
+    rw [List.mForIn'.loop.eq_2, hf]
     change _ = g a b >>=ₘ _
     refine MeasurableSpaceBind.bind_congr fun step ↦ ?_
     cases step with
     | done b' => rfl
     | yield b' => exact ih b' as f hf _
 
-private lemma forIn_eq_listLoop (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
-    MeasurableSpaceForIn.forIn (m := Measure) l b g = listLoop g l b :=
+private lemma mForIn_eq_listLoop (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+    mForIn (m := Measure) l b g = listLoop g l b :=
   loop_eq_listLoop g l b l _ (fun _ _ _ ↦ rfl) ⟨[], rfl⟩
 
 /-- A `for` loop over the empty list returns its initial state. -/
-lemma forIn_nil (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
-    MeasurableSpaceForIn.forIn (m := Measure) ([] : List ι) b g = mPure b :=
-  forIn_eq_listLoop _ _ _
+lemma mForIn_nil (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+    mForIn (m := Measure) ([] : List ι) b g = mPure b :=
+  mForIn_eq_listLoop _ _ _
 
 /-- A `for` loop over `a :: l` runs its body on `a`, then stops or carries on with the loop over
 `l`. -/
-lemma forIn_cons (a : ι) (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
-    MeasurableSpaceForIn.forIn (m := Measure) (a :: l) b g
+lemma mForIn_cons (a : ι) (l : List ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+    mForIn (m := Measure) (a :: l) b g
       = g a b >>=ₘ fun step ↦ ForInStep.casesOn (motive := fun _ ↦ Measure σ) step mPure
-          fun b' ↦ MeasurableSpaceForIn.forIn (m := Measure) l b' g := by
-  rw [forIn_eq_listLoop]
+          fun b' ↦ mForIn (m := Measure) l b' g := by
+  rw [mForIn_eq_listLoop]
   refine MeasurableSpaceBind.bind_congr fun step ↦ ?_
   cases step with
   | done b' => rfl
-  | yield b' => exact (forIn_eq_listLoop l b' g).symm
+  | yield b' => exact (mForIn_eq_listLoop l b' g).symm
 
 /-- The array loop counts an index down from `as.size`, so at step `i` it is traversing the last
 `i` elements of the underlying list. -/
 private lemma arrayLoop_eq_listLoop (g : ι → σ → Measure (ForInStep σ)) (as : Array ι)
     (f : (a : ι) → a ∈ as → σ → Measure (ForInStep σ)) (hf : ∀ a h b, f a h b = g a b) :
     ∀ (i : ℕ) (h : i ≤ as.size) (b : σ),
-      Array.measurableSpaceForIn'.loop as f i h b
+      Array.mForIn'.loop as f i h b
         = listLoop g (as.toList.drop (as.size - i)) b := by
   intro i
   induction i with
   | zero =>
     intro h b
     have hnil : List.drop (as.size - 0) as.toList = [] := by simp
-    rw [Array.measurableSpaceForIn'.loop.eq_1, hnil]
+    rw [Array.mForIn'.loop.eq_1, hnil]
     rfl
   | succ i ih =>
     intro h b
     have hi : i < as.size := Nat.lt_of_lt_of_le (Nat.lt_succ_self i) h
     have hk : as.size - (i + 1) < as.toList.length := by
       simp only [Array.length_toList]; omega
-    rw [Array.measurableSpaceForIn'.loop.eq_2, hf, List.drop_eq_getElem_cons hk]
+    rw [Array.mForIn'.loop.eq_2, hf, List.drop_eq_getElem_cons hk]
     have hidx : as.toList[as.size - (i + 1)] = as[as.size - 1 - i] := by
       rw [Array.getElem_toList]; congr 1; omega
     have hnext : as.size - (i + 1) + 1 = as.size - i := by omega
@@ -293,11 +293,11 @@ private lemma arrayLoop_eq_listLoop (g : ι → σ → Measure (ForInStep σ)) (
     | yield b' => exact ih (Nat.le_of_succ_le h) b'
 
 /-- A `for` loop over an array is the loop over its underlying list. -/
-private lemma forIn_array (as : Array ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
-    MeasurableSpaceForIn.forIn (m := Measure) as b g
-      = MeasurableSpaceForIn.forIn (m := Measure) as.toList b g := by
-  rw [forIn_eq_listLoop]
-  change Array.measurableSpaceForIn'.loop as _ as.size _ b = _
+private lemma mForIn_array (as : Array ι) (b : σ) (g : ι → σ → Measure (ForInStep σ)) :
+    mForIn (m := Measure) as b g
+      = mForIn (m := Measure) as.toList b g := by
+  rw [mForIn_eq_listLoop]
+  change Array.mForIn'.loop as _ as.size _ b = _
   rw [arrayLoop_eq_listLoop g as _ (fun _ _ _ ↦ rfl)]
   simp
 
@@ -316,54 +316,54 @@ private lemma of_prodList {δ : Type*} [MeasurableSpace δ] {κ : δ × List ι 
   rintro ⟨d, l⟩
   simpa only [List.ofFn_get] using (h l.length).isProbabilityMeasure (d, l.get)
 
-/-- `forInList` for a list read off the parameter, as in a program taking the list it iterates over
+/-- `mForInList` for a list read off the parameter, as in a program taking the list it iterates over
 as an argument. The element handed to the body then varies with the parameter, so the body has to be
 Markovian jointly in the two — which the fixed case does not need, and which is why the elements are
 asked for a measurable structure here only. -/
-lemma forInList_comp {as : γ → List ι} {b : γ → σ}
+lemma mForInList_comp {as : γ → List ι} {b : γ → σ}
     {f : γ → ι → σ → Measure (ForInStep σ)}
     (has : Measurable as) (hb : Measurable b)
     (hf : IsMarkov fun p : (γ × ι) × σ ↦ f p.1.1 p.1.2 p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) (as c) (b c) (f c) := by
+    IsMarkov fun c ↦ mForIn (m := Measure) (as c) (b c) (f c) := by
   refine IsMarkov.comp ?_
     (κ := fun q : (γ × σ) × List ι ↦
-      MeasurableSpaceForIn.forIn (m := Measure) q.2 q.1.2 (f q.1.1))
+      mForIn (m := Measure) q.2 q.1.2 (f q.1.1))
     (g := fun c ↦ ((c, b c), as c)) (by fun_prop)
   refine of_prodList fun n ↦ ?_
   induction n with
   | zero =>
-    simp only [List.ofFn_zero, forIn_nil]
+    simp only [List.ofFn_zero, mForIn_nil]
     exact mPure_comp (by fun_prop)
   | succ n ih =>
-    simp only [List.ofFn_succ, forIn_cons]
+    simp only [List.ofFn_succ, mForIn_cons]
     refine mBind (hf.comp (g := fun q : (γ × σ) × (Fin (n + 1) → ι) ↦ ((q.1.1, q.2 0), q.1.2))
       (by fun_prop)) ?_
     exact forInStepCasesOn
       (done := fun (_ : (γ × σ) × (Fin (n + 1) → ι)) (b' : σ) ↦ (mPure b' : Measure σ))
       (yield := fun (q : (γ × σ) × (Fin (n + 1) → ι)) (b' : σ) ↦
-        MeasurableSpaceForIn.forIn (m := Measure) (List.ofFn fun i ↦ q.2 i.succ) b' (f q.1.1))
+        mForIn (m := Measure) (List.ofFn fun i ↦ q.2 i.succ) b' (f q.1.1))
       (mPure_comp measurable_snd)
       (ih.comp (g := fun r : ((γ × σ) × (Fin (n + 1) → ι)) × σ ↦
         ((r.1.1.1, r.2), fun i ↦ r.1.2 i.succ)) (by fun_prop))
 
 end VaryingCollection
 
-/-- `forInArray` for an array read off the parameter. -/
-lemma forInArray_comp [MeasurableSpace ι] {as : γ → Array ι} {b : γ → σ}
+/-- `mForInArray` for an array read off the parameter. -/
+lemma mForInArray_comp [MeasurableSpace ι] {as : γ → Array ι} {b : γ → σ}
     {f : γ → ι → σ → Measure (ForInStep σ)}
     (has : Measurable as) (hb : Measurable b)
     (hf : IsMarkov fun p : (γ × ι) × σ ↦ f p.1.1 p.1.2 p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) (as c) (b c) (f c) := by
-  simp_rw [forIn_array]
-  exact forInList_comp (measurable_toList.comp has) hb hf
+    IsMarkov fun c ↦ mForIn (m := Measure) (as c) (b c) (f c) := by
+  simp_rw [mForIn_array]
+  exact mForInList_comp (measurable_toList.comp has) hb hf
 
-/-- `forInVector` for a vector read off the parameter. -/
-lemma forInVector_comp [MeasurableSpace ι] {n : ℕ} {as : γ → Vector ι n} {b : γ → σ}
+/-- `mForInVector` for a vector read off the parameter. -/
+lemma mForInVector_comp [MeasurableSpace ι] {n : ℕ} {as : γ → Vector ι n} {b : γ → σ}
     {f : γ → ι → σ → Measure (ForInStep σ)}
     (has : Measurable as) (hb : Measurable b)
     (hf : IsMarkov fun p : (γ × ι) × σ ↦ f p.1.1 p.1.2 p.2) :
-    IsMarkov fun c ↦ MeasurableSpaceForIn.forIn (m := Measure) (as c) (b c) (f c) :=
-  forInArray_comp (by fun_prop) hb hf
+    IsMarkov fun c ↦ mForIn (m := Measure) (as c) (b c) (f c) :=
+  mForInArray_comp (by fun_prop) hb hf
 
 private lemma measurable_breakRunK {o : α → Option γ} (ho : Measurable o)
     {breakK : α → β} {successK : α → γ → β} (h_break : Measurable breakK)
