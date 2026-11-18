@@ -7,7 +7,7 @@ Authors: Gaëtan Serré
 module
 
 public import RandomDo.Monad.Instances
-public import RandomDo.Monad.Notation
+public import RandomDo.RDo
 public import RandomDo.NumLean.Distributions
 public import RandomDo.Tactic.Computable.Deriving
 public import Mathlib

@@ -5,7 +5,7 @@ Authors: David Ledvinka
 -/
 module
 
-public import RandomDo.Monad.Notation
+public import RandomDo.RDo.ForIn
 
 /-!
 # Instances for `MeasurableSpaceForIn`
