@@ -16,7 +16,7 @@ This file defines the syntax, macro expansion, and elaboration for `for` loops i
 -/
 
 open Lean Lean.Parser Lean.Parser.Term Lean.Meta Lean.Elab Lean.Elab.Do Lean.Elab.Term Std Meta
-open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
+open MeasureTheory
 
 public meta section
 

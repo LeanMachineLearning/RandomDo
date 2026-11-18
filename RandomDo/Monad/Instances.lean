@@ -36,8 +36,6 @@ instance {m : Type u → Type v} [Monad m] :
 /-- A measurable space monad for pseudo random number generation. -/
 abbrev PseudoRandomM := Monad.toMeasurableSpaceMonad Rand
 
-open MeasurableSpacePure MeasurableSpaceBind MeasurableSpaceFunctor MeasurableSpaceMonad
-
 @[simps]
 noncomputable instance : MeasurableSpaceMonad Measure where
   mPure := Measure.dirac

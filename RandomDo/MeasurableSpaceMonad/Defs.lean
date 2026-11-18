@@ -95,6 +95,8 @@ class MeasurableSpaceFunctor (f : (α : Type u) → [MeasurableSpace α] → Typ
   mMapConst {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : α → f β → f α :=
     mMap ∘ (const _)
 
+export MeasurableSpaceFunctor (mMap mMapConst)
+
 @[inherit_doc] scoped infixr:100 " <$>ₘ " => MeasurableSpaceFunctor.mMap
 
 /--
@@ -106,6 +108,8 @@ class MeasurableSpacePure (f : (α : Type u) → [MeasurableSpace α] → Type v
   /-- Given `a : α` where `α` has a `MeasurableSpace` instance, `mPure a : f α` represents an
   action that does nothing and returns `a`. -/
   mPure {α : Type u} [MeasurableSpace α] : α → f α
+
+export MeasurableSpacePure (mPure)
 
 /--
 The `>>=ₘ` operator is overloaded via instances of `MeasurableSpaceBind`.
@@ -120,6 +124,8 @@ class MeasurableSpaceBind (m : (α : Type u) → [MeasurableSpace α] → Type v
   to get a value of type `α` and then passing it to `f`.
   -/
   mBind {α β : Type u} [MeasurableSpace α] [MeasurableSpace β] : m α → (α → m β) → m β
+
+export MeasurableSpaceBind (mBind)
 
 @[inherit_doc] scoped infixl:55  " >>=ₘ " => MeasurableSpaceBind.mBind
 
@@ -158,8 +164,6 @@ end MeasurableSpaceMonad
 
 section Lawful
 
-open MeasurableSpaceFunctor
-
 /-- A `MeasurableSpaceFunctor` satisfies the measurable space functor laws. -/
 class LawfulMeasurableSpaceFunctor
     (f : (α : Type u) → [MeasurableSpace α] → Type v) [MeasurableSpaceFunctor f]
@@ -177,7 +181,7 @@ class LawfulMeasurableSpaceFunctor
     {g₀ : α → β} {g₁ : β → γ} (x : f α) (hg₀ : Measurable g₀) (hg₁ : Measurable g₁) :
     (g₁ ∘ g₀) <$>ₘ x = g₁ <$>ₘ g₀ <$>ₘ x
 
-open LawfulMeasurableSpaceFunctor
+export LawfulMeasurableSpaceFunctor (measurable_mMap mMap_const id_mMap comp_mMap)
 
 attribute [fun_prop] measurable_mMap
 attribute [simp] id_mMap
@@ -192,8 +196,6 @@ variable {f : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpac
     (hg₀ : Measurable g₀) (hg₁ : Measurable g₁) :
     g₁ <$>ₘ g₀ <$>ₘ x = (fun a => g₁ (g₀ a)) <$>ₘ x :=
   (comp_mMap x hg₀ hg₁).symm
-
-open MeasurableSpaceBind MeasurableSpacePure MeasurableSpaceFunctor
 
 /-- A `MeasurableSpaceMonad` satisfies the measurable space monad laws. -/
 class LawfulMeasurableSpaceMonad
@@ -227,7 +229,8 @@ class LawfulMeasurableSpaceMonad
     congr with _
     exact (mPure_mBind _ (measurable_mPure.comp h_meas)).symm)
 
-open LawfulMeasurableSpaceMonad
+export LawfulMeasurableSpaceMonad
+  (measurable_mPure measurable_mBind mBind_mPure_comp mPure_mBind mBind_assoc)
 
 attribute [fun_prop] measurable_mPure measurable_mBind
 attribute [simp] mPure_mBind mBind_assoc mBind_mPure_comp

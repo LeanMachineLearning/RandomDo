@@ -19,7 +19,7 @@ notation.
 -/
 
 open Lean Lean.Parser Lean.Parser.Term Lean.Meta Lean.Elab Lean.Elab.Do Lean.Elab.Term Std Meta
-open MeasureTheory MeasurableSpacePure MeasurableSpaceBind
+open MeasureTheory
 
 public meta section
 

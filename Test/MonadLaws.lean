@@ -12,8 +12,7 @@ guarded by measurability hypotheses, which is what makes the Giry monad fit the 
 these tests also record the exact shape each law is stated in.
 -/
 
-open MeasureTheory ProbabilityTheory MeasurableSpacePure MeasurableSpaceBind
-  MeasurableSpaceFunctor
+open MeasureTheory ProbabilityTheory
 
 @[expose] public section
 
