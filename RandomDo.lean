@@ -6,13 +6,15 @@ public import RandomDo.MeasurableSpaceMonad.Defs
 public import RandomDo.MeasurableSpaceMonad.ForIn
 public import RandomDo.Monad.ForInInstances
 public import RandomDo.Monad.Instances
-public import RandomDo.Monad.Notation
 public import RandomDo.NumLean.Binomial
 public import RandomDo.NumLean.Distributions
 public import RandomDo.NumLean.PCG64
 public import RandomDo.NumLean.SeedSequence
 public import RandomDo.NumLean.Ziggurat
 public import RandomDo.NumLean.ZigguratSampler
+public import RandomDo.RDo
+public import RandomDo.RDo.Core
+public import RandomDo.RDo.ForIn
 public import RandomDo.Tactic.Computable.Counterparts
 public import RandomDo.Tactic.Computable.Defs
 public import RandomDo.Tactic.Computable.Deriving
