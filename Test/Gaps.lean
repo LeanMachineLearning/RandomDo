@@ -31,7 +31,7 @@ error: No `ControlInfo` inference handler found for `RDo.rdoFor` in syntax
 Register a handler with `@[doElem_control_info RDo.rdoFor]`.
 -/
 #guard_msgs (whitespace := lax) in
-def nestedLoops (xs ys : List ℕ) : IdM ℕ := rdo
+def nestedLoops (xs ys : List ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     for y in ys rdo
@@ -47,12 +47,12 @@ core's `doFor` and so asks for a `ForIn` instance. Supporting them needs the mac
 
 /--
 error: failed to synthesize instance of type class
-  ForIn IdM Lean.Loop ?α
+  ForIn MId Lean.Loop ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def whileLoop : IdM ℕ := rdo
+def whileLoop : MId ℕ := rdo
   let mut i := 0
   while i < 3 do
     i := i + 1
@@ -85,12 +85,12 @@ TODO: instances exist for `List`, `Array` and `Vector` only. A range is the one 
 
 /--
 error: failed to synthesize instance of type class
-  MeasurableSpaceForIn IdM Std.Legacy.Range ?α
+  MeasurableSpaceForIn MId Std.Legacy.Range ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def overRange : IdM ℕ := rdo
+def overRange : MId ℕ := rdo
   let mut s := 0
   for _ in [0:3] rdo
     s := s + 1
@@ -98,12 +98,12 @@ def overRange : IdM ℕ := rdo
 
 /--
 error: failed to synthesize instance of type class
-  MeasurableSpaceForIn IdM (Finset ℕ) ?α
+  MeasurableSpaceForIn MId (Finset ℕ) ?α
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 -/
 #guard_msgs in
-def overFinset : IdM ℕ := rdo
+def overFinset : MId ℕ := rdo
   let mut s := 0
   for _ in Finset.range 3 rdo
     s := s + 1

@@ -22,46 +22,46 @@ open MeasureTheory ProbabilityTheory
 namespace Test.Loops
 
 /-- A loop over a `List`. -/
-def sumList (xs : List ℕ) : IdM ℕ := rdo
+def sumList (xs : List ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     s := s + x
   return s
 
-example : IdM.run (sumList [1, 2, 3]) = 6 := rfl
+example : Id.run (sumList [1, 2, 3]) = 6 := rfl
 
-example : IdM.run (sumList []) = 0 := rfl
+example : Id.run (sumList []) = 0 := rfl
 
 /-- A loop over an `Array`. -/
-def sumArray (xs : Array ℕ) : IdM ℕ := rdo
+def sumArray (xs : Array ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     s := s + x
   return s
 
-example : IdM.run (sumArray #[1, 2, 3]) = 6 := rfl
+example : Id.run (sumArray #[1, 2, 3]) = 6 := rfl
 
 /-- A loop over a `Vector`. -/
-def sumVector (xs : Vector ℕ 3) : IdM ℕ := rdo
+def sumVector (xs : Vector ℕ 3) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     s := s + x
   return s
 
-example : IdM.run (sumVector #v[1, 2, 3]) = 6 := rfl
+example : Id.run (sumVector #v[1, 2, 3]) = 6 := rfl
 
 /-- `for h : x in xs`, which hands the body a proof that `x` is in the collection. -/
-def sumWithProof (xs : List ℕ) : IdM ℕ := rdo
+def sumWithProof (xs : List ℕ) : MId ℕ := rdo
   let mut s := 0
   for h : x in xs rdo
     have : x ∈ xs := h
     s := s + x
   return s
 
-example : IdM.run (sumWithProof [1, 2, 3]) = 6 := rfl
+example : Id.run (sumWithProof [1, 2, 3]) = 6 := rfl
 
 /-- Several mutable variables carried through one loop. -/
-def sumAndCount (xs : List ℕ) : IdM (ℕ × ℕ) := rdo
+def sumAndCount (xs : List ℕ) : MId (ℕ × ℕ) := rdo
   let mut s := 0
   let mut n := 0
   for x in xs rdo
@@ -69,10 +69,10 @@ def sumAndCount (xs : List ℕ) : IdM (ℕ × ℕ) := rdo
     n := n + 1
   return (s, n)
 
-example : IdM.run (sumAndCount [1, 2, 3]) = (6, 3) := rfl
+example : Id.run (sumAndCount [1, 2, 3]) = (6, 3) := rfl
 
 /-- `break`. -/
-def sumUntilZero (xs : List ℕ) : IdM ℕ := rdo
+def sumUntilZero (xs : List ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     if x = 0 then
@@ -80,12 +80,12 @@ def sumUntilZero (xs : List ℕ) : IdM ℕ := rdo
     s := s + x
   return s
 
-example : IdM.run (sumUntilZero [1, 2, 0, 4]) = 3 := rfl
+example : Id.run (sumUntilZero [1, 2, 0, 4]) = 3 := rfl
 
-example : IdM.run (sumUntilZero [1, 2, 3]) = 6 := rfl
+example : Id.run (sumUntilZero [1, 2, 3]) = 6 := rfl
 
 /-- `continue`. -/
-def sumSkippingZero (xs : List ℕ) : IdM ℕ := rdo
+def sumSkippingZero (xs : List ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     if x = 0 then
@@ -93,21 +93,21 @@ def sumSkippingZero (xs : List ℕ) : IdM ℕ := rdo
     s := s + x
   return s
 
-example : IdM.run (sumSkippingZero [1, 0, 3]) = 4 := rfl
+example : Id.run (sumSkippingZero [1, 0, 3]) = 4 := rfl
 
 /-- An early `return` out of a loop, which elaborates through `Break.runK`. -/
-def firstNonzero (xs : List ℕ) : IdM (Option ℕ) := rdo
+def firstNonzero (xs : List ℕ) : MId (Option ℕ) := rdo
   for x in xs rdo
     if x ≠ 0 then
       return some x
   return none
 
-example : IdM.run (firstNonzero [0, 0, 3, 4]) = some 3 := rfl
+example : Id.run (firstNonzero [0, 0, 3, 4]) = some 3 := rfl
 
-example : IdM.run (firstNonzero [0, 0]) = none := rfl
+example : Id.run (firstNonzero [0, 0]) = none := rfl
 
 /-- An early `return` from a loop that also carries mutable state. -/
-def runningSumOver (xs : List ℕ) (limit : ℕ) : IdM ℕ := rdo
+def runningSumOver (xs : List ℕ) (limit : ℕ) : MId ℕ := rdo
   let mut s := 0
   for x in xs rdo
     s := s + x
@@ -115,20 +115,20 @@ def runningSumOver (xs : List ℕ) (limit : ℕ) : IdM ℕ := rdo
       return s
   return 0
 
-example : IdM.run (runningSumOver [1, 2, 3, 4] 4) = 6 := rfl
+example : Id.run (runningSumOver [1, 2, 3, 4] 4) = 6 := rfl
 
-example : IdM.run (runningSumOver [1, 2] 100) = 0 := rfl
+example : Id.run (runningSumOver [1, 2] 100) = 0 := rfl
 
 /-- A loop with no mutable state, whose only effect is an early return. -/
-def containsZero (xs : List ℕ) : IdM Bool := rdo
+def containsZero (xs : List ℕ) : MId Bool := rdo
   for x in xs rdo
     if x = 0 then
       return true
   return false
 
-example : IdM.run (containsZero [1, 0]) = true := rfl
+example : Id.run (containsZero [1, 0]) = true := rfl
 
-example : IdM.run (containsZero [1, 2]) = false := rfl
+example : Id.run (containsZero [1, 2]) = false := rfl
 
 /-- A loop whose body binds monadically, at `Measure`. -/
 noncomputable def countHeads (n : ℕ) : Measure ℕ := rdo

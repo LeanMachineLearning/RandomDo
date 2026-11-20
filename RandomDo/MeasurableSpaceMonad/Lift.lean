@@ -72,7 +72,7 @@ instance (priority := low) {m : Type u → Type v} {n : Type u → Type w} [Mona
   mMonadLift := monadLift
 
 instance {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpacePure m] :
-    MeasurableSpaceMonadLiftT (Monad.toMeasurableSpaceMonad Id) m where
+    MeasurableSpaceMonadLiftT MId m where
   mMonadLift x := MeasurableSpacePure.mPure x.run
 
 section Lawful
