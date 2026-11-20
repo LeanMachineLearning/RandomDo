@@ -45,8 +45,8 @@ def twice (x : m ℕ) : m ℕ := rdo
   let b ← x
   return a + b
 
-/-- At `IdM` it computes. -/
-example : IdM.run (twice ((3 : ℕ) : IdM ℕ)) = 6 := rfl
+/-- At `MId` it computes. -/
+example : Id.run (twice (m := MId) (3 : ℕ)) = 6 := rfl
 
 /-- At `Measure` it denotes a distribution. -/
 noncomputable def twiceCoin : Measure ℕ := twice (m := Measure) (rdo
@@ -66,7 +66,7 @@ def sumOver (xs : List ℕ) (f : ℕ → m ℕ) : m ℕ := rdo
     s := s + y
   return s
 
-example : IdM.run (sumOver [1, 2, 3] (fun x ↦ ((x * 2 : ℕ) : IdM ℕ))) = 12 := rfl
+example : Id.run (sumOver (m := MId) [1, 2, 3] (fun x ↦ x * 2)) = 12 := rfl
 
 noncomputable def sumOverMeasure : Measure ℕ :=
   sumOver (m := Measure) [1, 2, 3] (fun x ↦ rdo
