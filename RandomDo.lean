@@ -26,3 +26,4 @@ public import RandomDo.Tactic.IsMarkov.Deriving
 public import RandomDo.Tactic.IsMarkov.Elab
 public import RandomDo.Tactic.IsMarkov.ForInStep
 public import RandomDo.Tactic.IsMarkov.Lemmas
+public import RandomDo.WP.MeasurableSpaceMonad
