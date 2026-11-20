@@ -149,6 +149,14 @@ class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type 
     extends MeasurableSpaceFunctor m, MeasurableSpacePure m, MeasurableSpaceBind m where
   mMap f μ := mBind μ (Function.comp mPure f)
 
+instance {α : Type u} {m : (α : Type u) → [MeasurableSpace α] → Type v}
+    [MeasurableSpaceMonad m] [MeasurableSpace α] [Inhabited α] : Inhabited (m α) where
+  default := mPure default
+
+instance {m : (α : Type u) → [MeasurableSpace α] → Type v} {α : Type u}
+    [MeasurableSpaceMonad m] [MeasurableSpace α] : [Nonempty α] → Nonempty (m α)
+  | ⟨x⟩ => ⟨mPure x⟩
+
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} {α β : Type u}
   [MeasurableSpace α] [MeasurableSpace β]
 
