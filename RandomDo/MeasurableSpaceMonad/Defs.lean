@@ -28,6 +28,7 @@ instance.
 `MeasurableSpaceMonad` satisfies the laws of a monad on measurable spaces.
 * `Monad.toMeasurableSpaceMonad`: transforms a core monad into a measurable space monad by
 forgetting the measurable space argument.
+* `MId`: the identity measurable space monad.
 
 ## Notation
 
@@ -161,6 +162,12 @@ instance {m : Type u → Type v} [Monad m] :
   mPure := pure
   mBind := bind
 
+/-- The identity measurable space monad. -/
+abbrev MId := Monad.toMeasurableSpaceMonad _root_.Id
+
+instance {α : Type*} [MeasurableSpace α] : MeasurableSpace (MId α) :=
+  inferInstanceAs (MeasurableSpace α)
+
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} {α β : Type u}
   [MeasurableSpace α] [MeasurableSpace β]
 
@@ -247,6 +254,15 @@ export LawfulMeasurableSpaceMonad
 attribute [fun_prop] measurable_mPure measurable_mBind
 attribute [simp] mPure_mBind mBind_assoc mBind_mPure_comp
 attribute [grind <=] mPure_mBind
+
+instance : LawfulMeasurableSpaceMonad MId where
+  mMap_const := rfl
+  id_mMap _ := rfl
+  measurable_mPure {_} _ := measurable_id
+  measurable_mBind hf := hf
+  mBind_mPure_comp _ _ := rfl
+  mPure_mBind _ _ _ := rfl
+  mBind_assoc _ _ _ _ _ := rfl
 
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpaceMonad m]
   [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)] [LawfulMeasurableSpaceMonad m]
