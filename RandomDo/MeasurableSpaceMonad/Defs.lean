@@ -163,7 +163,7 @@ instance {m : Type u → Type v} [Monad m] :
   mBind := bind
 
 /-- The identity measurable space monad. -/
-abbrev MId := Monad.toMeasurableSpaceMonad _root_.Id
+abbrev MId := Monad.toMeasurableSpaceMonad Id
 
 instance {α : Type*} [MeasurableSpace α] : MeasurableSpace (MId α) :=
   inferInstanceAs (MeasurableSpace α)
