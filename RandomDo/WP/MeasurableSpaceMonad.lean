@@ -18,11 +18,11 @@ of core Lean's `WPMonad`.
 
 @[expose] public section
 
-open Lean.Order MeasureTheory
-
-namespace Std.WP
+open Lean.Order MeasureTheory Std.WP
 
 universe u v w w'
+
+namespace MeasureTheory
 
 /-- Weakest precondition measurable space monad: A measurable space monad `m` whose weakest
 precondition interpretation is sound for `mPure` and `mBind`.
@@ -80,6 +80,8 @@ theorem WPMeasurableSpaceMonad.mMap_le_wp_mMap
   apply WP.wp_consequence
   intro a; exact mPure_le_wp_mPure (f a) post epost hpost
 
+end MeasureTheory
+
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v}
   [MeasurableSpaceMonad m] [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)]
   {Pred : Type w} {EPred : Type w'} [Assertion Pred] [MeasurableSpace Pred] [Assertion EPred]
@@ -87,7 +89,7 @@ variable {m : (α : Type u) → [MeasurableSpace α] → Type v}
   {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
   {pre : Pred} {epost : EPred}
 
-namespace Triple
+namespace Std.WP.Triple
 
 theorem mPure {post : α → Pred} (a : α) (h : pre ⊑ post a) (hpost : Measurable post) :
     Triple (MeasureTheory.mPure (f := m) a) pre post epost :=
@@ -109,7 +111,9 @@ theorem mMap {post : β → Pred} (f : α → β) (x : m α)
   ⟨PartialOrder.rel_trans h.le_wp
     (WPMeasurableSpaceMonad.mMap_le_wp_mMap f x hf post epost hpost)⟩
 
-end Triple
+end Std.WP.Triple
+
+namespace MeasureTheory.WP
 
 @[spec] theorem Spec.mPure (a : α) {post : α → Pred} (hpost : Measurable post) :
     Triple (MeasureTheory.mPure (f := m) a) (post a) post epost :=
@@ -127,4 +131,4 @@ end Triple
     Triple (f <$>ₘ x) (wp x (fun a => post (f a)) epost) post epost :=
   Triple.mMap f x (Triple.intro PartialOrder.rel_refl) hf hpost
 
-end Std.WP
+end MeasureTheory.WP

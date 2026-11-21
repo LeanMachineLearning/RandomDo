@@ -16,9 +16,9 @@ of any file.
 | [MeasurableSpaceMonad/Defs.lean](RandomDo/MeasurableSpaceMonad/Defs.lean) | Approved | 2026-11-17 |
 | [MeasurableSpaceMonad/ForIn.lean](RandomDo/MeasurableSpaceMonad/ForIn.lean) | Approved | 2026-11-17 |
 | [MeasurableSpaceMonad/ForInInstances/Iterators/Loop.lean](RandomDo/MeasurableSpaceMonad/ForInInstances/Iterators/Loop.lean) | Needs re-review through `LawfulMeasurableSpaceIteratorLoop`: producer generalized to a measurable monad, state/output spaces moved to class parameters, and termination relations adapted. Pure/core compatibility moved to `CoreLoop.lean`. Loop operations and associated lemmas renamed to `mForIn`/`mForIn'`. Later declarations and new `Basic.lean`/`Core.lean` remain pending. | 2026-11-15 |
-| [WP/MeasurableSpaceMonad.lean](RandomDo/WP/MeasurableSpaceMonad.lean) | Approved (including the relocated spec lemmas) | 2026-11-17 |
+| [WP/MeasurableSpaceMonad.lean](RandomDo/WP/MeasurableSpaceMonad.lean) | Needs re-review: moved the class and its associated laws to `MeasureTheory`, and the generic specification rules to `MeasureTheory.WP.Spec`; the triple lemmas remain in `Std.WP.Triple`. | 2026-11-17 |
 | [WP/ForIn.lean](RandomDo/WP/ForIn.lean) | Approved outside `section Loop`; the loop implementation and specifications now await review. Header/imports updated; collection definitions and proofs unchanged. | 2026-11-17 |
-| [RDo/Loop.lean](RandomDo/RDo/Loop.lean) | Approved | 2026-11-17 |
+| [RDo/Loop.lean](RandomDo/RDo/Loop.lean) | Needs re-review: updated the optional WP class lookup to `MeasureTheory.WPMeasurableSpaceMonad`; the elaboration logic is unchanged. | 2026-11-17 |
 
 Only explicit approval updates a file to this status. Passing builds or tests,
 assistant audits, and merged PRs do not establish approval.

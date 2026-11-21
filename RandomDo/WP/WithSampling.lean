@@ -18,9 +18,9 @@ stateful interpretation when `RandomDo.WP.PseudoRandom` is imported.
 
 @[expose] public section
 
-open MeasureTheory
+open Std.WP
 
-namespace Std.WP
+namespace MeasureTheory
 
 universe u v w w'
 
@@ -33,4 +33,4 @@ instance {tag : Type} {m : (α : Type u) → [MeasurableSpace α] → Type v}
     WPMeasurableSpaceMonad (WithSampling tag m) Pred EPred :=
   inferInstanceAs (WPMeasurableSpaceMonad m Pred EPred)
 
-end Std.WP
+end MeasureTheory

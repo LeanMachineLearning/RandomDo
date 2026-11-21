@@ -287,7 +287,7 @@ variable {β : Type u} {m : (α : Type u) → [MeasurableSpace α] → Type v}
     intro b
     rw [LawfulMeasurableSpaceLoop.mForIn_eq l b (f ()) hf]
     refine Triple.mBind (f () b)
-      (fun r => match r with | .done b' => mPure b' | .yield b' => mForIn l b' f)
+      (fun r => match r with | .done b' => MeasureTheory.mPure b' | .yield b' => mForIn l b' f)
       (fun r => match r with
         | .yield b' => measure.EvalsBelow b' n ⊓ inv false b'
         | .done b' => inv true b') (step b n) ?_ (by fun_prop) hinv

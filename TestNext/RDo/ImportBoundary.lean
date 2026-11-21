@@ -18,7 +18,7 @@ assert_not_exists MeasurableSpaceMonad MeasureTheory.Measure PseudoRandomM
   MeasureTheory.PseudoRandT MeasureTheory.PseudoRand NumLean.RandPCG
 
 -- The notation import does not require annotation wrappers or a measurable WP interpretation.
-assert_not_exists MeasureTheory.WP.mForInPureWithInvariant Std.WP.WPMeasurableSpaceMonad
+assert_not_exists MeasureTheory.WP.mForInPureWithInvariant MeasureTheory.WPMeasurableSpaceMonad
 
 open MeasureTheory
 

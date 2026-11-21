@@ -193,8 +193,8 @@ instance goals. Analogue of `do` notation's `Lean.Elab.Do.assertionLanguage?`.
 Compared to core, aliases along the assertion type's function arguments are unfolded so the
 shared helpers correctly count and type assertion binders. -/
 private def assertionLanguage? : DoElabM (Option Expr) := do
-  unless (← getEnv).contains ``Std.WP.WPMeasurableSpaceMonad do return none
-  let wpMonad ← mkConstWithFreshMVarLevels ``Std.WP.WPMeasurableSpaceMonad
+  unless (← getEnv).contains ``MeasureTheory.WPMeasurableSpaceMonad do return none
+  let wpMonad ← mkConstWithFreshMVarLevels ``MeasureTheory.WPMeasurableSpaceMonad
   let (args, _, _) ← forallMetaTelescope (← inferType wpMonad)
   let some m := args[0]? | return none
   unless ← isDefEq m (← read).monadInfo.m do return none

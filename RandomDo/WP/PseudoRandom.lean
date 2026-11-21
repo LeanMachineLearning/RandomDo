@@ -23,9 +23,9 @@ the state returned by the computation. They do not change execution or the logic
 
 @[expose] public section
 
-open MeasureTheory Lean.Order
+open Lean.Order Std.WP
 
-namespace Std.WP
+namespace MeasureTheory
 
 universe u v w w'
 
@@ -62,4 +62,4 @@ instance {σ : Type} [MeasurableSpace σ] [Countable σ] [MeasurableSingletonCla
       (x.run s) (fun p => (f p.1).run p.2) (fun p => post p.1 p.2) epost
         (by fun_prop) hpost.uncurry
 
-end Std.WP
+end MeasureTheory

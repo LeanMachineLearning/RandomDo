@@ -18,9 +18,9 @@ its result does. This also supplies the base interpretation for `PseudoRand`.
 
 @[expose] public section
 
-open MeasureTheory Lean.Order
+open Lean.Order Std.WP
 
-namespace Std.WP
+namespace MeasureTheory
 
 #check Std.WP.Id.instWPMonad
 
@@ -30,4 +30,4 @@ instance : WPMeasurableSpaceMonad MId Prop EStack⟨⟩ where
   mPure_le_wp_mPure _ _ _ _ := PartialOrder.rel_refl
   mBind_le_wp_mBind _ _ _ _ _ _ := PartialOrder.rel_refl
 
-end Std.WP
+end MeasureTheory
