@@ -26,6 +26,9 @@ instance.
 `MeasurableSpaceFunctor` satisfies the laws of a functor on measurable spaces.
 * `LawfulMeasurableSpaceMonad`: A `Prop`-valued typeclass which states that a given
 `MeasurableSpaceMonad` satisfies the laws of a monad on measurable spaces.
+* `Monad.toMeasurableSpaceMonad`: transforms a core monad into a measurable space monad by
+forgetting the measurable space argument.
+* `MId`: the identity measurable space monad.
 
 ## Notation
 
@@ -149,6 +152,22 @@ class MeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Type 
     extends MeasurableSpaceFunctor m, MeasurableSpacePure m, MeasurableSpaceBind m where
   mMap f μ := mBind μ (Function.comp mPure f)
 
+/-- A (core) monad automatically defines a (not necessarily lawful) measurable space monad by
+forgetting the measurable space argument. -/
+def _root_.Monad.toMeasurableSpaceMonad (m : Type u → Type v) (α : Type u)
+    [_mα : MeasurableSpace α] : Type v := m α
+
+instance {m : Type u → Type v} [Monad m] :
+    MeasurableSpaceMonad (Monad.toMeasurableSpaceMonad m) where
+  mPure := pure
+  mBind := bind
+
+/-- The identity measurable space monad. -/
+abbrev MId := Monad.toMeasurableSpaceMonad Id
+
+instance {α : Type*} [MeasurableSpace α] : MeasurableSpace (MId α) :=
+  inferInstanceAs (MeasurableSpace α)
+
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} {α β : Type u}
   [MeasurableSpace α] [MeasurableSpace β]
 
@@ -235,6 +254,15 @@ export LawfulMeasurableSpaceMonad
 attribute [fun_prop] measurable_mPure measurable_mBind
 attribute [simp] mPure_mBind mBind_assoc mBind_mPure_comp
 attribute [grind <=] mPure_mBind
+
+instance : LawfulMeasurableSpaceMonad MId where
+  mMap_const := rfl
+  id_mMap _ := rfl
+  measurable_mPure {_} _ := measurable_id
+  measurable_mBind hf := hf
+  mBind_mPure_comp _ _ := rfl
+  mPure_mBind _ _ _ := rfl
+  mBind_assoc _ _ _ _ _ := rfl
 
 variable {m : (α : Type u) → [MeasurableSpace α] → Type v} [MeasurableSpaceMonad m]
   [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)] [LawfulMeasurableSpaceMonad m]

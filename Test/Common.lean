@@ -21,16 +21,6 @@ open MeasureTheory ProbabilityTheory
 
 @[expose] public section
 
-universe u
-
-/-- A deterministic `MeasurableSpaceMonad`. An `rdo` program written at `IdM` denotes a value, so
-the tests can state what a program computes and not merely that it typechecks. -/
-abbrev IdM := Monad.toMeasurableSpaceMonad Id
-
-/-- Read the value out of a deterministic `rdo` program. `IdM α` is definitionally `α` but not
-reducibly so, which is what otherwise stops numerals and `rfl` from seeing through it. -/
-def IdM.run {α : Type u} [MeasurableSpace α] (x : IdM α) : α := x
-
 /-- The fair coin, as a probability measure on `Bool`. -/
 noncomputable def fairCoin : Measure Bool := bernoulliMeasure true false ⟨(1 : ℝ) / 2, by norm_num⟩
 
