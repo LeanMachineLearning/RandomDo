@@ -30,7 +30,7 @@ variable {m : (α : Type u) → [MeasurableSpace α] → Type v}
   {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
   {pre : Pred} {epost : EPred}
 
-namespace Std.WP
+namespace MeasureTheory
 
 /-- Weakest precondition measurable space monad: A measurable space monad `m` whose weakest
 precondition interpretation is sound for `mPure` and `mBind`.
@@ -73,9 +73,8 @@ instance (priority := low) WPMeasurableSpaceMonad.instWP
     [inst : WPMeasurableSpaceMonad m Pred EPred] : WP (m α) α Pred EPred :=
   inst.toWP α
 
-variable [WPMeasurableSpaceMonad m Pred EPred]
-
-theorem WPMeasurableSpaceMonad.mMap_le_wp_mMap (f : α → β) (x : m α) (hf : Measurable f) :
+theorem WPMeasurableSpaceMonad.mMap_le_wp_mMap [WPMeasurableSpaceMonad m Pred EPred]
+    (f : α → β) (x : m α) (hf : Measurable f) :
     ∀ post epost, Measurable post →
       wp x (fun a => post (f a)) epost ⊑ wp (f <$>ₘ x) post epost := by
   intro post epost hpost
@@ -85,7 +84,11 @@ theorem WPMeasurableSpaceMonad.mMap_le_wp_mMap (f : α → β) (x : m α) (hf : 
   apply WP.wp_consequence
   intro a; exact mPure_le_wp_mPure (f a) post epost hpost
 
-namespace Triple
+end MeasureTheory
+
+namespace Std.WP.Triple
+
+variable [WPMeasurableSpaceMonad m Pred EPred]
 
 theorem mPure {post : α → Pred} (a : α) (h : pre ⊑ post a) (hpost : Measurable post) :
     Triple (MeasureTheory.mPure (f := m) a) pre post epost :=
@@ -107,7 +110,13 @@ theorem mMap {post : β → Pred} (f : α → β) (x : m α)
   ⟨PartialOrder.rel_trans h.le_wp
     (WPMeasurableSpaceMonad.mMap_le_wp_mMap f x hf post epost hpost)⟩
 
-end Triple
+end Std.WP.Triple
+
+namespace MeasureTheory.WP
+
+section MonadSpec
+
+variable [WPMeasurableSpaceMonad m Pred EPred]
 
 @[spec] theorem Spec.mPure (a : α) {post : α → Pred} (hpost : Measurable post) :
     Triple (MeasureTheory.mPure (f := m) a) (post a) post epost :=
@@ -125,11 +134,9 @@ end Triple
     Triple (f <$>ₘ x) (wp x (fun a => post (f a)) epost) post epost :=
   Triple.mMap f x (Triple.intro PartialOrder.rel_refl) hf hpost
 
-end Std.WP
+end MonadSpec
 
 section Assert
-
-namespace MeasureTheory.WP
 
 set_option linter.unusedVariables false in
 /-- A no-op computation used as a verification gadget to inject assertions into the program.
@@ -151,6 +158,6 @@ variable [WPMeasurableSpaceMonad m Pred EPred]
     (Triple.mPure (m := m) (pre := as ⊓ (as ⇨ post ⟨⟩)) (post := post) (epost := epost)
       ⟨⟩ meet_himp_le (by fun_prop))
 
-end MeasureTheory.WP
-
 end Assert
+
+end MeasureTheory.WP
