@@ -7,6 +7,7 @@ module
 
 public import RandomDo.MeasurableSpaceMonad.Defs
 public import Std.WP.Triple.SpecLemmas
+public import Std.WP.Monad.Instances
 public import Std.WP.Gadget.Assert
 
 /-!
@@ -53,6 +54,15 @@ class WPMeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Typ
       (toWP β).wp (x >>=ₘ f) post epost
 
 attribute [fun_prop] WPMeasurableSpaceMonad.measurable_wp
+
+-- Reuse core's `Id` weakest-precondition interpretation for `MId`.
+#check Std.WP.Id.instWPMonad
+
+instance : WPMeasurableSpaceMonad MId Prop EStack⟨⟩ where
+  toWP _ := inferInstanceAs (WP (Id _) _ Prop EStack⟨⟩)
+  measurable_wp hpost _ := hpost
+  mPure_le_wp_mPure _ _ _ _ := PartialOrder.rel_refl
+  mBind_le_wp_mBind _ _ _ _ _ _ := PartialOrder.rel_refl
 
 end Std.WP
 
