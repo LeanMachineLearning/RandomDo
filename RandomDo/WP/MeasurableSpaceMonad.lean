@@ -24,6 +24,12 @@ open Lean.Order MeasureTheory Std.WP
 
 universe u v w w'
 
+variable {m : (α : Type u) → [MeasurableSpace α] → Type v}
+  [MeasurableSpaceMonad m] [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)]
+  {Pred : Type w} {EPred : Type w'} [Assertion Pred] [MeasurableSpace Pred] [Assertion EPred]
+  {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
+  {pre : Pred} {epost : EPred}
+
 namespace Std.WP
 
 /-- Weakest precondition measurable space monad: A measurable space monad `m` whose weakest
@@ -55,24 +61,11 @@ class WPMeasurableSpaceMonad (m : (α : Type u) → [MeasurableSpace α] → Typ
 
 attribute [fun_prop] WPMeasurableSpaceMonad.measurable_wp
 
--- Reuse core's `Id` weakest-precondition interpretation for `MId`.
-#check Std.WP.Id.instWPMonad
-
 instance : WPMeasurableSpaceMonad MId Prop EStack⟨⟩ where
   toWP _ := inferInstanceAs (WP (Id _) _ Prop EStack⟨⟩)
   measurable_wp hpost _ := hpost
   mPure_le_wp_mPure _ _ _ _ := PartialOrder.rel_refl
   mBind_le_wp_mBind _ _ _ _ _ _ := PartialOrder.rel_refl
-
-end Std.WP
-
-variable {m : (α : Type u) → [MeasurableSpace α] → Type v}
-  [MeasurableSpaceMonad m] [∀ α, [MeasurableSpace α] → MeasurableSpace (m α)]
-  {Pred : Type w} {EPred : Type w'} [Assertion Pred] [MeasurableSpace Pred] [Assertion EPred]
-  {α β : Type u} [MeasurableSpace α] [MeasurableSpace β]
-  {pre : Pred} {epost : EPred}
-
-namespace Std.WP
 
 /-- A monadic `WP` interpretation is sourced from the monad's `WPMeasurableSpaceMonad` instance.
 Low priority so a program type with a bespoke `WP` (e.g. a non-monadic one) is preferred. -/
